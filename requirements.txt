@@ -28,3 +28,5 @@ pydantic-settings==2.2.1
 import-linter==2.0
 structlog==24.1.0
 slowapi==0.1.9
+onnx==1.15.0
+onnxruntime==1.17.1

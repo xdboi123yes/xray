@@ -17,6 +17,9 @@ import torch
 
 from core.models.factory import ModelFactory
 from infrastructure.export.onnx_exporter import ONNXModelExporter
+import core.models.tier1_mobilenet  # registers mobilenet_v2
+import core.models.tier2_efficientnet  # registers efficientnet_b4
+import core.models.tier2_ark  # registers ark_plus
 
 
 def main() -> None:
@@ -62,8 +65,11 @@ def main() -> None:
 
     if weights_path.exists():
         print(f"Loading trained weights from: {weights_path}...")
-        state_dict = torch.load(weights_path, map_location="cpu")
-        model.load_state_dict(state_dict)
+        state = torch.load(weights_path, map_location="cpu")
+        if isinstance(state, dict) and "model_state_dict" in state:
+            model.load_state_dict(state["model_state_dict"])
+        else:
+            model.load_state_dict(state)
     else:
         print(f"Weights file not found at {weights_path}. Exporting random-initialized model.")
 
