@@ -22,3 +22,4 @@ class TrainingConfigDTO(BaseModel):
     early_stopping_patience: int = Field(7, ge=1, description="Patience epochs before early termination.")
     seed: int = Field(42, description="Randomization seed state.")
     use_synthetic: bool = Field(True, description="True to inject synthetic image sets into Pneumothorax classes.")
+    num_workers: int = Field(0, ge=0, description="Number of workers for multiprocess dataloading (0 for single-process).")

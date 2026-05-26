@@ -103,10 +103,10 @@ class TrainingService:
             transform=val_transform,
         )
 
-        # Dynamic number of workers to prevent CPU/IO bottleneck on high-performance GPUs
-        num_workers = 4
-        if device.type == "cuda":
-            num_workers = 8
+        # Read worker count from config DTO, fall back to optimized defaults if not specified (0)
+        num_workers = config_dto.num_workers
+        if num_workers == 0:
+            num_workers = 8 if device.type == "cuda" else 4
 
         train_loader = DataLoader(
             train_dataset,
