@@ -131,7 +131,7 @@ class NIHChestXrayDataset(Dataset[tuple[torch.Tensor, torch.Tensor, str]]):
         if self.transform:
             # Albumentations expects numpy arrays
             image_np = np.array(image)
-            augmented = self.transform(image_np)
+            augmented = self.transform(image=image_np)
             image_val = augmented["image"]
             if isinstance(image_val, torch.Tensor):
                 image_tensor = image_val
