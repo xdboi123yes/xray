@@ -177,6 +177,12 @@ def main() -> None:
         default=42,
         help="Random seed for reproducibility. / Rastgelelik çekirdeği.",
     )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="outputs/results/statistical_comparison.csv",
+        help="Output CSV path. / Çıktı CSV dosyasının kaydedileceği yol.",
+    )
     args = parser.parse_args()
 
     print(
@@ -229,8 +235,8 @@ def main() -> None:
     )
 
     # Create CSV outputs
-    os.makedirs("outputs/results", exist_ok=True)
-    csv_path = "outputs/results/statistical_comparison.csv"
+    csv_path = args.output
+    os.makedirs(os.path.dirname(csv_path) if os.path.dirname(csv_path) else ".", exist_ok=True)
 
     rows = []
     for comp in [comp_eff_ark, comp_t1_tiered, comp_ark_tiered]:
