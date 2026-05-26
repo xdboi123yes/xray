@@ -78,14 +78,27 @@ class TrainingService:
         model = ModelFactory.create(config_dto.backbone)
         model.to(device)
 
-        # 2. Build training and validation datasets
+        # 2. Build training and validation datasets with proper transforms (resizing, augmentations, normalization)
+        from core.augmentation.classical import ClassicalAugmentation
+
+        train_transform = ClassicalAugmentation(
+            image_size=self.settings.data.image_size, is_training=True
+        )._pipeline
+        val_transform = ClassicalAugmentation(
+            image_size=self.settings.data.image_size, is_training=False
+        )._pipeline
+
         train_dataset = NIHChestXrayDataset(
             csv_file=train_csv,
+            transform=train_transform,
             use_synthetic=config_dto.use_synthetic,
             synthetic_dir=self.settings.paths.data_synthetic,
             synthetic_csv=os.path.join(self.settings.paths.data_synthetic, "synthetic.csv"),
         )
-        val_dataset = NIHChestXrayDataset(csv_file=val_csv)
+        val_dataset = NIHChestXrayDataset(
+            csv_file=val_csv,
+            transform=val_transform,
+        )
 
         train_loader = DataLoader(
             train_dataset,
