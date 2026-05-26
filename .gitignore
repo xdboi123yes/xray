@@ -1,15 +1,172 @@
+# ──────────────────────────────────────────────────────────────────
 # Python
+# ──────────────────────────────────────────────────────────────────
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ──────────────────────────────────────────────────────────────────
+# Virtual environments
+# ──────────────────────────────────────────────────────────────────
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ──────────────────────────────────────────────────────────────────
+# Linters / type checkers / cache
+# ──────────────────────────────────────────────────────────────────
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
 .import_linter_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
 
-# Ortam Değişkenleri ve Loglar
-.env
+# ──────────────────────────────────────────────────────────────────
+# Logs
+# ──────────────────────────────────────────────────────────────────
 logs/
-outputs/
+*.log
 
-# Sistem Dosyaları
+# ──────────────────────────────────────────────────────────────────
+# Data — NEVER push (45+ GB NIH dataset)
+# ──────────────────────────────────────────────────────────────────
+data/raw/
+data/processed/
+data/synthetic/
+data/interim/
+data/external/
+data/*.csv
+data/*.tar.gz
+data/*.zip
+!data/.gitkeep
+!data/README.md
+
+# ──────────────────────────────────────────────────────────────────
+# Model weights & training outputs (large binaries)
+# ──────────────────────────────────────────────────────────────────
+outputs/
+*.pth
+*.pt
+*.onnx
+*.tar
+*.tar.gz
+*.ckpt
+*.safetensors
+*.bin
+*.h5
+
+# ──────────────────────────────────────────────────────────────────
+# MLflow & experiment tracking
+# ──────────────────────────────────────────────────────────────────
+experiments/mlruns/
+experiments/mlflow.db
+mlruns/
+mlflow.db
+mlflow-artifacts/
+
+# ──────────────────────────────────────────────────────────────────
+# Secrets / credentials — NEVER push
+# ──────────────────────────────────────────────────────────────────
+kaggle.json
+.kaggle/
+*.pem
+*.key
+secrets.yaml
+secrets.json
+.secrets/
+credentials.json
+
+# ──────────────────────────────────────────────────────────────────
+# Jupyter
+# ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# ──────────────────────────────────────────────────────────────────
+# Node / Frontend
+# ──────────────────────────────────────────────────────────────────
+node_modules/
+web/node_modules/
+web/dist/
+web/build/
+web/.next/
+web/.cache/
+.npm
+.yarn-integrity
+*.tsbuildinfo
+
+# ──────────────────────────────────────────────────────────────────
+# OS
+# ──────────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ──────────────────────────────────────────────────────────────────
+# IDE
+# ──────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# ──────────────────────────────────────────────────────────────────
+# Docker
+# ──────────────────────────────────────────────────────────────────
+.docker/
+docker-compose.override.yml
+
+# ──────────────────────────────────────────────────────────────────
+# Other temporary files
+# ──────────────────────────────────────────────────────────────────
+*.tmp
+*.bak
+*.orig
+*.rej
+tmp/
+temp/
+.cache/
+
+# ──────────────────────────────────────────────────────────────────
+# Colab transient flags
+# ──────────────────────────────────────────────────────────────────
+.deps_installed

@@ -1,100 +1,215 @@
 # Tiered Confidence-Based Chest X-Ray Pathology Classification
 
-This project implements a Tiered Confidence-Based Inference System for chest X-ray pathology classification, specifically targeting pneumothorax detection. The system dynamically routes each input image through either a lightweight fast model (MobileNetV2) or a deep, computationally expensive model (EfficientNetB4) based on a confidence threshold evaluated at inference time.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_training_auto.ipynb)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 2.2](https://img.shields.io/badge/PyTorch-2.2-orange.svg)](https://pytorch.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Setup Instructions
+A Tiered Confidence-Based Inference System for chest X-ray pathology classification (pneumothorax detection).
+At inference time, each image is dynamically routed through a lightweight fast model (**MobileNetV2**)
+or a deeper, more expensive model (**EfficientNet-B4** / **Ark+ Swin**) based on a confidence threshold.
 
-### 1. Environment Setup
+---
 
-It is recommended to use a virtual environment (like `venv` or `conda`).
+## 🚀 Quick Start — Train on Colab
+
+Click the **Open in Colab** badge above, select a T4 GPU, and run cells top-to-bottom with `Shift+Enter`.
+The notebook automates everything end-to-end:
+
+1. Clones the repo from GitHub
+2. Installs dependencies (with automatic kernel restart)
+3. Downloads the NIH ChestX-ray14 dataset from Kaggle
+4. Preprocesses and splits the data (train/val/test/calibration)
+5. Downloads the Ark+ checkpoint (with Swin-Base ImageNet fallback)
+6. Trains **Tier 1 (MobileNetV2)** + **Tier 2 (EffNet-B4)** + **Tier 2 (Ark+ Swin)**
+7. Performs temperature calibration and computes ECE
+8. Runs the ablation matrix (A8–A15)
+9. Runs statistical tests (DeLong + Bootstrap)
+10. Exports models to ONNX with INT8 quantization
+11. Syncs outputs to Drive and downloads a single ZIP
+
+The only manual step is uploading `kaggle.json` (Kaggle Account > API > Create New Token).
+
+---
+
+## 🛠️ Local Setup
+
+### 1. Environment
 
 ```bash
-# Create and activate a virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-
-# Install dependencies
+source venv/bin/activate            # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+pip install -r requirements-training.txt    # additional training-only deps
 ```
 
-### 2. Dataset Preparation
+### 2. Dataset
 
-This project uses the NIH ChestX-ray14 dataset.
+The NIH ChestX-ray14 dataset is required:
 
-1. Download the NIH ChestX-ray14 dataset from Kaggle or the NIH National Library of Medicine.
-2. Ensure the `Data_Entry_2017.csv` metadata file is placed in `data/raw/`.
-3. Extract the image files. By default, the dataset script expects the images to be in a single directory which you will provide to the dataset class.
+- Place `Data_Entry_2017.csv` in `data/raw/`
+- Extract all `.png` images into a single flat directory (default: `data/raw/images/`)
 
-### 3. Preprocessing
-
-Split the data into training, validation, and test sets.
+Using the Kaggle CLI:
 
 ```bash
-python scripts/preprocess.py
+kaggle datasets download -d nih-chest-xrays/data -p data/raw --unzip
 ```
 
-This script will:
+### 3. Preprocess
 
-- Read `Data_Entry_2017.csv` from `data/raw/`.
-- Filter for 'Pneumothorax' and 'No Finding' classes.
-- Perform a stratified split based on the ratios defined in `config.yaml` (default: 70/15/15).
-- Save `train.csv`, `val.csv`, and `test.csv` in `data/processed/`.
+```bash
+python scripts/preprocess.py --image-dir data/raw/images
+```
+
+Produces `train.csv`, `val.csv`, `test.csv`, and `image_dir.txt` under `data/processed/`.
+Filters for Pneumothorax and No Finding classes, with 5:1 class balancing.
 
 ### 4. Configuration
 
-All hyperparameters for model architecture, training, data augmentation, and evaluation are centralized in `config.yaml`. Review and adjust these parameters before running training scripts or experiments.
+All hyperparameters live in `config.yaml`. Review before training.
 
-### 5. Tracking
+### 5. Training
 
-This project uses MLflow for experiment tracking. Logs and artifacts will be saved by default to the `experiments/mlruns` directory.
+Programmatic API (matches the notebook):
 
-### 6. Training
+```python
+from application.dto.training_config_dto import TrainingConfigDTO
+from application.services.training_service import TrainingService
 
-To train the lightweight Tier 1 model:
-```bash
-python scripts/train_tier1.py
+cfg = TrainingConfigDTO(
+    backbone='mobilenet_v2',
+    run_name='Tier1_Local',
+    epochs=50,
+    batch_size=32,
+    lr_backbone=1e-4,
+    lr_head=1e-3,
+    early_stopping_patience=7,
+    seed=42,
+    use_synthetic=False,
+)
+TrainingService().train_model(cfg)
 ```
 
-To train the deep Tier 2 model:
+Or via CLI:
+
 ```bash
+python scripts/train_tier1.py
 python scripts/train_tier2.py
 ```
 
-### 7. Synthetic Data Augmentation
+Output: `outputs/models/<run_name>/best_model.pth`.
 
-Generate high-quality synthetic Pneumothorax images using Stable Diffusion to combat class imbalance:
+### 6. MLflow Tracking
+
+```bash
+mlflow ui --backend-store-uri experiments/mlruns
+```
+
+Open `http://localhost:5000`.
+
+### 7. Synthetic Data (optional)
+
+Generate synthetic Pneumothorax samples using Stable Diffusion:
+
 ```bash
 python scripts/generate_synthetics.py
 ```
 
-### 8. Clinical Statistical Tests & DCA Evaluations
+### 8. Clinical Statistical Tests
 
-To run DeLong tests, McNemar accuracy comparison, Decision Curve Analysis (DCA), and bootstrap CI calculations:
-```bash
-python -m scripts.statistical_tests
-```
-
-### 9. FastAPI Backend & React Frontend (Clinician Suite)
-
-To launch the system locally:
+DeLong, McNemar, DCA, Bootstrap CIs:
 
 ```bash
-# Start the FastAPI Backend service (Port 8000)
-make serve-api
-
-# Start the React Frontend interface (Port 5173 / Port 3000)
-make serve-frontend
+python scripts/statistical_tests.py --output outputs/results/statistical_comparison.csv
 ```
 
-### 10. Single-Command Docker Orchestration (Production-Ready)
+### 9. Ablation Matrix
 
-To launch the entire microservice architecture (FastAPI, React, Nginx Proxy, and MLflow) with one command:
+A8–A15 ablation experiments:
+
+```python
+from application.orchestration.ablation_runner import AblationRunner
+AblationRunner().run_all(dry_run=False)
+```
+
+Then regenerate the honest `ablation.json`:
 
 ```bash
-# Developer Environment (Port 3000 -> Frontend, Port 8000 -> API, Port 5000 -> MLflow)
-make serve
-
-# Production Environment (Port 80 -> Frontend, resource limits enabled)
-make serve-prod
+python scripts/build_ablation_json.py
 ```
 
+### 10. ONNX Export
+
+```bash
+python scripts/export_onnx.py --model tier1
+python scripts/export_onnx.py --model tier2 --quantize
+```
+
+### 11. FastAPI Backend + React Frontend
+
+```bash
+make serve-api          # port 8000
+make serve-frontend     # port 5173
+```
+
+### 12. Docker Compose (production-ready)
+
+```bash
+make serve              # dev: 3000 / 8000 / 5000
+make serve-prod         # prod: port 80, resource limits enabled
+```
+
+---
+
+## 📁 Project Structure
+
+```
+xray/
+├── application/                # Use cases / DTOs / services
+│   ├── dto/
+│   ├── services/               # TrainingService, CalibrationService, ...
+│   └── orchestration/          # AblationRunner
+├── core/                       # Domain models, interfaces, evaluation
+│   ├── models/                 # Tier 1/2 backbones (factory pattern)
+│   ├── uncertainty/            # Temperature scaling, conformal prediction
+│   └── evaluation/             # Stats (DeLong, bootstrap, McNemar)
+├── infrastructure/             # Data, persistence, training framework
+│   ├── data/                   # NIHChestXrayDataset
+│   └── training/               # Trainer, observers (checkpoint, mlflow, ...)
+├── scripts/                    # CLI entry points
+├── notebooks/                  # Colab + analysis notebooks
+├── web/                        # React frontend + FastAPI backend
+├── docker/                     # Dockerfiles
+├── config.yaml                 # Centralized configuration
+└── requirements*.txt
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+pytest tests/ -v
+```
+
+Lint and type checks:
+
+```bash
+ruff check .
+mypy .
+lint-imports                    # import-linter
+```
+
+---
+
+## 📚 More
+
+- **CHANGELOG.md** — release history
+- **CONTRIBUTING.md** — contribution guide
+
+---
+
+## 📜 License
+
+MIT — see [LICENSE](LICENSE).
