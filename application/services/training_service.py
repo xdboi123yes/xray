@@ -136,6 +136,7 @@ class TrainingService:
 
         # 4. Class-weighted Loss Criterion
         criterion = get_class_weighted_loss(train_csv)
+        criterion = criterion.to(device)
 
         # 5. Initialize training runtime settings dictionary
         epochs = 1 if dry_run else config_dto.epochs

@@ -49,7 +49,7 @@ class Trainer:
         """
         self.model = model
         self.optimizer = optimizer
-        self.criterion = criterion
+        self.criterion = criterion.to(device)
         self.device = device
         self.config = config
         self.scheduler = scheduler
