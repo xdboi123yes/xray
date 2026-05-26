@@ -32,6 +32,11 @@ def main() -> None:
         choices=["efficientnet_b4", "ark_plus"],
         help="Tier 2 backbone network model type",
     )
+    parser.add_argument(
+        "--no-mc-tta",
+        action="store_true",
+        help="Disable MC dropout and TTA (inference-only compatibility flag).",
+    )
     args = parser.parse_args()
 
     # DTO mapping for Tier 2 backbone network
