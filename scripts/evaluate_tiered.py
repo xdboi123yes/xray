@@ -64,6 +64,10 @@ def main() -> None:
     
     tier1_path = 'outputs/models/best_tier1_mobilenet.pth'
     tier2_path = f'outputs/models/best_tier2_{args.tier2_backbone}.pth'
+    if args.tier2_backbone == 'ark_plus' and not os.path.exists(tier2_path):
+        fallback_path = 'outputs/models/best_tier2_arkplus.pth'
+        if os.path.exists(fallback_path):
+            tier2_path = fallback_path
     
     if not os.path.exists(tier1_path) or not os.path.exists(tier2_path):
         print(f"Warning: Trained model weights not found at {tier1_path} or {tier2_path}.")

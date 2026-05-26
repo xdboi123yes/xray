@@ -7,6 +7,11 @@ through the clean application service layer.
 from __future__ import annotations
 
 import argparse
+import os
+import sys
+
+# Add project root to sys.path to support standalone execution
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from application.dto.training_config_dto import TrainingConfigDTO
 from application.services.training_service import TrainingService
