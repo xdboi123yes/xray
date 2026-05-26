@@ -168,7 +168,9 @@ class Trainer:
 
         self.optimizer.zero_grad()
 
-        for batch_idx, batch in enumerate(loader):
+        from tqdm import tqdm
+        pbar = tqdm(enumerate(loader), total=len(loader), desc=f"Epoch {self.current_epoch:02d} [Train]", leave=True)
+        for batch_idx, batch in pbar:
             # Safe unpack: loader might yield (images, labels) or (images, labels, metadata)
             images = batch[0].to(self.device)
             labels = batch[1].to(self.device)
@@ -198,7 +200,10 @@ class Trainer:
                 self.scaler.update()
                 self.optimizer.zero_grad()
 
-            total_loss += loss.item() * self.accumulate_grad_batches * len(images)
+            running_loss = loss.item() * self.accumulate_grad_batches
+            total_loss += running_loss * len(images)
+            pbar.set_postfix(loss=f"{running_loss:.4f}")
+
             probs = torch.softmax(outputs, dim=1)[:, 1]
             preds_list.extend(probs.detach().cpu().numpy().tolist())
             targets_list.extend(labels.detach().cpu().numpy().tolist())
@@ -230,8 +235,10 @@ class Trainer:
         preds_list: list[float] = []
         targets_list: list[float] = []
 
+        from tqdm import tqdm
+        pbar = tqdm(loader, desc=f"Epoch {self.current_epoch:02d} [Val]", leave=True)
         with torch.no_grad():
-            for batch in loader:
+            for batch in pbar:
                 images = batch[0].to(self.device)
                 labels = batch[1].to(self.device)
 
@@ -240,6 +247,8 @@ class Trainer:
                     loss = self.criterion(outputs, labels)
 
                 total_loss += loss.item() * len(images)
+                pbar.set_postfix(loss=f"{loss.item():.4f}")
+
                 probs = torch.softmax(outputs, dim=1)[:, 1]
                 preds_list.extend(probs.cpu().numpy().tolist())
                 targets_list.extend(labels.cpu().numpy().tolist())
