@@ -69,6 +69,9 @@ class TrainingService:
             else ("cuda" if torch.cuda.is_available() else "cpu")
         )
 
+        if device.type == "cuda":
+            torch.backends.cudnn.benchmark = True
+
         log.info(
             f"[TrainingService] Initializing training for '{config_dto.backbone}' "
             f"on device '{device}'..."
