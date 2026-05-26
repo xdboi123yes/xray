@@ -1,0 +1,6 @@
+# Deep training and synthetic generation dependencies for Chest X-Ray system
+
+diffusers>=0.27
+transformers>=4.40
+accelerate>=0.29
+optuna>=3.6          # Hyperparameter sweep and optimization

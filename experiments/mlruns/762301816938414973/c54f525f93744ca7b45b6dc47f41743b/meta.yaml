@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/alperen/Desktop/xray project/experiments/mlruns/762301816938414973/c54f525f93744ca7b45b6dc47f41743b/artifacts
+end_time: 1779650448326
+entry_point_name: ''
+experiment_id: '762301816938414973'
+lifecycle_stage: active
+run_id: c54f525f93744ca7b45b6dc47f41743b
+run_name: A11_ArkPlus_Only_NoMCTTA
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1779650411285
+status: 3
+tags: []
+user_id: alperen

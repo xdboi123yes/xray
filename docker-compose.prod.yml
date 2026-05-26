@@ -1,0 +1,45 @@
+# ============================================================
+# Chest X-Ray Tiered Classification System
+# Docker Compose Production Environment Overrides File
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ============================================================
+
+services:
+  # ── FastAPI Backend API Production Overrides ──────────────
+  api:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          memory: 2G
+    volumes:
+      - ./data:/app/data:ro           # Mount dataset read-only in production
+      - ./outputs:/app/outputs        # SQLite db history and models registry
+      - ./logs:/app/logs
+
+  # ── Nginx + React Frontend Production Overrides ───────────
+  frontend:
+    restart: always
+    ports:
+      - "80:80"                      # Map directly to standard HTTP port 80 in production
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  # ── MLflow Tracking Production Overrides ──────────────────
+  mlflow:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          memory: 512M

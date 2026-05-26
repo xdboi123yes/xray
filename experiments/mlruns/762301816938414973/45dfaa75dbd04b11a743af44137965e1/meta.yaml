@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/alperen/Desktop/xray project/experiments/mlruns/762301816938414973/45dfaa75dbd04b11a743af44137965e1/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '762301816938414973'
+lifecycle_stage: active
+run_id: 45dfaa75dbd04b11a743af44137965e1
+run_name: DryRun_CheXpert
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1779650923810
+status: 1
+tags: []
+user_id: alperen

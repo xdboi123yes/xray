@@ -1,0 +1,27 @@
+\chapter{Metodoloji}
+\label{ch:metodoloji}
+
+Önerilen kademeli göğüs röntgeni sınıflandırma mimarisi Şekil \ref{fig:mimari} üzerinde gösterilmiştir. Sistem, görüntünün zorluk seviyesine göre hafif veya derin bir modeli aktif eden kademeli bir yönlendirme mantığına dayanmaktadır.
+
+\section{Kademeli Sınıflandırma Sistemi (Tiered System)}
+Sistemin ilk aşaması (Tier 1), hesaplama açısından verimli olan MobileNetV2 \cite{sandler2018mobilenetv2} modelidir. Verilen bir $x$ görüntüsü için birinci aşama modeli bir olasılık skoru $p_1$ ve bir belirsizlik değeri $u_1$ hesaplar. Belirlenen güven eşik değerleri (Thresholds) yardımıyla, birinci aşamanın yeterince emin olduğu ($u_1 < \tau$) durumlarda nihai tahmin Tier 1 tarafından verilir.
+
+Eğer model tahminden emin değilse ($u_1 \ge \tau$), görüntü ikinci aşamaya (Tier 2) yönlendirilir. İkinci aşamada EfficientNetB4 \cite{tan2019efficientnet} veya daha gelişmiş özellik haritalama yeteneklerine sahip olan Ark+ mimarisi kullanılır.
+
+\section{Güven ve Belirsizlik Analizi}
+Sistemde iki temel yöntemle belirsizlik analizi gerçekleştirilmiştir:
+\begin{enumerate}
+    \item \textbf{Monte Carlo Dropout:} Test aşamasında $T$ adet stokastik geçiş (stochastic forward pass) yapılarak tahminlerin varyansı ($\sigma^2$) ve entropisi belirsizlik metriği olarak kullanılır.
+    \item \textbf{Test-Time Augmentation (TTA):} Test görüntüsü döndürme, parlaklık değişimi vb. veri artırma işlemlerine tabi tutularak model tahminlerindeki dalgalanma gözlemlenir.
+\end{enumerate}
+
+\section{Conformal Prediction Entegrasyonu}
+Sistemin ürettiği tahminlerin güven aralıkları içerisinde yer almasını sağlamak için Conformal Prediction metodolojisi uygulanmıştır. Bir kalibrasyon veri seti (calibration set) kullanılarak kalibrasyon puanları (non-conformity scores) hesaplanır:
+\begin{equation}
+    s_i = 1 - \hat{f}(x_i)_{y_i}
+\end{equation}
+Belirlenen hata toleransı $\alpha$ değerine göre kuantul değeri $\hat{q}$ hesaplanır. Test aşamasında yeni bir $x_{test}$ görüntüsü için tahmin kümesi şu şekilde oluşturulur:
+\begin{equation}
+    C(x_{test}) = \{ y : 1 - \hat{f}(x_{test})_y \le \hat{q} \}
+\end{equation}
+Bu setin gerçek etiketleri içerme olasılığı en az $1-\alpha$ düzeyindedir.

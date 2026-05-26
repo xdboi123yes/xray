@@ -1,0 +1,44 @@
+model:
+  tier1_backbone: mobilenet_v2
+  tier2_backbone: efficientnet_b4
+  confidence_threshold: 0.75
+  threshold_window_size: 50
+  threshold_delta: 0.05
+  mc_dropout_passes: 20
+  tta_passes: 10
+
+training:
+  batch_size: 32
+  lr_backbone: 1e-4
+  lr_head: 1e-3
+  epochs: 50
+  early_stopping_patience: 7
+  seed: 42
+
+data:
+  image_size: 224
+  train_split: 0.70
+  val_split: 0.15
+  test_split: 0.15
+  synthetic_augmentation: true
+
+augmentation:
+  fid_threshold: 50.0
+  sd_num_inference_steps: 50
+  sd_guidance_scale: 7.5
+
+evaluation:
+  conformal_coverage: 0.95
+  ece_bins: 10
+  calibration_temperature: 1.0
+
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  data_synthetic: data/synthetic
+  image_dir: data/raw/images
+  models: outputs/models
+  results: outputs/results
+  figures: outputs/figures
+  thesis_figures: thesis/figures
+  logs: logs

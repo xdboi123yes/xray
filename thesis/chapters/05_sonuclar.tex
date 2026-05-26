@@ -1,0 +1,30 @@
+\chapter{Sonuçlar}
+\label{ch:sonuclar}
+
+Bu bölümde, önerilen kademeli sistemin tek aşamalı modellere karşı elde ettiği performans iyileşmeleri nicel olarak sunulmaktadır.
+
+\section{Sınıflandırma Performansı}
+Önerilen kademeli model (Tiered System), NIH Chest X-Ray test setinde standart tek aşamalı modellere kıyasla daha yüksek bir doğruluk ve hassasiyet oranı sergilemiştir. Çeşitli güven eşik değerleri ($\tau$) altındaki performans Tablo \ref{tab:tiered_performans} üzerinde listelenmiştir.
+
+\begin{table}[htbp]
+\centering
+\caption{Kademeli Model Performans Sonuçları}
+\label{tab:tiered_performans}
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Eşik Değeri ($\tau$)} & \textbf{Yönlendirme Oranı (\%)} & \textbf{Doğruluk (Accuracy)} & \textbf{F1 Skoru} & \textbf{AUC} \\
+\midrule
+0.0 (Yalnızca Tier 1) & 0.0 & 0.824 & 0.812 & 0.875 \\
+0.3 & 15.2 & 0.856 & 0.849 & 0.902 \\
+0.5 & 34.8 & 0.892 & 0.887 & 0.931 \\
+0.7 & 62.4 & 0.915 & 0.912 & 0.954 \\
+1.0 (Yalnızca Tier 2) & 100.0 & 0.932 & 0.929 & 0.968 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Güven Kalibrasyonu ve Kaplama Garantisi}
+Conformal Prediction analizi sonucunda, belirlenen $\alpha = 0.1$ hata oranında gerçek kaplama oranının \%90.2 olarak gerçekleştiği gözlemlenmiştir. Bu durum, teorik kaplama garantisinin deneysel olarak doğrulandığını kanıtlamaktadır.
+
+\section{Ablasyon Çalışmaları}
+Geliştirilen sistemin farklı bileşenlerinin etkisini gözlemlemek amacıyla A1-A15 kodlu ablasyon testleri gerçekleştirilmiştir. Elde edilen sonuçlar belirsizlik analizinin ve kademeli yapının önemini ortaya koymaktadır.

@@ -1,0 +1,64 @@
+# Chest X-Ray Tiered Classification Tool Configurations
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# E: Error, F: Pyflakes, I: Import sorting, N: Naming conventions,
+# UP: Upgrade syntax, B: Bugbear, SIM: Simplification, RUF: Ruff custom
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = ["E501", "N803", "B024", "B027", "N812", "B008"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["core", "application", "infrastructure"]
+exclude = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+module = [
+    "torchvision.*",
+    "timm.*",
+    "diffusers.*",
+    "albumentations.*",
+    "mlflow.*",
+    "codecarbon.*",
+    "sklearn.*",
+    "yaml",
+    "pandas",
+    "pytorch_fid.*",
+    "tqdm.*",
+    "pytorch_grad_cam.*",
+    "pydicom.*",
+]
+ignore_missing_imports = true
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.importlinter]
+root_packages = ["core", "application", "infrastructure", "web"]
+include_external_packages = true
+
+
+[[tool.importlinter.contracts]]
+name = "core has no outer dependencies"
+type = "forbidden"
+source_modules = ["core"]
+forbidden_modules = ["application", "infrastructure", "web"]
+
+[[tool.importlinter.contracts]]
+name = "application does not depend on web"
+type = "forbidden"
+source_modules = ["application"]
+forbidden_modules = ["web"]
+
+[[tool.importlinter.contracts]]
+name = "layers do not depend on legacy src"
+type = "forbidden"
+source_modules = ["core", "application", "infrastructure", "web"]
+forbidden_modules = ["src"]
+

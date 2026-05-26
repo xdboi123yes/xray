@@ -1,0 +1,97 @@
+# ============================================================
+# Chest X-Ray Tiered Classification System
+# Docker Compose Orchestration Setup (Development / Stage Environment)
+# ============================================================
+
+services:
+  # ── FastAPI Backend API ──────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: xray-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./outputs:/app/outputs
+      - ./experiments:/app/experiments
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - xray-network
+
+  # ── Nginx + React Frontend Client ───────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: xray-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - xray-network
+
+  # ── MLflow Tracking Server ───────────────────────────────
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: xray-mlflow
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri sqlite:///mlruns/mlflow.db
+        --default-artifact-root /mlruns
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./experiments/mlruns:/mlruns
+    restart: unless-stopped
+    networks:
+      - xray-network
+
+  # ── Redis Cache Service (Scale Profile) ──────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: xray-redis
+    ports:
+      - "6379:6379"
+    profiles:
+      - with-cache
+    restart: unless-stopped
+    networks:
+      - xray-network
+
+  # ── Postgres Database Service (Scale Profile) ────────────
+  postgres:
+    image: postgres:16
+    container_name: xray-postgres
+    environment:
+      POSTGRES_PASSWORD: xray
+      POSTGRES_DB: xray_history
+      POSTGRES_USER: postgres
+    ports:
+      - "5432:5432"
+    profiles:
+      - with-db
+    restart: unless-stopped
+    networks:
+      - xray-network
+
+networks:
+  xray-network:
+    name: xray-network
+    driver: bridge

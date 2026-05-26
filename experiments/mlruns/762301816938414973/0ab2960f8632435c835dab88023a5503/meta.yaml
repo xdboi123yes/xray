@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/alperen/Desktop/xray project/experiments/mlruns/762301816938414973/0ab2960f8632435c835dab88023a5503/artifacts
+end_time: 1779292917577
+entry_point_name: ''
+experiment_id: '762301816938414973'
+lifecycle_stage: active
+run_id: 0ab2960f8632435c835dab88023a5503
+run_name: Tier1_MobileNetV2
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1779278192976
+status: 3
+tags: []
+user_id: root

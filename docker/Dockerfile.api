@@ -1,0 +1,74 @@
+# ============================================================
+# Chest X-Ray Tiered Classification System
+# Multi-stage Dockerfile for FastAPI REST & WebSocket Backend API
+# Supports CPU and GPU base image variants.
+# ============================================================
+
+ARG BASE_IMAGE=python:3.11-slim
+
+# ---- Stage 1: Build wheel dependencies ----
+FROM ${BASE_IMAGE} AS builder
+
+WORKDIR /build
+
+# System dependencies for building medical wheel requirements (opencv, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ libglib2.0-0 libsm6 libxext6 libxrender-dev libgl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+# Install dependencies in a separate path for clean multi-stage extraction
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ---- Stage 2: Runtime environment ----
+FROM ${BASE_IMAGE} AS runtime
+
+LABEL maintainer="alperen"
+LABEL description="FastAPI Backend for Tiered Chest X-Ray Clinical Classifier"
+
+# Minimal runtime requirements for image processing and health checking
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 libsm6 libxext6 libxrender1 libgl1 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy python dependencies from builder
+COPY --from=builder /install /usr/local
+
+WORKDIR /app
+
+# Create a secure non-root system user for PCI/Clinical compliance
+RUN useradd -u 1000 -m appuser
+
+# Copy config and core layered packages
+COPY config.yaml .
+COPY requirements.txt .
+COPY config/ config/
+COPY core/ core/
+COPY application/ application/
+COPY infrastructure/ infrastructure/
+COPY web/ web/
+COPY scripts/ scripts/
+
+
+# Initialize directories required for reports, MLflow, and history databases
+RUN mkdir -p data/raw data/processed data/synthetic \
+             outputs/models outputs/results outputs/figures \
+             experiments/mlruns logs \
+    && chown -R appuser:appuser /app
+
+# Define permissions and switch to non-root execution path
+USER appuser
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+# Endpoint healthchecks
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+# Launch ASGI high-performance server
+CMD ["uvicorn", "web.backend.app:app", "--host", "0.0.0.0", "--port", "8000"]

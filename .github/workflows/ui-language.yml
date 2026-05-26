@@ -1,0 +1,34 @@
+name: UI Language Compliance
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  ui-language-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          cd web/frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd web/frontend
+          npm run build
+
+      - name: Scan built assets for Turkish characters
+        run: |
+          sudo apt-get install -y ripgrep
+          # Fail if any Turkish characters appear in dist folder outside tr.json translation chunks
+          ! rg -uu --pcre2 "[çğıöşüÇĞİÖŞÜ]" web/frontend/dist --glob '!**/tr*.js'

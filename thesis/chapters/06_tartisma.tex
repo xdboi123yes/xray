@@ -1,0 +1,12 @@
+\chapter{Tartışma}
+\label{ch:tartisma}
+
+Elde edilen deneysel bulgular, kademeli tıbbi teşhis sistemlerinin klinik entegrasyon potansiyelini açıkça göstermektedir.
+
+\section{Kademeli Yaklaşımın Klinik Faydaları}
+Tek aşamalı derin öğrenme modelleri tüm görüntüleri en karmaşık modelden geçirerek yüksek bir enerji ve zaman maliyeti oluşturmaktadır. Önerilen kademeli model ise vakaların \%65'ten fazlasını hafif olan MobileNetV2 modeli ile çözebilmekte, böylece sunucu maliyetlerinde ve karbon emisyonunda ciddi bir azalma sağlamaktadır. 
+
+En kritik durumlarda ise (belirsizliğin yüksek olduğu vakalar), model otomatik olarak kararı daha güçlü olan Tier 2 modeline yönlendirmektedir. Bu sayede hem işlem gücü korunmakta hem de klinik güvenilirlik maksimum düzeye çıkarılmaktadır.
+
+\section{Sınırlılıklar ve Gelecek Çalışmalar}
+Sistemin temel sınırlılığı, yönlendirme oranının seçilen güven eşiğine ($\tau$) oldukça duyarlı olmasıdır. Gelecek çalışmalarda, dinamik eşik belirleyen pekiştirmeli öğrenme ajanlarının entegrasyonu araştırılacaktır. Ayrıca, çoklu etiketli ve diğer akciğer patolojilerini de kapsayacak genişletilmiş kademeli yapılar üzerinde çalışılması planlanmaktadır.

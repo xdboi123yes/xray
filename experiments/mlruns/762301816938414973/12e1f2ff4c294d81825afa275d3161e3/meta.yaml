@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/alperen/Desktop/xray project/experiments/mlruns/762301816938414973/12e1f2ff4c294d81825afa275d3161e3/artifacts
+end_time: 1779311201089
+entry_point_name: ''
+experiment_id: '762301816938414973'
+lifecycle_stage: active
+run_id: 12e1f2ff4c294d81825afa275d3161e3
+run_name: Eval_Static
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1779311199684
+status: 3
+tags: []
+user_id: root

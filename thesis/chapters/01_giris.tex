@@ -1,0 +1,8 @@
+\chapter{Giriş}
+\label{ch:giris}
+
+Toraks radyografisi (akciğer grafisi), göğüs kafesi içi hastalıkların teşhisinde dünya genelinde en sık kullanılan görüntüleme yöntemlerinden biridir. Pnömotoraks gibi acil müdahale gerektiren akciğer patolojilerinin hızlı ve doğru tespiti hayati önem taşımaktadır. Ancak uzman hekimlerin iş yükü ve yorgunluğu, teşhis süreçlerinde gecikmelere veya gözden kaçırma gibi hatalara neden olabilmektedir.
+
+Son yıllarda derin öğrenme tabanlı bilgisayarlı görü sistemleri, tıbbi görüntü analizi süreçlerinde hekimlere destek olmak amacıyla yaygın bir şekilde araştırılmaktadır. Bu doğrultuda geliştirilen yapay zeka sistemlerinin en büyük kısıtlamalarından biri, ürettikleri tahminlerin güvenilirlik düzeylerini nicel olarak ifade edememeleri ve her durum için kesin kararlar vermeye zorlanmalarıdır.
+
+Bu tez çalışmasında, göğüs röntgeni görüntülerinde pnömotoraks tespiti için iki aşamalı kademeli bir mimari (Tiered Classification) önerilmiştir. İlk aşamada hafif ve hızlı bir model olan MobileNetV2 \cite{sandler2018mobilenetv2} kullanılırken, düşük güvenli tahminler ikinci aşamada daha derin ve karmaşık bir model olan EfficientNetB4 \cite{tan2019efficientnet} veya geliştirilmiş Ark+ modeline yönlendirilmektedir. Güven analizi için Monte Carlo Dropout \cite{gal2016dropout} ve Test-Time Augmentation (TTA) entegre edilmiştir. Ayrıca, tahmin kümesinin gerçek etiketleri belirli bir güven aralığında kapsamasını garanti etmek amacıyla Conformal Prediction \cite{shafer2008tutorial} yaklaşımı kullanılmıştır.

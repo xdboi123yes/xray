@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/alperen/Desktop/xray project/experiments/mlruns/762301816938414973/5f51c2f3b0db408cb14c723b3e41440a/artifacts
+end_time: 1779309382853
+entry_point_name: ''
+experiment_id: '762301816938414973'
+lifecycle_stage: active
+run_id: 5f51c2f3b0db408cb14c723b3e41440a
+run_name: Tier2_EfficientNetB4
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1779292939599
+status: 3
+tags: []
+user_id: root

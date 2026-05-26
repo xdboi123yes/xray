@@ -1,0 +1,83 @@
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[turkish]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{left=3cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+\title{Toraks Radyografilerinde Kademeli Sınıflandırma ve Güven Odaklı Yönlendirme Yaklaşımı}
+\author{Alperen}
+\date{Haziran 2026}
+
+\begin{document}
+
+\pagenumbering{roman}
+
+% --- KAPAK SAYFASI ---
+\begin{titlepage}
+    \begin{center}
+        \vspace*{1cm}
+        \Large\textbf{T.C.}\\
+        \Large\textbf{1 DECEMBRIE 1918 ÜNİVERSİTESİ}\\
+        \large BİLGİSAYAR MÜHENDİSLİĞİ BÖLÜMÜ\\
+        \vspace{2.5cm}
+        \Large\textbf{TORAKS RADYOGRAFİLERİNDE KADEMELİ SINIFLANDIRMA VE GÜVEN ODAKLI YÖNLENDİRME YAKLAŞIMI}\\
+        \vspace{2cm}
+        \large\textbf{LİSANS TEZİ}\\
+        \vspace{2cm}
+        \large\textbf{Alperen}\\
+        \vspace{3cm}
+        \large Tez Danışmanı:\\
+        \large Prof. Dr. [Danışman Adı]\\
+        \vfill
+        \large Alba Iulia\\
+        \large 2026
+    \end{center}
+\end{titlepage}
+
+% --- ÖZET ---
+\chapter*{Özet}
+Bu çalışmada, toraks radyografilerinden pnömotoraks ve normal akciğer görüntülerinin ayırt edilmesi amacıyla kademeli bir yapay zeka sınıflandırma sistemi önerilmiştir. Önerilen model, MobileNetV2 (Birinci Aşama) ve EfficientNetB4 / Ark+ (İkinci Aşama) mimarilerini kullanarak, düşük güvenli tahminleri bir sonraki aşamaya yönlendiren dinamik bir karar mekanizması sunmaktadır. Güven analizi için Monte Carlo Dropout ve Test-Time Augmentation yöntemleri entegre edilmiş, tahminlerin güvenirliğini garantilemek adına Conformal Prediction kullanılmıştır. Deneysel sonuçlar, önerilen yöntemin hem doğruluğu artırdığını hem de tıbbi teşhislerde hata payını minimuma indirdiğini göstermektedir.
+
+\vspace{1cm}
+\noindent \textbf{Anahtar Kelimeler:} Toraks Radyografisi, Pnömotoraks Sınıflandırması, Kademeli Sınıflandırma, Conformal Prediction, Monte Carlo Dropout.
+
+\newpage
+
+% --- ABSTRACT ---
+\chapter*{Abstract}
+In this study, a tiered artificial intelligence classification system is proposed to distinguish pneumothorax and normal lung images from chest radiographs. The proposed model presents a dynamic decision mechanism that routes low-confidence predictions to the next tier, utilizing MobileNetV2 (Tier 1) and EfficientNetB4 / Ark+ (Tier 2) architectures. Monte Carlo Dropout and Test-Time Augmentation methods are integrated for confidence analysis, and Conformal Prediction is used to guarantee prediction reliability. Experimental results show that the proposed method both improves accuracy and minimizes error rates in medical diagnostics.
+
+\vspace{1cm}
+\noindent \textbf{Keywords:} Chest Radiography, Pneumothorax Classification, Tiered Classification, Conformal Prediction, Monte Carlo Dropout.
+
+\newpage
+
+% --- İÇİNDEKİLER, ŞEKİLLER, TABLOLAR ---
+\tableofcontents
+\listoffigures
+\listoftables
+
+\newpage
+\pagenumbering{arabic}
+
+% --- BÖLÜMLER ---
+\include{chapters/01_giris}
+\include{chapters/02_ilgili_calismalar}
+\include{chapters/03_metodoloji}
+\include{chapters/04_deneysel_kurulum}
+\include{chapters/05_sonuclar}
+\include{chapters/06_tartisma}
+\include{chapters/07_sonuc}
+
+% --- KAYNAKÇA ---
+\bibliographystyle{unsrt}
+\bibliography{bibliography}
+
+\end{document}

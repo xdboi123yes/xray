@@ -1,0 +1,13 @@
+\chapter{İlgili Çalışmalar}
+\label{ch:ilgili_calismalar}
+
+Tıbbi görüntü işlemede derin öğrenme modellerinin başarısı, geniş veri kümeleri ve transfer öğrenme yöntemleri sayesinde kanıtlanmıştır. Göğüs radyografilerinde pnömotoraks tespiti üzerine yapılan çalışmalar genel olarak tek aşamalı evrişimli sinir ağları (CNN) üzerine yoğunlaşmıştır.
+
+\section{Toraks Radyografisi Analizinde Derin Öğrenme}
+İlk derin öğrenme yaklaşımları, AlexNet, ResNet ve VGG gibi standart mimarilerin toraks görüntülerinde pnömotoraks tespiti için eğitilmesine dayanmaktadır. Örneğin, CheXpert \cite{irvin2019chexpert} veri kümesinin yayınlanması ile birlikte çok etiketli sınıflandırma modelleri geliştirilmiştir. Bu çalışmalar yüksek doğruluk oranlarına ulaşsa da, tüm görüntülere aynı hesaplama maliyetini uygulamakta ve tahminlerindeki belirsizliği ölçememektedir.
+
+\section{Belirsizlik Kestirimi ve Güven Tahmini}
+Yapay zeka modellerinin güvenilirlik düzeylerini ölçmek amacıyla Monte Carlo (MC) Dropout yöntemi Gal ve Ghahramani \cite{gal2016dropout} tarafından önerilmiştir. MC Dropout, test zamanında dropout katmanlarını aktif tutarak modelin varyansını ölçer. Test-Time Augmentation (TTA) ise test görüntüsüne farklı veri artırma yöntemleri uygulayarak kararlılık analizi yapar.
+
+\section{Conformal Prediction}
+Conformal Prediction (CP), klasik makine öğrenimi modellerine istatistiksel geçerliliğe sahip güven aralıkları ekleyen matematiksel bir çerçevedir \cite{shafer2008tutorial}. Sınıflandırma problemlerinde CP, tek bir tahmin yerine bir "tahmin seti" (prediction set) üretir. Bu set, kullanıcı tarafından belirlenen hata oranıyla ($1 - \alpha$) gerçek sınıfı içerme garantisine sahiptir.

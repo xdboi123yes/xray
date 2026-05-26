@@ -1,0 +1,47 @@
+# ============================================================
+# Chest X-Ray Tiered Classification System
+# Dockerfile for GPU-Accelerated Model Training and Ablation Studies
+# Equipped with CUDA, MLflow utilities, and Jupyter Lab.
+# ============================================================
+
+FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+
+LABEL maintainer="alperen"
+LABEL description="PyTorch CUDA Training Environment for X-Ray Tiered Classification"
+
+WORKDIR /app
+
+# Install system dependencies for OpenCV and Jupyter
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git make gcc g++ curl libglib2.0-0 libsm6 libxext6 libxrender-dev libgl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency configuration files
+COPY requirements.txt .
+COPY requirements-training.txt .
+COPY requirements-dev.txt .
+
+# Install complete suite of development and deep learning training packages
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir -r requirements-training.txt \
+    && pip install --no-cache-dir -r requirements-dev.txt \
+    && pip install --no-cache-dir jupyterlab ipython
+
+# Copy project source directories
+COPY config.yaml .
+COPY config/ config/
+COPY core/ core/
+COPY application/ application/
+COPY infrastructure/ infrastructure/
+COPY scripts/ scripts/
+COPY src/ src/
+COPY notebooks/ notebooks/
+COPY tests/ tests/
+COPY Makefile .
+COPY pyproject.toml .
+
+# Expose standard Jupyter Lab port
+EXPOSE 8888
+
+# Launch Jupyter Lab by default, allowing local access
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]

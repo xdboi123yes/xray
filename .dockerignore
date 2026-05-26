@@ -1,0 +1,54 @@
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+*.egg
+.mypy_cache
+.pytest_cache
+
+# Notebooks (training is done on Colab, not in Docker)
+notebooks/
+
+# Large data files (mounted as volumes instead)
+data/raw/
+data/synthetic/
+data/processed/*.csv
+
+# Model weights (mounted as volumes instead)
+outputs/models/*.pth
+outputs/results/
+outputs/figures/
+
+# Experiment logs
+experiments/
+
+# Thesis docs
+thesis/
+
+# Node.js
+**/node_modules/
+web/frontend/dist/
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs
+README.md
+Project plan.md
+*.md
+!src/**/*.md

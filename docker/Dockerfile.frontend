@@ -1,0 +1,39 @@
+# ============================================================
+# Chest X-Ray Tiered Classification System
+# Multi-stage Dockerfile for React/TS + Tailwind Frontend Client
+# ============================================================
+
+# ---- Stage 1: Build React Assets ----
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package configurations first to leverage Docker layer caching
+COPY web/frontend/package.json web/frontend/package-lock.json ./
+RUN npm ci
+
+# Copy all source and config files for Vite bundler
+COPY web/frontend/ .
+
+# Build client production bundle (outputs HTML, CSS, JS under dist/)
+RUN npm run build
+
+# ---- Stage 2: Nginx Runtime ----
+FROM nginx:alpine
+
+LABEL maintainer="alperen"
+LABEL description="Nginx Web Server for Chest X-Ray Client Aplication"
+
+# Remove default nginx configurations
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy built static pages from node builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Overwrite default nginx server rules with reverse proxy and websocket setups
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+# Run nginx in foreground
+CMD ["nginx", "-g", "daemon off;"]

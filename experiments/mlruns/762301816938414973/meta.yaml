@@ -1,0 +1,8 @@
+artifact_location: file:///Users/alperen/Desktop/xray project/experiments/mlruns/762301816938414973
+creation_time: 1779036955354
+experiment_id: '762301816938414973'
+last_update_time: 1779036955354
+lifecycle_stage: active
+name: chest_xray_tiered
+trace_location: null
+workspace: default

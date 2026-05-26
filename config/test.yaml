@@ -1,0 +1,6 @@
+# Test overrides. Used during pytest runs.
+training:
+  epochs: 2
+  batch_size: 2
+paths:
+  results: outputs/test_results
