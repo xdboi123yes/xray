@@ -15,6 +15,11 @@ from torch.utils.data import DataLoader
 from application.dto.training_config_dto import TrainingConfigDTO
 from config.settings import get_settings
 from core.models.factory import ModelFactory
+
+# Explicitly import all classifiers to trigger registration decorators in ModelFactory
+import core.models.tier1_mobilenet
+import core.models.tier2_efficientnet
+import core.models.tier2_ark
 from infrastructure.data.dataset import NIHChestXrayDataset
 from infrastructure.training.losses import get_class_weighted_loss
 from infrastructure.training.observers.carbon_tracker import CarbonTrackerObserver
