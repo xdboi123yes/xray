@@ -103,7 +103,7 @@ class TrainingService:
         # Dynamic number of workers to prevent CPU/IO bottleneck on high-performance GPUs
         num_workers = 4
         if device.type == "cuda":
-            num_workers = min(8, os.cpu_count() or 4)
+            num_workers = 8
 
         train_loader = DataLoader(
             train_dataset,
