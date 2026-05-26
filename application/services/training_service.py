@@ -103,10 +103,18 @@ class TrainingService:
         )
 
         # 3. Create Optimizer and Scheduler
-        # Standard separate lr for backbone and classifier head
+        # Dynamic disjoint separation of backbone and classifier parameters by ID
+        classifier_layer = getattr(model, "classifier", getattr(model.backbone, "classifier", None))
+        if classifier_layer is None:
+            raise AttributeError("Could not locate classifier head on the model.")
+
+        classifier_param_ids = set(id(p) for p in classifier_layer.parameters())
+        backbone_params = [p for p in model.parameters() if id(p) not in classifier_param_ids]
+        classifier_params = list(classifier_layer.parameters())
+
         params = [
-            {"params": model.backbone.parameters(), "lr": config_dto.lr_backbone},
-            {"params": model.classifier.parameters(), "lr": config_dto.lr_head},
+            {"params": backbone_params, "lr": config_dto.lr_backbone},
+            {"params": classifier_params, "lr": config_dto.lr_head},
         ]
         optimizer = torch.optim.AdamW(params, weight_decay=1e-4)
 
