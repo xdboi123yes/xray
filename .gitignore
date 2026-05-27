@@ -72,7 +72,10 @@ data/*.zip
 # ──────────────────────────────────────────────────────────────────
 # Model weights & training outputs (large binaries)
 # ──────────────────────────────────────────────────────────────────
-outputs/
+outputs/*
+!outputs/results/
+outputs/results/*
+!outputs/results/ablation.json
 *.pth
 *.pt
 *.onnx

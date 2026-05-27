@@ -1,0 +1,146 @@
+[
+  {
+    "ablation_id": "A1",
+    "name": "Tier 1 Only",
+    "description": "Baseline screening model using MobileNetV2 without escalating to Tier 2.",
+    "tier1": "MobileNetV2",
+    "tier2": "None (Bypassed)",
+    "routing": "None",
+    "uncertainty": "None",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A2",
+    "name": "Tier 2 Only (EfficientNet)",
+    "description": "All cases run directly on the deep Tier 2 EfficientNet-B4 backbone.",
+    "tier1": "None",
+    "tier2": "EfficientNetB4",
+    "routing": "All Escalated",
+    "uncertainty": "None",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A3",
+    "name": "Tier 2 Only (Ark+ Swin)",
+    "description": "All cases run directly on the Tier 2 Ark+ Swin backbone.",
+    "tier1": "None",
+    "tier2": "Ark+ Swin",
+    "routing": "All Escalated",
+    "uncertainty": "None",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A6",
+    "name": "Proposed Tiered (Static)",
+    "description": "Tiered cascading classifier with static escalation threshold (t=0.75).",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Static Threshold",
+    "uncertainty": "None",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A8",
+    "name": "Without Diffusion Augmentation",
+    "description": "Tiered system trained without synthetic Stable Diffusion images.",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Static Threshold",
+    "uncertainty": "None",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A9",
+    "name": "Without Any Augmentations",
+    "description": "Baseline tiered system trained without Mixup, CutMix, or synthetic data.",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Static Threshold",
+    "uncertainty": "None",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A13",
+    "name": "Proposed Tiered + Ark+",
+    "description": "Tiered system using MobileNetV2 (T1) and Ark+ (T2) with dynamic routing.",
+    "tier1": "MobileNetV2",
+    "tier2": "Ark+ Swin",
+    "routing": "Dynamic Routing",
+    "uncertainty": "MC Dropout",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A14",
+    "name": "Zero-Shot CheXpert",
+    "description": "Out-of-domain validation of A13 evaluated on the CheXpert cohort.",
+    "tier1": "MobileNetV2",
+    "tier2": "Ark+ Swin",
+    "routing": "Dynamic Routing",
+    "uncertainty": "MC Dropout",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A15",
+    "name": "Mixup/CutMix Regularized",
+    "description": "A13 trained with additional Mixup/CutMix regularization.",
+    "tier1": "MobileNetV2",
+    "tier2": "Ark+ Swin",
+    "routing": "Dynamic Routing",
+    "uncertainty": "MC Dropout",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  }
+]

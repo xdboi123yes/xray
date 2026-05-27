@@ -172,6 +172,11 @@ class SyntheticDataService:
             log.info("[SyntheticDataService] pytorch-fid is not installed. Returning simulated baseline.")
             return 42.12
 
+        # Check if directories exist first to avoid FileNotFoundError
+        if not os.path.exists(real_dir) or not os.path.exists(synthetic_dir):
+            log.info("[SyntheticDataService] Real or synthetic directory does not exist.")
+            return float("inf")
+
         # Check there are enough images to compute covariance
         real_files = [f for f in os.listdir(real_dir) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
         synth_files = [f for f in os.listdir(synthetic_dir) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
