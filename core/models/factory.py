@@ -57,6 +57,10 @@ class ModelFactory:
         Raises:
             ValueError: If the requested model_type is not registered.
         """
+        if not cls._registry:
+            # Dynamically import model modules to trigger their registration decorators
+            from core.models import tier1_mobilenet, tier2_ark, tier2_efficientnet  # noqa: F401
+
         if model_type not in cls._registry:
             raise ValueError(
                 f"Unknown model_type='{model_type}'. "
@@ -71,4 +75,8 @@ class ModelFactory:
         Returns:
             List of registered model keys.
         """
+        if not cls._registry:
+            # Dynamically import model modules to trigger their registration decorators
+            from core.models import tier1_mobilenet, tier2_ark, tier2_efficientnet  # noqa: F401
+
         return sorted(cls._registry.keys())
