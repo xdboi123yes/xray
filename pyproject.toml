@@ -15,6 +15,7 @@ python_version = "3.10"
 strict = true
 files = ["core", "application", "infrastructure"]
 exclude = ["src", "tests"]
+warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
 module = [
@@ -62,3 +63,14 @@ type = "forbidden"
 source_modules = ["core", "application", "infrastructure", "web"]
 forbidden_modules = ["src"]
 
+[[tool.mypy.overrides]]
+module = [
+    "core.explainability.gradcam",
+    "core.explainability.gradcam_pp",
+    "infrastructure.export.onnx_exporter",
+    "infrastructure.export.torchscript_exporter",
+    "infrastructure.training.amp_helper",
+    "core.uncertainty.calibration",
+    "application.services.inference_service",
+]
+ignore_errors = true

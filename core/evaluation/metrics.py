@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 import structlog
-from sklearn.metrics import (  # type: ignore[import-untyped]
+from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
     f1_score,
