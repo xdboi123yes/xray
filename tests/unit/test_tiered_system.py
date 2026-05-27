@@ -6,9 +6,10 @@ Verifies dynamic threshold updates and routing decisions for Tier 1 and Tier 2 m
 from __future__ import annotations
 
 from unittest.mock import MagicMock
+
 import torch
 
-from core.models.tiered_system import TieredSystem, TieredPrediction
+from core.models.tiered_system import TieredPrediction, TieredSystem
 
 
 def test_tiered_prediction_dataclass() -> None:
