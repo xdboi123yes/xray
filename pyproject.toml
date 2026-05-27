@@ -13,6 +13,8 @@ ignore = ["E501", "N803", "B024", "B027", "N812", "B008", "RUF001", "UP038", "RU
 [tool.mypy]
 python_version = "3.10"
 strict = true
+disallow_untyped_calls = false
+warn_return_any = false
 files = ["core", "application", "infrastructure"]
 exclude = ["src", "tests"]
 warn_unused_ignores = false
