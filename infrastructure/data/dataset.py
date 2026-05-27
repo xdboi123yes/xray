@@ -116,7 +116,7 @@ class NIHChestXrayDataset(Dataset[tuple[torch.Tensor, torch.Tensor, str]]):
         """
         if torch.is_tensor(idx):
             idx_list = idx.tolist()  # type: ignore[union-attr]
-            idx = int(idx_list[0]) if isinstance(idx_list, list) else int(idx_list)
+            idx = int(idx_list[0]) if isinstance(idx_list, list) else int(idx_list)  # type: ignore[arg-type]
         else:
             idx = int(idx)
 
