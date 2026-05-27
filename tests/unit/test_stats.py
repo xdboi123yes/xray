@@ -23,9 +23,7 @@ def sample_data() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return y_true, y_probs1, y_probs2
 
 
-def test_delong_test_valid(
-    sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]
-) -> None:
+def test_delong_test_valid(sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]) -> None:
     """Verifies that delong_test returns a valid p-value for distinct models."""
     y_true, y_probs1, y_probs2 = sample_data
     p_value = delong_test(y_true, y_probs1, y_probs2)
@@ -33,9 +31,7 @@ def test_delong_test_valid(
     assert 0.0 <= p_value <= 1.0
 
 
-def test_delong_test_identical(
-    sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]
-) -> None:
+def test_delong_test_identical(sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]) -> None:
     """Verifies that delong_test returns 1.0 when comparing a model to itself."""
     y_true, y_probs1, _ = sample_data
     p_value = delong_test(y_true, y_probs1, y_probs1)
@@ -62,14 +58,10 @@ def test_delong_test_invalid_inputs() -> None:
         delong_test(y_true_single, y_probs_a, y_probs_b)
 
 
-def test_bootstrap_ci_single_model(
-    sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]
-) -> None:
+def test_bootstrap_ci_single_model(sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]) -> None:
     """Verifies bootstrap CI outputs for a single model."""
     y_true, y_probs1, _ = sample_data
-    results = bootstrap_ci(
-        y_true, y_probs1, metric="auc", n_iterations=50, seed=42
-    )
+    results = bootstrap_ci(y_true, y_probs1, metric="auc", n_iterations=50, seed=42)
 
     assert "model1_metric" in results
     assert "model1_ci" in results
@@ -78,9 +70,7 @@ def test_bootstrap_ci_single_model(
     assert "model2_metric" not in results
 
 
-def test_bootstrap_ci_paired_models(
-    sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]
-) -> None:
+def test_bootstrap_ci_paired_models(sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]) -> None:
     """Verifies bootstrap CI outputs comparing two models."""
     y_true, y_probs1, y_probs2 = sample_data
     results = bootstrap_ci(
@@ -100,9 +90,7 @@ def test_bootstrap_ci_paired_models(
     assert results["delta_ci"][0] <= results["delta_ci"][1]
 
 
-def test_mcnemar_test(
-    sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]
-) -> None:
+def test_mcnemar_test(sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]) -> None:
     """Verifies McNemar test contingency table and output logic."""
     y_true, y_probs1, y_probs2 = sample_data
     results = mcnemar_test(y_true, y_probs1, y_probs2, threshold=0.5)
@@ -119,14 +107,10 @@ def test_mcnemar_test(
     assert sum(table.values()) == len(y_true)
 
 
-def test_permutation_test(
-    sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]
-) -> None:
+def test_permutation_test(sample_data: tuple[np.ndarray, np.ndarray, np.ndarray]) -> None:
     """Verifies paired permutation test calculations."""
     y_true, y_probs1, y_probs2 = sample_data
-    results = permutation_test(
-        y_true, y_probs1, y_probs2, metric="auc", n_permutations=50, seed=42
-    )
+    results = permutation_test(y_true, y_probs1, y_probs2, metric="auc", n_permutations=50, seed=42)
 
     assert "observed_difference" in results
     assert "p_value" in results

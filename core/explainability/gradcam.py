@@ -36,7 +36,9 @@ class XRayGradCAM:
         if HAS_GRAD_CAM:
             self.cam = GradCAM(model=model, target_layers=target_layers)
 
-    def generate(self, input_tensor: torch.Tensor, target_category: Any = None) -> np.ndarray[Any, Any]:
+    def generate(
+        self, input_tensor: torch.Tensor, target_category: Any = None
+    ) -> np.ndarray[Any, Any]:
         """Generates raw 2D grayscale CAM attributions.
 
         Args:

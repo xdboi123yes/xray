@@ -64,14 +64,10 @@ class DynamicThresholdRouter(BaseRouter):
             # Adaptive adjustment logic
             if mean_conf < 0.65:
                 # Many hard cases: route more aggressively to Tier 2 by lowering threshold
-                self._current_threshold = max(
-                    0.5, self._current_threshold - self._threshold_delta
-                )
+                self._current_threshold = max(0.5, self._current_threshold - self._threshold_delta)
             elif mean_conf > 0.85:
                 # Many easy cases: keep throughput high by raising threshold
-                self._current_threshold = min(
-                    0.95, self._current_threshold + self._threshold_delta
-                )
+                self._current_threshold = min(0.95, self._current_threshold + self._threshold_delta)
 
     @property
     def current_threshold(self) -> float:

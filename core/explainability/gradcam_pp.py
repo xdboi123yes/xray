@@ -15,9 +15,11 @@ import torch
 try:
     from pytorch_grad_cam import GradCAMPlusPlus  # type: ignore[import-untyped]
     from pytorch_grad_cam.utils.image import show_cam_on_image  # type: ignore[import-untyped]
+
     HAS_GRAD_CAM = True
 except ImportError:
     HAS_GRAD_CAM = False
+
 
 class XRayGradCAMPlusPlus:
     """Computes and overlays Grad-CAM++ attributions on input radiographs."""
@@ -34,7 +36,9 @@ class XRayGradCAMPlusPlus:
         if HAS_GRAD_CAM:
             self.cam = GradCAMPlusPlus(model=model, target_layers=target_layers)
 
-    def generate(self, input_tensor: torch.Tensor, target_category: Any = None) -> np.ndarray[Any, Any]:
+    def generate(
+        self, input_tensor: torch.Tensor, target_category: Any = None
+    ) -> np.ndarray[Any, Any]:
         """Generates raw 2D grayscale CAM attributions using Grad-CAM++.
 
         Args:

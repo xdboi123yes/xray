@@ -40,9 +40,7 @@ class EarlyStoppingObserver(TrainingObserver):
         self._best_metric = -float("inf") if mode == "max" else float("inf")
         self._epochs_no_improve = 0
 
-    def on_epoch_end(
-        self, epoch: int, metrics: dict[str, float], trainer: Any
-    ) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], trainer: Any) -> None:
         """Evaluate validation metrics and set trainer.stop_training if patience is exceeded.
 
         Args:
@@ -75,7 +73,7 @@ class EarlyStoppingObserver(TrainingObserver):
             _print = print
             _print(
                 f"⚠️ [EarlyStopping] No improvement on '{self._monitor}' for {self._epochs_no_improve}/{self._patience} epochs.",
-                flush=True
+                flush=True,
             )
 
         if self._epochs_no_improve >= self._patience:
@@ -87,5 +85,5 @@ class EarlyStoppingObserver(TrainingObserver):
             _print = print
             _print(
                 f"\n🛑 [EarlyStopping] Triggered at epoch {epoch}! Halting training since '{self._monitor}' did not improve for {self._patience} consecutive epochs.",
-                flush=True
+                flush=True,
             )

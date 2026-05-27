@@ -26,6 +26,7 @@ class EmptyMockDataset(Dataset[Any]):
     def __getitem__(self, idx: int) -> tuple[Any, ...]:
         raise IndexError("Mock dataset has zero elements")
 
+
 class NIHDataset(Dataset[Any]):
     """PyTorch Dataset loading NIH ChestX-ray14 radiographs for evaluation."""
 
@@ -93,6 +94,7 @@ class NIHDataset(Dataset[Any]):
 
         label = torch.tensor(label_val, dtype=torch.long)
         return image, label, image_id
+
 
 class NIHRepository(BaseRepository):
     """Repository accessing NIH ChestX-ray14 dataset splits for zero-shot testing."""

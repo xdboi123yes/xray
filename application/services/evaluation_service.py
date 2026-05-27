@@ -104,7 +104,9 @@ class EvaluationService:
         # 1. Non-parametric DeLong's test comparing AUC ROCs
         try:
             p_delong = delong_test(true_np, probs1_np, probs2_np)
-            diff_auc = float(np.mean(probs2_np[true_np == 1]) - np.mean(probs1_np[true_np == 1])) # Basic delta
+            diff_auc = float(
+                np.mean(probs2_np[true_np == 1]) - np.mean(probs1_np[true_np == 1])
+            )  # Basic delta
             # Retrieve exact AUC values for proper delta comparison
             m1 = compute_all_metrics(true_np, probs1_np)
             m2 = compute_all_metrics(true_np, probs2_np)

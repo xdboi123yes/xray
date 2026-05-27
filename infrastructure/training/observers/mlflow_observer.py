@@ -68,9 +68,7 @@ class MLflowObserver(TrainingObserver):
         except Exception as e:
             log.error(f"[MLflowObserver] Warning: Failed to initialize run: {e}")
 
-    def on_epoch_end(
-        self, epoch: int, metrics: dict[str, float], trainer: Any
-    ) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], trainer: Any) -> None:
         """Called at the end of each epoch after validation to log metrics to MLflow.
 
         Args:

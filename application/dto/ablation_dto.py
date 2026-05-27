@@ -15,8 +15,12 @@ class AblationConfigDTO(BaseModel):
     """Configuration definition representing a clinical ablation experiment run."""
 
     ablation_id: str = Field(..., description="Unique alphanumeric identifier (e.g. 'A11', 'A13').")
-    name: str = Field(..., description="Short alphanumeric clinical name representing the experiment.")
-    description: str = Field(..., description="Long descriptive paragraph detailing the ablated elements.")
+    name: str = Field(
+        ..., description="Short alphanumeric clinical name representing the experiment."
+    )
+    description: str = Field(
+        ..., description="Long descriptive paragraph detailing the ablated elements."
+    )
     script: str = Field(..., description="Python execution path target.")
     args: list[str] = Field(default_factory=list, description="Target CLI parameters to supply.")
     overrides: dict[str, Any] = Field(

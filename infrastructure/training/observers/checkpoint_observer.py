@@ -40,9 +40,7 @@ class CheckpointObserver(TrainingObserver):
         # Track internal best based on direction
         self._best_metric = -float("inf") if mode == "max" else float("inf")
 
-    def on_epoch_end(
-        self, epoch: int, metrics: dict[str, float], trainer: Any
-    ) -> None:
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], trainer: Any) -> None:
         """Evaluate validation metrics and save checkpoint if performance improves.
 
         Args:
@@ -74,5 +72,5 @@ class CheckpointObserver(TrainingObserver):
             _print = print
             _print(
                 f"💾 [Checkpoint] Metric improved! Saved best model weights (AUC: {val_val:.4f}) to {self._checkpoint_path}",
-                flush=True
+                flush=True,
             )

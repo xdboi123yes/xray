@@ -36,4 +36,3 @@ async def get_ablation_records(response: Response) -> Any:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load ablation results: {exc!s}",
         ) from exc
-

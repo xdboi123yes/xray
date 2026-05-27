@@ -1,6 +1,6 @@
 """DICOM radiograph image parser and loader.
 
-Enables seamless ingestion of medical standard DICOM files and scales raw 
+Enables seamless ingestion of medical standard DICOM files and scales raw
 pixel intensities into standardized RGB PIL images.
 """
 

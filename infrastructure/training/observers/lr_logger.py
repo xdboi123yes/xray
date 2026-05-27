@@ -29,4 +29,6 @@ class LRLoggerObserver(TrainingObserver):
         for i, param_group in enumerate(trainer.optimizer.param_groups):
             lr = param_group["lr"]
             group_suffix = f" (Group {i})" if len(trainer.optimizer.param_groups) > 1 else ""
-            log.info(f"--> [LRLogger] Epoch {epoch}: Current Learning Rate{group_suffix} is {lr:.6g}")
+            log.info(
+                f"--> [LRLogger] Epoch {epoch}: Current Learning Rate{group_suffix} is {lr:.6g}"
+            )

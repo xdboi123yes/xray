@@ -36,9 +36,7 @@ class DummyDataset(Dataset[Any]):
         return img, label, f"img_{idx}"
 
 
-def test_integration_training_flow(
-    mock_config: dict[str, Any], tmp_path: Any
-) -> None:
+def test_integration_training_flow(mock_config: dict[str, Any], tmp_path: Any) -> None:
     """Test full training integration flow, checkpoints, and observers.
 
     Args:
@@ -88,9 +86,7 @@ def test_integration_training_flow(
     assert os.path.exists(ckpt_file)
 
 
-def test_integration_checkpoint_resume(
-    mock_config: dict[str, Any], tmp_path: Any
-) -> None:
+def test_integration_checkpoint_resume(mock_config: dict[str, Any], tmp_path: Any) -> None:
     """Test saving and restoring complete states via CheckpointManager.
 
     Args:

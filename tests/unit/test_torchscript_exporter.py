@@ -21,6 +21,7 @@ class SimpleModel(nn.Module):
         x = torch.flatten(x, 1)
         return self.fc(x)
 
+
 def test_torchscript_export_pipeline() -> None:
     """Verify that TorchScriptModelExporter exports model successfully and file is loadable."""
     model = SimpleModel()

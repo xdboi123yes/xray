@@ -108,7 +108,6 @@ class SystemState:
             else:
                 raise ValueError(f"Invalid model tier: {tier}")
 
-
     def _update_router_unlocked(self) -> None:
         """Internal helper to instantiate the active router pattern (must hold lock)."""
         if self.threshold_mode == "dynamic":

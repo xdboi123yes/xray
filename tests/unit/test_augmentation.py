@@ -60,9 +60,7 @@ def test_mixup_cutmix_batch() -> None:
 
     # Probability 1.0 ensures mixing is applied
     aug = MixupCutmixAugmentation(mixup_alpha=0.4, cutmix_alpha=1.0, prob=1.0)
-    mixed_imgs, mixed_targets, perm_targets, lam = aug.apply_batch(
-        images, targets
-    )
+    mixed_imgs, mixed_targets, perm_targets, lam = aug.apply_batch(images, targets)
 
     assert mixed_imgs.shape == (4, 3, 224, 224)
     assert mixed_targets.shape == (4,)

@@ -51,9 +51,7 @@ class TrainingObserver(ABC):
         """
         pass
 
-    def on_validation_end(
-        self, epoch: int, val_metrics: dict[str, float], trainer: Any
-    ) -> None:
+    def on_validation_end(self, epoch: int, val_metrics: dict[str, float], trainer: Any) -> None:
         """Called at the end of the validation cycle in an epoch.
 
         Args:

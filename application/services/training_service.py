@@ -215,10 +215,19 @@ class TrainingService:
         _print(f"• Target Device:    {device}", flush=True)
         _print(f"• Total Epochs:     {epochs}", flush=True)
         _print(f"• Batch Size:       {config_dto.batch_size}", flush=True)
-        _print(f"• Learning Rates:   Backbone = {config_dto.lr_backbone:.1e}, Head = {config_dto.lr_head:.1e}", flush=True)
+        _print(
+            f"• Learning Rates:   Backbone = {config_dto.lr_backbone:.1e}, Head = {config_dto.lr_head:.1e}",
+            flush=True,
+        )
         _print(f"• Early Stopping:   Patience = {patience} epochs", flush=True)
-        _print(f"• Dataloader:       num_workers = {num_workers}, pin_memory = {device.type == 'cuda'}", flush=True)
-        _print(f"• Dataset Lengths:  Train = {len(train_dataset)} samples, Val = {len(val_dataset)} samples", flush=True)
+        _print(
+            f"• Dataloader:       num_workers = {num_workers}, pin_memory = {device.type == 'cuda'}",
+            flush=True,
+        )
+        _print(
+            f"• Dataset Lengths:  Train = {len(train_dataset)} samples, Val = {len(val_dataset)} samples",
+            flush=True,
+        )
         _print("=" * 60 + "\n", flush=True)
 
         # 8. Start training cycle

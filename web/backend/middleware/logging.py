@@ -23,6 +23,7 @@ structlog.configure(
 
 logger = structlog.get_logger()
 
+
 class StructuredLoggingMiddleware(BaseHTTPMiddleware):
     """FastAPI Middleware for structured logging of all incoming HTTP requests."""
 
@@ -33,7 +34,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         structlog.contextvars.bind_contextvars(request_id=request_id)
 
         start_time = time.perf_counter()
-        
+
         try:
             response = await call_next(request)
             latency = (time.perf_counter() - start_time) * 1000.0
@@ -56,6 +57,7 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                 latency_ms=round(latency, 2),
             )
             raise
+
 
 def setup_logging(app: FastAPI) -> None:
     """Registers the structured logging middleware on the application."""

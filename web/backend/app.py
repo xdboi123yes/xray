@@ -55,4 +55,3 @@ app.include_router(history.router)
 app.include_router(health.router)
 app.include_router(models.router)
 app.include_router(inference_ws.router)
-

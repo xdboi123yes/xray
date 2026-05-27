@@ -57,7 +57,9 @@ class SyntheticDataService:
             return
 
         model_id = "runwayml/stable-diffusion-v1-5"
-        log.info(f"[SyntheticDataService] Loading Stable Diffusion pipeline: {model_id} on {self.device}...")
+        log.info(
+            f"[SyntheticDataService] Loading Stable Diffusion pipeline: {model_id} on {self.device}..."
+        )
 
         dtype = torch.float16 if self.device.type == "cuda" else torch.float32
 
@@ -74,7 +76,9 @@ class SyntheticDataService:
 
             self._pipeline_loaded = True
         except Exception as ex:
-            log.warning(f"[SyntheticDataService] Warning: Could not load pipeline: {ex}. Running in Mock Mode.")
+            log.warning(
+                f"[SyntheticDataService] Warning: Could not load pipeline: {ex}. Running in Mock Mode."
+            )
             self.pipe = None
             self._pipeline_loaded = True
 
@@ -124,7 +128,9 @@ class SyntheticDataService:
 
         if self.pipe is None:
             # Mock mode: generate high-fidelity simulated grayscale noise
-            log.info("[SyntheticDataService] Mock Mode active. Simulating high-fidelity radiographs...")
+            log.info(
+                "[SyntheticDataService] Mock Mode active. Simulating high-fidelity radiographs..."
+            )
             for _ in range(n_variations):
                 arr = np.array(init_img).astype(np.float32)
                 # Add tiny clinical noise variation
@@ -135,7 +141,9 @@ class SyntheticDataService:
             return generated_images
 
         # Run SD execution loop
-        generator = torch.Generator(device=self.device).manual_seed(self.config.get("training", {}).get("seed", 42))
+        generator = torch.Generator(device=self.device).manual_seed(
+            self.config.get("training", {}).get("seed", 42)
+        )
         for i in range(n_variations):
             generator.manual_seed(self.config.get("training", {}).get("seed", 42) + i)
             try:
@@ -169,7 +177,9 @@ class SyntheticDataService:
         try:
             from pytorch_fid.fid_score import calculate_fid_given_paths
         except ImportError:
-            log.info("[SyntheticDataService] pytorch-fid is not installed. Returning simulated baseline.")
+            log.info(
+                "[SyntheticDataService] pytorch-fid is not installed. Returning simulated baseline."
+            )
             return 42.12
 
         # Check if directories exist first to avoid FileNotFoundError
@@ -178,11 +188,17 @@ class SyntheticDataService:
             return float("inf")
 
         # Check there are enough images to compute covariance
-        real_files = [f for f in os.listdir(real_dir) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
-        synth_files = [f for f in os.listdir(synthetic_dir) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
+        real_files = [
+            f for f in os.listdir(real_dir) if f.lower().endswith((".png", ".jpg", ".jpeg"))
+        ]
+        synth_files = [
+            f for f in os.listdir(synthetic_dir) if f.lower().endswith((".png", ".jpg", ".jpeg"))
+        ]
 
         if len(real_files) < 2 or len(synth_files) < 2:
-            log.info("[SyntheticDataService] FID requires at least 2 images in each split to evaluate covariance.")
+            log.info(
+                "[SyntheticDataService] FID requires at least 2 images in each split to evaluate covariance."
+            )
             return float("inf")
 
         try:
@@ -196,7 +212,9 @@ class SyntheticDataService:
             )
             return float(fid_val)
         except Exception as ex:
-            log.error(f"[SyntheticDataService] FID computation encountered error: {ex}. Returning fallback.")
+            log.error(
+                f"[SyntheticDataService] FID computation encountered error: {ex}. Returning fallback."
+            )
             return 999.0
 
     def evaluate_and_filter_batch(
@@ -221,7 +239,9 @@ class SyntheticDataService:
         os.makedirs(rejected_dir, exist_ok=True)
 
         fid_score = self.compute_fid(real_dir, synthetic_batch_dir)
-        log.info(f"[SyntheticDataService] Evaluated FID: {fid_score:.4f} (Threshold: {self.fid_threshold})")
+        log.info(
+            f"[SyntheticDataService] Evaluated FID: {fid_score:.4f} (Threshold: {self.fid_threshold})"
+        )
 
         is_accepted = fid_score <= self.fid_threshold
         target_dir = accepted_dir if is_accepted else rejected_dir

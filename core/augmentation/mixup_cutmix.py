@@ -80,38 +80,24 @@ class MixupCutmixAugmentation(BaseAugmentation):
         index = torch.randperm(batch_size).to(images.device)
 
         if use_cutmix:
-            lam = float(
-                torch.distributions.Beta(
-                    self._cutmix_alpha, self._cutmix_alpha
-                ).sample()
-            )
+            lam = float(torch.distributions.Beta(self._cutmix_alpha, self._cutmix_alpha).sample())
             bbx1, bby1, bbx2, bby2 = self._rand_bbox(images.size(), lam)
 
             # Apply Cutmix patch replacement
             images_mixed = images.clone()
-            images_mixed[:, :, bbx1:bbx2, bby1:bby2] = images[
-                index, :, bbx1:bbx2, bby1:bby2
-            ]
+            images_mixed[:, :, bbx1:bbx2, bby1:bby2] = images[index, :, bbx1:bbx2, bby1:bby2]
 
             # Adjust lambda based on actual patch area ratio
-            lam = 1.0 - (
-                (bbx2 - bbx1) * (bby2 - bby1) / (images.size(-2) * images.size(-1))
-            )
+            lam = 1.0 - ((bbx2 - bbx1) * (bby2 - bby1) / (images.size(-2) * images.size(-1)))
         else:
-            lam = float(
-                torch.distributions.Beta(
-                    self._mixup_alpha, self._mixup_alpha
-                ).sample()
-            )
+            lam = float(torch.distributions.Beta(self._mixup_alpha, self._mixup_alpha).sample())
 
             # Apply Mixup linear blending
             images_mixed = lam * images + (1.0 - lam) * images[index]
 
         return images_mixed, targets, targets[index], lam
 
-    def _rand_bbox(
-        self, size: torch.Size, lam: float
-    ) -> tuple[int, int, int, int]:
+    def _rand_bbox(self, size: torch.Size, lam: float) -> tuple[int, int, int, int]:
         """Generate a random bounding box patch for Cutmix.
 
         Args:

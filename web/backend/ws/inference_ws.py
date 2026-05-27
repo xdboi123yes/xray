@@ -53,9 +53,7 @@ async def websocket_predict_endpoint(
                 continue
 
             # 1. Preprocessing initialization step
-            await websocket.send_json(
-                {"type": "progress", "step": "preprocessing", "percent": 20}
-            )
+            await websocket.send_json({"type": "progress", "step": "preprocessing", "percent": 20})
 
             # Decode base64 image data safely
             b64_data = data["image_b64"]

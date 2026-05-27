@@ -84,7 +84,9 @@ class CalibrationService:
         calibrator.set_temperature(validation_loader, active_device)
 
         optimal_temp: float = float(calibrator.temperature.item())
-        log.info(f"[CalibrationService] Calibration completed. Optimal Temp (T) = {optimal_temp:.4f}")
+        log.info(
+            f"[CalibrationService] Calibration completed. Optimal Temp (T) = {optimal_temp:.4f}"
+        )
         return optimal_temp
 
     def save_reliability_diagram(

@@ -54,9 +54,6 @@ def get_class_weighted_loss(
     weight_1 = (weight_1 / sum_weights) * 2.0
 
     weights = torch.tensor([weight_0, weight_1], dtype=torch.float32)
-    log.info(
-        f"Computed Class Weights: "
-        f"[No Finding: {weight_0:.4f}, Pneumothorax: {weight_1:.4f}]"
-    )
+    log.info(f"Computed Class Weights: [No Finding: {weight_0:.4f}, Pneumothorax: {weight_1:.4f}]")
 
     return nn.CrossEntropyLoss(weight=weights)

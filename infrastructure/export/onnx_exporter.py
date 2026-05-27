@@ -1,6 +1,6 @@
 """ONNX export wrapper for PyTorch diagnostic backbones.
 
-Enables compilation of deep PyTorch classifiers into standardized, 
+Enables compilation of deep PyTorch classifiers into standardized,
 production-ready ONNX formats with support for INT8 quantization mappings.
 """
 

@@ -14,9 +14,13 @@ class ClassificationMetricsDTO(BaseModel):
 
     auc_roc: float = Field(..., ge=0.0, le=1.0, description="Area Under the ROC curve.")
     accuracy: float = Field(..., ge=0.0, le=1.0, description="Overall classification accuracy.")
-    sensitivity: float = Field(..., ge=0.0, le=1.0, description="Sensitivity / Recall / True Positive Rate.")
+    sensitivity: float = Field(
+        ..., ge=0.0, le=1.0, description="Sensitivity / Recall / True Positive Rate."
+    )
     specificity: float = Field(..., ge=0.0, le=1.0, description="Specificity / True Negative Rate.")
-    precision: float = Field(..., ge=0.0, le=1.0, description="Precision / Positive Predictive Value.")
+    precision: float = Field(
+        ..., ge=0.0, le=1.0, description="Precision / Positive Predictive Value."
+    )
     f1: float = Field(..., ge=0.0, le=1.0, description="F1 diagnostic score.")
     mcc: float = Field(..., ge=-1.0, le=1.0, description="Matthews Correlation Coefficient.")
     ece: float | None = Field(None, ge=0.0, le=1.0, description="Expected Calibration Error.")
@@ -38,5 +42,7 @@ class StatisticalTestResultDTO(BaseModel):
     test_name: str = Field(..., description="Name of the test (e.g. DeLong, McNemar, Permutation).")
     observed_difference: float = Field(..., description="Point delta value: Model 2 - Model 1.")
     statistic: float | None = Field(None, description="Calculated paired test statistic value.")
-    p_value: float = Field(..., ge=0.0, le=1.0, description="Calculated two-sided probability p-value.")
+    p_value: float = Field(
+        ..., ge=0.0, le=1.0, description="Calculated two-sided probability p-value."
+    )
     interpretation: str = Field(..., description="Textual explanation of statistical significance.")

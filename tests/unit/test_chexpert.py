@@ -24,7 +24,7 @@ def test_chexpert_dataset_label_mapping(tmp_path: Any) -> None:
         tmp_path: Pytest temporary directory path.
     """
     dummy_csv = os.path.join(tmp_path, "chexpert_metadata.csv")
-    
+
     # 1. Pneumothorax = 1.0, No Finding = 0.0 -> Label 1
     # 2. Pneumothorax = 0.0, No Finding = 1.0 -> Label 0
     df = pd.DataFrame(
@@ -38,7 +38,7 @@ def test_chexpert_dataset_label_mapping(tmp_path: Any) -> None:
 
     dataset = CheXpertDataset(csv_file=dummy_csv)
     assert len(dataset) == 2
-    
+
     # Verify index mapping
     assert dataset.data_frame.iloc[0]["Label"] == 1
     assert dataset.data_frame.iloc[1]["Label"] == 0
@@ -66,6 +66,7 @@ def test_chexpert_dataset_getitem_mock(tmp_path: Any) -> None:
     assert image is not None
     # Depending on transforms, image is either PIL.Image or torch.Tensor
     from PIL import Image as PILImage
+
     assert isinstance(image, PILImage.Image | torch.Tensor)
     assert label.item() == 1
     assert image_id == "missing_img.png"

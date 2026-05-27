@@ -11,7 +11,7 @@ def test_mixed_precision_context_cpu() -> None:
     """Verify that MixedPrecisionContext executes without errors on CPU."""
     device = torch.device("cpu")
     context = MixedPrecisionContext(device=device, enabled=True)
-    
+
     with context:
         # Perform a dummy tensor operation
         x = torch.randn(2, 2)

@@ -92,4 +92,3 @@ async def load_model_from_registry(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load model weights dynamically: {exc!s}",
         ) from exc
-

@@ -33,9 +33,7 @@ class CheckpointManager:
             "best_metric": getattr(trainer, "best_metric", 0.0),
             "model_state_dict": trainer.model.state_dict(),
             "optimizer_state_dict": trainer.optimizer.state_dict(),
-            "scheduler_state_dict": (
-                trainer.scheduler.state_dict() if trainer.scheduler else None
-            ),
+            "scheduler_state_dict": (trainer.scheduler.state_dict() if trainer.scheduler else None),
             "config": trainer.config,
         }
 

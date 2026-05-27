@@ -68,9 +68,9 @@ class NIHChestXrayDataset(Dataset[tuple[torch.Tensor, torch.Tensor, str]]):
         # If 'Label' column already exists (preprocessed CSV), use it directly
         if "Label" not in self.data_frame.columns:
             # Filter for Pneumothorax (str.contains) and No Finding (exact match)
-            mask = self.data_frame["Finding Labels"].str.contains(
-                "Pneumothorax", na=False
-            ) | (self.data_frame["Finding Labels"] == "No Finding")
+            mask = self.data_frame["Finding Labels"].str.contains("Pneumothorax", na=False) | (
+                self.data_frame["Finding Labels"] == "No Finding"
+            )
             self.data_frame = self.data_frame[mask].copy()
 
             # Create labels: 1 if Pneumothorax anywhere in Finding Labels, else 0
@@ -92,9 +92,7 @@ class NIHChestXrayDataset(Dataset[tuple[torch.Tensor, torch.Tensor, str]]):
                 synth_df["Image Path"] = synth_df["Image Index"].apply(
                     lambda x: os.path.join(str(synthetic_dir), x)
                 )
-                self.data_frame = pd.concat(
-                    [self.data_frame, synth_df], ignore_index=True
-                )
+                self.data_frame = pd.concat([self.data_frame, synth_df], ignore_index=True)
             else:
                 log.warning(
                     f"Warning: synthetic CSV {synthetic_csv} not found. "

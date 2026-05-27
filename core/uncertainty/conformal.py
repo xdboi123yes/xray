@@ -29,8 +29,7 @@ class ConformalPredictor:
         self.classes = ["No Finding", "Pneumothorax"]
 
     def calibrate(self, model: Any, cal_loader: Any, device: torch.device) -> None:
-        """Computes nonconformity threshold q_hat from held-out calibration split.
-        """
+        """Computes nonconformity threshold q_hat from held-out calibration split."""
         model.eval()
         scores: list[float] = []
 

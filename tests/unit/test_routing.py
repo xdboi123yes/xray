@@ -39,9 +39,7 @@ def test_dynamic_threshold_router_initial() -> None:
 def test_dynamic_threshold_router_adaptation_low() -> None:
     """Test that DynamicThresholdRouter lowers threshold on difficult stream."""
     # Window size 3 for fast simulation
-    router = DynamicThresholdRouter(
-        initial_threshold=0.75, window_size=3, threshold_delta=0.05
-    )
+    router = DynamicThresholdRouter(initial_threshold=0.75, window_size=3, threshold_delta=0.05)
 
     # Stream very low confidences (hard cases)
     router.update(0.50)
@@ -57,9 +55,7 @@ def test_dynamic_threshold_router_adaptation_low() -> None:
 
 def test_dynamic_threshold_router_adaptation_high() -> None:
     """Test that DynamicThresholdRouter raises threshold on easy stream."""
-    router = DynamicThresholdRouter(
-        initial_threshold=0.75, window_size=3, threshold_delta=0.05
-    )
+    router = DynamicThresholdRouter(initial_threshold=0.75, window_size=3, threshold_delta=0.05)
 
     # Stream very high confidences (easy cases)
     router.update(0.90)

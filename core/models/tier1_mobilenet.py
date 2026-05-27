@@ -3,7 +3,6 @@
 This module implements the economic classifier path using MobileNetV2.
 """
 
-
 from typing import cast
 
 import torch
@@ -111,9 +110,7 @@ class Tier1MobileNet(BaseClassifier):
         tta_transforms = t_aug.Compose(
             [
                 t_aug.RandomHorizontalFlip(p=0.5),
-                t_aug.RandomAffine(
-                    degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)
-                ),
+                t_aug.RandomAffine(degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)),
             ]
         )
 
@@ -154,9 +151,7 @@ class Tier1MobileNet(BaseClassifier):
         tta_transforms = t_aug.Compose(
             [
                 t_aug.RandomHorizontalFlip(p=0.5),
-                t_aug.RandomAffine(
-                    degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)
-                ),
+                t_aug.RandomAffine(degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)),
             ]
         )
 

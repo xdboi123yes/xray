@@ -48,16 +48,10 @@ class DiffusionAugmentation(BaseAugmentation):
             "frontal chest x-ray radiograph, pneumothorax, collapsed lung, "
             "pleural air, high quality medical imaging, grayscale"
         )
-        self._negative_prompt = (
-            "color, artifacts, text, labels, watermark, cartoon, drawing"
-        )
+        self._negative_prompt = "color, artifacts, text, labels, watermark, cartoon, drawing"
 
-        self._num_inference_steps = config.get("augmentation", {}).get(
-            "sd_num_inference_steps", 50
-        )
-        self._guidance_scale = config.get("augmentation", {}).get(
-            "sd_guidance_scale", 7.5
-        )
+        self._num_inference_steps = config.get("augmentation", {}).get("sd_num_inference_steps", 50)
+        self._guidance_scale = config.get("augmentation", {}).get("sd_guidance_scale", 7.5)
         self._strength = config.get("augmentation", {}).get("sd_strength", 0.3)
 
     def _lazy_load_pipeline(self) -> Any:
@@ -107,9 +101,7 @@ class DiffusionAugmentation(BaseAugmentation):
         # Convert to PIL Image [512x512] for optimal Stable Diffusion execution
         if is_tensor:
             # Assumes [C, H, W]
-            tensor_cpu = (
-                cast(torch.Tensor, image).detach().cpu().clamp(0, 1).numpy()
-            )
+            tensor_cpu = cast(torch.Tensor, image).detach().cpu().clamp(0, 1).numpy()
             arr = (tensor_cpu.transpose(1, 2, 0) * 255.0).astype(np.uint8)
         else:
             arr = cast(np.ndarray[Any, Any], image)
@@ -147,9 +139,7 @@ class DiffusionAugmentation(BaseAugmentation):
         if is_tensor:
             # Convert back to torch tensor [C, H, W] on the original device
             result_tensor = (
-                torch.from_numpy(result_arr.transpose(2, 0, 1))
-                .float()
-                .to(original_device)
+                torch.from_numpy(result_arr.transpose(2, 0, 1)).float().to(original_device)
             )
             return result_tensor
         else:

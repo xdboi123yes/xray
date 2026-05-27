@@ -43,9 +43,7 @@ def test_tier2_efficientnet_mc_tta(dummy_xray_tensor: torch.Tensor) -> None:
 def test_tier2_ark_init() -> None:
     """Test that Tier 2 Ark+ Swin model initializes correctly."""
     # Using 'tiny' variant to keep memory and CPU loads minimal for testing
-    model = Tier2ArkPlus(
-        num_classes=2, variant="tiny", pretrained=False, freeze_epochs=3
-    )
+    model = Tier2ArkPlus(num_classes=2, variant="tiny", pretrained=False, freeze_epochs=3)
     assert isinstance(model, BaseClassifier)
     assert model._frozen
     assert model.classifier[3].out_features == 2
@@ -53,9 +51,7 @@ def test_tier2_ark_init() -> None:
 
 def test_tier2_ark_unfreezing() -> None:
     """Test progressive backbone unfreezing in Tier 2 Ark+."""
-    model = Tier2ArkPlus(
-        num_classes=2, variant="tiny", pretrained=False, freeze_epochs=3
-    )
+    model = Tier2ArkPlus(num_classes=2, variant="tiny", pretrained=False, freeze_epochs=3)
     assert model._frozen
 
     # Epoch 2 < 3: should remain frozen
@@ -69,9 +65,7 @@ def test_tier2_ark_unfreezing() -> None:
 
 def test_tier2_ark_forward(dummy_xray_tensor: torch.Tensor) -> None:
     """Test forward and MC-TTA shapes for Tier 2 Ark+."""
-    model = Tier2ArkPlus(
-        num_classes=2, variant="tiny", pretrained=False, freeze_epochs=0
-    )
+    model = Tier2ArkPlus(num_classes=2, variant="tiny", pretrained=False, freeze_epochs=0)
     model.eval()
 
     with torch.no_grad():

@@ -18,9 +18,7 @@ from sklearn.metrics import (
 log = structlog.get_logger(__name__)
 
 
-def compute_all_metrics(
-    y_true: Any, y_probs: Any, threshold: float = 0.5
-) -> dict[str, float]:
+def compute_all_metrics(y_true: Any, y_probs: Any, threshold: float = 0.5) -> dict[str, float]:
     """Computes basic classification metrics for binary classification.
 
     Args:

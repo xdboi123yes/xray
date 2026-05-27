@@ -70,9 +70,7 @@ class SyntheticGenerator:
             "frontal chest x-ray radiograph, pneumothorax, collapsed lung, "
             "pleural air, high quality medical imaging, grayscale"
         )
-        self.negative_prompt = (
-            "color, artifacts, text, labels, watermark, cartoon, drawing"
-        )
+        self.negative_prompt = "color, artifacts, text, labels, watermark, cartoon, drawing"
 
         self.num_inference_steps = self.settings.augmentation.sd_num_inference_steps
         self.guidance_scale = self.settings.augmentation.sd_guidance_scale

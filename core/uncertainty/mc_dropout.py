@@ -17,6 +17,7 @@ from tqdm import tqdm
 
 log = structlog.get_logger(__name__)
 
+
 def compute_predictive_entropy(mean_probs: Any) -> float:
     """Computes predictive entropy from mean softmax probabilities.
 
@@ -30,6 +31,7 @@ def compute_predictive_entropy(mean_probs: Any) -> float:
     """
     probs = np.clip(np.asarray(mean_probs), 1e-10, 1.0)
     return float(-np.sum(probs * np.log(probs)))
+
 
 def compute_mutual_information(mc_probs: Any) -> tuple[float, float, float]:
     """Computes mutual information (epistemic uncertainty) from MC Dropout runs.
@@ -56,7 +58,10 @@ def compute_mutual_information(mc_probs: Any) -> tuple[float, float, float]:
 
     return predictive_entropy, expected_entropy, mutual_information
 
-def analyze_uncertainty_batch(model: Any, dataloader: Any, device: torch.device, T: int = 20) -> dict[str, Any]:
+
+def analyze_uncertainty_batch(
+    model: Any, dataloader: Any, device: torch.device, T: int = 20
+) -> dict[str, Any]:
     """Runs MC Dropout in a batch over a dataloader to collect uncertainty logs.
 
     Args:
@@ -123,6 +128,7 @@ def analyze_uncertainty_batch(model: Any, dataloader: Any, device: torch.device,
 
     return final_results
 
+
 def analyze_uncertainty_vs_correctness(results: dict[str, Any]) -> dict[str, dict[str, float]]:
     """Compares uncertainty levels between correct and incorrect diagnostic decisions.
 
@@ -149,6 +155,7 @@ def analyze_uncertainty_vs_correctness(results: dict[str, Any]) -> dict[str, dic
 
     return summary
 
+
 def plot_uncertainty_distribution(results: dict[str, Any], save_dir: str | None = None) -> None:
     """Plots uncertainty distributions comparing correct vs incorrect predictions.
 
@@ -171,9 +178,7 @@ def plot_uncertainty_distribution(results: dict[str, Any], save_dir: str | None 
         correct_vals = results[key][correct_mask]
         incorrect_vals = results[key][incorrect_mask]
 
-        ax.hist(
-            correct_vals, bins=30, alpha=0.6, label="Correct", color="#2ecc71", density=True
-        )
+        ax.hist(correct_vals, bins=30, alpha=0.6, label="Correct", color="#2ecc71", density=True)
         if len(incorrect_vals) > 0:
             ax.hist(
                 incorrect_vals,
@@ -203,6 +208,7 @@ def plot_uncertainty_distribution(results: dict[str, Any], save_dir: str | None 
 
     plt.close()
 
+
 def print_uncertainty_summary(results: dict[str, Any]) -> None:
     """Prints a formatted terminal summary report of uncertainty analysis.
 
@@ -230,7 +236,9 @@ def print_uncertainty_summary(results: dict[str, Any]) -> None:
         s = summary[metric_key]
         log.info(f"--- {metric_name} ---")
         log.info(f"  Correct predictions:   mean={s['correct_mean']:.4f} ± {s['correct_std']:.4f}")
-        log.info(f"  Incorrect predictions: mean={s['incorrect_mean']:.4f} ± {s['incorrect_std']:.4f}")
+        log.info(
+            f"  Incorrect predictions: mean={s['incorrect_mean']:.4f} ± {s['incorrect_std']:.4f}"
+        )
 
         if s["correct_mean"] > 0:
             ratio = s["incorrect_mean"] / s["correct_mean"]

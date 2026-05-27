@@ -133,15 +133,13 @@ class Trainer:
                 f"\n✨ [Epoch {self.current_epoch:02d}/{epochs}] "
                 f"Train Loss: {train_metrics['train_loss']:.4f} | Train AUC: {train_metrics['train_auc']:.4f} | Train Acc: {train_metrics['train_acc']:.4f} || "
                 f"Val Loss: {val_metrics['val_loss']:.4f} | Val AUC: {val_metrics['val_auc']:.4f} | Val Acc: {val_metrics['val_acc']:.4f}",
-                flush=True
+                flush=True,
             )
 
             # Adjust learning rate scheduler if present
             if self.scheduler is not None:
                 # Handle ReduceLROnPlateau which requires validation metric
-                if isinstance(
-                    self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau
-                ):
+                if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                     val_auc = val_metrics.get("val_auc", 0.0)
                     self.scheduler.step(val_auc)
                 else:
@@ -177,8 +175,17 @@ class Trainer:
 
         self.optimizer.zero_grad()
 
+        import sys
+
         from tqdm import tqdm
-        pbar = tqdm(enumerate(loader), total=len(loader), desc=f"Epoch {self.current_epoch:02d} [Train]", leave=True)
+
+        pbar = tqdm(
+            enumerate(loader),
+            total=len(loader),
+            desc=f"Epoch {self.current_epoch:02d} [Train]",
+            leave=True,
+            disable=not sys.stdout.isatty(),
+        )
         for batch_idx, batch in pbar:
             # Safe unpack: loader might yield (images, labels) or (images, labels, metadata)
             images = batch[0].to(self.device)
@@ -195,15 +202,13 @@ class Trainer:
             self.scaler.scale(loss).backward()
 
             # Step optimizer every accumulate_grad_batches steps
-            if (batch_idx + 1) % self.accumulate_grad_batches == 0 or (
-                batch_idx + 1
-            ) == len(loader):
+            if (batch_idx + 1) % self.accumulate_grad_batches == 0 or (batch_idx + 1) == len(
+                loader
+            ):
                 if self.gradient_clip_val is not None:
                     # Unscale gradients before clipping
                     self.scaler.unscale_(self.optimizer)
-                    nn.utils.clip_grad_norm_(
-                        self.model.parameters(), self.gradient_clip_val
-                    )
+                    nn.utils.clip_grad_norm_(self.model.parameters(), self.gradient_clip_val)
 
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
@@ -244,8 +249,16 @@ class Trainer:
         preds_list: list[float] = []
         targets_list: list[float] = []
 
+        import sys
+
         from tqdm import tqdm
-        pbar = tqdm(loader, desc=f"Epoch {self.current_epoch:02d} [Val]", leave=True)
+
+        pbar = tqdm(
+            loader,
+            desc=f"Epoch {self.current_epoch:02d} [Val]",
+            leave=True,
+            disable=not sys.stdout.isatty(),
+        )
         with torch.no_grad():
             for batch in pbar:
                 images = batch[0].to(self.device)

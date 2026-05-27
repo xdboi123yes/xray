@@ -13,6 +13,7 @@ import yaml
 
 MLRUNS_DIR = "experiments/mlruns/762301816938414973"
 
+
 def test_ablation_no_fake_timestamps() -> None:
     """Verify that all mlflow_run metrics in ablation.json have valid timestamps."""
     ablation_json = "outputs/results/ablation.json"

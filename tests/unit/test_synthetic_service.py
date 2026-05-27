@@ -26,9 +26,7 @@ def test_synthetic_data_service_init(mock_config: dict[str, Any]) -> None:
     assert not service._pipeline_loaded
 
 
-def test_synthetic_data_service_generate_mock(
-    mock_config: dict[str, Any], tmp_path: Any
-) -> None:
+def test_synthetic_data_service_generate_mock(mock_config: dict[str, Any], tmp_path: Any) -> None:
     """Test mock variation generation using simulated image noise.
 
     Args:

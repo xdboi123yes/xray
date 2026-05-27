@@ -104,6 +104,7 @@ def test_tiered_system_route_tier1() -> None:
     x = torch.zeros(1, 3, 224, 224)
 
     import pytest
+
     prediction = system.route(x)
     assert prediction.prediction == "Pneumothorax"
     assert prediction.confidence == pytest.approx(0.85)
@@ -134,6 +135,7 @@ def test_tiered_system_route_tier2() -> None:
     x = torch.zeros(1, 3, 224, 224)
 
     import pytest
+
     prediction = system.route(x)
     assert prediction.prediction == "Pneumothorax"
     assert prediction.confidence == pytest.approx(0.8)
@@ -165,6 +167,7 @@ def test_tiered_system_route_tier2_flagged() -> None:
     x = torch.zeros(1, 3, 224, 224)
 
     import pytest
+
     prediction = system.route(x)
     assert prediction.prediction == "Pneumothorax"
     assert prediction.mc_variance == pytest.approx(0.12)

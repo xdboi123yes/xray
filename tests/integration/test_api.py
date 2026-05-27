@@ -48,7 +48,6 @@ def setup_test_environment() -> Generator[None, None, None]:
         os.remove(test_db)
 
 
-
 def test_health_endpoint() -> None:
     """Verifies the health check endpoint returns 200 and loads models."""
     with TestClient(app) as client:
@@ -177,7 +176,6 @@ def test_ablation_and_models_endpoints() -> None:
         data_abl = response_abl.json()
         assert isinstance(data_abl, list)
         assert data_abl[0]["ablation_id"] == "A1"
-
 
         # Model configs metadata
         response_mod = client.get("/api/v1/models")

@@ -25,6 +25,7 @@ def test_deploy_huggingface_dry_run() -> None:
         if os.path.exists(dummy_weights):
             os.remove(dummy_weights)
 
+
 def test_deploy_huggingface_missing_file() -> None:
     """Verify that deploy_to_spaces returns False if the weight file is missing."""
     success = deploy_to_spaces(

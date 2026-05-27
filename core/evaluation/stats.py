@@ -81,10 +81,9 @@ def delong_test(
 
     # Variance of the difference:
     # Var(AUC1 - AUC2) = (s_10[0,0] + s_10[1,1] - 2*s_10[0,1]) / n_pos + (s_01[0,0] + s_01[1,1] - 2*s_01[0,1]) / n_neg
-    var_diff = (
-        (s_10[0, 0] + s_10[1, 1] - 2 * s_10[0, 1]) / n_pos
-        + (s_01[0, 0] + s_01[1, 1] - 2 * s_01[0, 1]) / n_neg
-    )
+    var_diff = (s_10[0, 0] + s_10[1, 1] - 2 * s_10[0, 1]) / n_pos + (
+        s_01[0, 0] + s_01[1, 1] - 2 * s_01[0, 1]
+    ) / n_neg
 
     if var_diff <= 0:
         return 1.0

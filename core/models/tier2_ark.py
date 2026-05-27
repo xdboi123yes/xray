@@ -48,9 +48,7 @@ class Tier2ArkPlus(BaseClassifier):
         super().__init__()
         self._variant = variant
         self._freeze_epochs = freeze_epochs
-        self.backbone, feat_dim = self._build_backbone(
-            variant, pretrained, ark_checkpoint_path
-        )
+        self.backbone, feat_dim = self._build_backbone(variant, pretrained, ark_checkpoint_path)
 
         # Replace standard classifier head with thesis architecture
         self.classifier = nn.Sequential(
@@ -189,9 +187,7 @@ class Tier2ArkPlus(BaseClassifier):
         tta_transforms = t_aug.Compose(
             [
                 t_aug.RandomHorizontalFlip(p=0.5),
-                t_aug.RandomAffine(
-                    degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)
-                ),
+                t_aug.RandomAffine(degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)),
             ]
         )
 
@@ -232,9 +228,7 @@ class Tier2ArkPlus(BaseClassifier):
         tta_transforms = t_aug.Compose(
             [
                 t_aug.RandomHorizontalFlip(p=0.5),
-                t_aug.RandomAffine(
-                    degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)
-                ),
+                t_aug.RandomAffine(degrees=5, translate=(0.05, 0.05), scale=(0.95, 1.05)),
             ]
         )
 

@@ -105,11 +105,17 @@ def test_ablation_json_mlflow_validation() -> None:
 
         if provenance == "mlflow_run":
             run_id = row["run_id"]
-            assert run_id, f"ablation_id {row['ablation_id']} has empty run_id with mlflow_run provenance"
+            assert run_id, (
+                f"ablation_id {row['ablation_id']} has empty run_id with mlflow_run provenance"
+            )
 
             # Verify MLflow run metrics directory exists
-            metrics_dir = os.path.join("experiments", "mlruns", "762301816938414973", run_id, "metrics")
-            assert os.path.isdir(metrics_dir), f"MLflow metrics directory not found for run {run_id}"
+            metrics_dir = os.path.join(
+                "experiments", "mlruns", "762301816938414973", run_id, "metrics"
+            )
+            assert os.path.isdir(metrics_dir), (
+                f"MLflow metrics directory not found for run {run_id}"
+            )
 
             # Verify at least one version of the auc_roc metric is present in MLflow metrics
             auc_roc_found = False
@@ -119,5 +125,3 @@ def test_ablation_json_mlflow_validation() -> None:
                     auc_roc_found = True
                     break
             assert auc_roc_found, f"auc_roc metric not found in MLflow metrics for run {run_id}"
-
-

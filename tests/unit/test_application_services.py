@@ -80,7 +80,7 @@ def test_calibration_service_fit() -> None:
     # Create dummy dataloader
     x_val = torch.randn(10, 2)
     y_val = torch.randint(0, 2, (10,))
-    dataset = TensorDataset(x_val, y_val, torch.zeros(10)) # Yields image_tensor, label, index
+    dataset = TensorDataset(x_val, y_val, torch.zeros(10))  # Yields image_tensor, label, index
     loader = DataLoader(dataset, batch_size=2)
 
     device = torch.device("cpu")
@@ -118,7 +118,7 @@ def test_evaluation_service_compare(dummy_data: tuple[np.ndarray, np.ndarray, np
 
 
 def test_evaluation_service_bootstrap(
-    dummy_data: tuple[np.ndarray, np.ndarray, np.ndarray]
+    dummy_data: tuple[np.ndarray, np.ndarray, np.ndarray],
 ) -> None:
     """Tests bootstrap confidence interval generation."""
     y_true, y_probs1, y_probs2 = dummy_data

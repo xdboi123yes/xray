@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 logger = structlog.get_logger()
 
+
 async def global_exception_handler(request: Any, exc: Exception) -> JSONResponse:
     """Catches all unhandled exceptions and standardizes error responses."""
     logger.error("unhandled_exception", error=str(exc), path=request.url.path)
@@ -21,6 +22,7 @@ async def global_exception_handler(request: Any, exc: Exception) -> JSONResponse
         },
     )
 
+
 async def value_error_handler(request: Any, exc: ValueError) -> JSONResponse:
     """Catches input validation failures."""
     logger.warning("validation_error", error=str(exc), path=request.url.path)
@@ -31,6 +33,7 @@ async def value_error_handler(request: Any, exc: ValueError) -> JSONResponse:
             "code": "INVALID_INPUT",
         },
     )
+
 
 def setup_error_handlers(app: FastAPI) -> None:
     """Registers exception handlers on the FastAPI application."""

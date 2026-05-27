@@ -39,7 +39,9 @@ class CheXpertDataset(Dataset[Any]):
 
         if not os.path.exists(csv_file):
             # Create a mock DataFrame if metadata doesn't exist for test environment safety
-            log.warning(f"[CheXpertDataset] Warning: '{csv_file}' not found. Initializing empty dataset.")
+            log.warning(
+                f"[CheXpertDataset] Warning: '{csv_file}' not found. Initializing empty dataset."
+            )
             self.data_frame = pd.DataFrame(columns=["Path", "Label", "Image Index"])
             return
 
@@ -84,7 +86,6 @@ class CheXpertDataset(Dataset[Any]):
         return len(self.data_frame)
 
     def __getitem__(self, idx: int) -> tuple[Any, torch.Tensor, str]:
-
         row = self.data_frame.iloc[idx]
         img_path = row["Image Path"]
         image_id = row["Image Index"]

@@ -42,14 +42,10 @@ class ClassicalAugmentation(BaseAugmentation):
                 [
                     A.Resize(height=self._image_size, width=self._image_size),
                     A.HorizontalFlip(p=0.5),
-                    A.ShiftScaleRotate(
-                        shift_limit=0.0, scale_limit=0.1, rotate_limit=10, p=0.5
-                    ),
+                    A.ShiftScaleRotate(shift_limit=0.0, scale_limit=0.1, rotate_limit=10, p=0.5),
                     A.RandomBrightnessContrast(p=0.5),
                     A.GaussNoise(p=0.2),
-                    A.Normalize(
-                        mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)
-                    ),
+                    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
                     ToTensorV2(),
                 ]
             )
@@ -57,9 +53,7 @@ class ClassicalAugmentation(BaseAugmentation):
             return A.Compose(
                 [
                     A.Resize(height=self._image_size, width=self._image_size),
-                    A.Normalize(
-                        mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)
-                    ),
+                    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
                     ToTensorV2(),
                 ]
             )

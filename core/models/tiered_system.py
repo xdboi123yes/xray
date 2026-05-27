@@ -19,6 +19,7 @@ from core.interfaces.base_model import BaseClassifier
 @dataclass
 class TieredPrediction:
     """Diagnostic outcome record from the tiered prediction pipeline."""
+
     prediction: str
     confidence: float
     mc_variance: float | None
@@ -169,7 +170,6 @@ class TieredSystem(nn.Module):
                 from datetime import datetime
 
                 from core.utils.logging_utils import log_inference
-
 
                 predicted_label_int = self.classes.index(prediction_result.prediction)
                 correct_val = None

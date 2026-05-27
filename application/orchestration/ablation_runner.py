@@ -128,9 +128,7 @@ class AblationRunner:
             },
         }
 
-    def run_experiment(
-        self, ablation_id: str, dry_run: bool = False
-    ) -> dict[str, Any]:
+    def run_experiment(self, ablation_id: str, dry_run: bool = False) -> dict[str, Any]:
         """Execute a single ablation experiment.
 
         Args:
@@ -150,9 +148,9 @@ class AblationRunner:
             )
 
         config = self.ablation_configs[ablation_id]
-        log.info(f"\n{'='*60}")
+        log.info(f"\n{'=' * 60}")
         log.info(f"STARTING ABLATION {ablation_id}: {config['description']}")
-        log.info(f"{'='*60}")
+        log.info(f"{'=' * 60}")
 
         result: dict[str, Any] = {
             "ablation_id": ablation_id,
@@ -196,7 +194,7 @@ class AblationRunner:
             # Execute targeted python script command
             cmd = [sys.executable, config["script"], *config.get("args", [])]
             log.info(f"[AblationRunner] Executing command: {' '.join(cmd)}")
-            
+
             # Use Popen to stream standard output and standard error in real-time
             process = subprocess.Popen(
                 cmd,
@@ -205,13 +203,13 @@ class AblationRunner:
                 text=True,
                 bufsize=1,  # Line-buffered
             )
-            
+
             # Read and print output in real-time
             if process.stdout is not None:
                 _print = print
                 for line in process.stdout:
                     _print(line, end="", flush=True)
-            
+
             returncode = process.wait()
             result["returncode"] = returncode
 

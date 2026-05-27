@@ -73,11 +73,7 @@ class FIDEvaluator:
 
         # Ensure enough files exist for covariance matrix calculations
         num_synthetic = len(
-            [
-                f
-                for f in os.listdir(synthetic_dir)
-                if f.lower().endswith((".png", ".jpg", ".jpeg"))
-            ]
+            [f for f in os.listdir(synthetic_dir) if f.lower().endswith((".png", ".jpg", ".jpeg"))]
         )
         if num_synthetic < 2:
             log.warning(
@@ -117,10 +113,7 @@ class FIDEvaluator:
         os.makedirs(rejected_dir, exist_ok=True)
 
         fid_score = self.compute_fid(real_dir, synthetic_batch_dir)
-        log.info(
-            f"Batch FID Score: {fid_score:.4f} "
-            f"(Threshold: {self.fid_threshold})"
-        )
+        log.info(f"Batch FID Score: {fid_score:.4f} (Threshold: {self.fid_threshold})")
 
         accepted = fid_score <= self.fid_threshold
         target_dir = accepted_dir if accepted else rejected_dir

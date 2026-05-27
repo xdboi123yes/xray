@@ -1,6 +1,6 @@
 """Test-Time Augmentation (TTA) Uncertainty Quantification Module.
 
-Manages data transformations and inference averaging pipelines to calculate 
+Manages data transformations and inference averaging pipelines to calculate
 predictive variance and improve model robustness under distribution shifts.
 """
 
@@ -21,11 +21,13 @@ class TestTimeAugmenter:
         """
         self.n_augments = n_augments
         # Define clean clinical-safe spatial transformations
-        self.transforms = T.Compose([
-            T.RandomHorizontalFlip(p=0.5),
-            T.RandomRotation(degrees=5),
-            T.ColorJitter(brightness=0.1, contrast=0.1),
-        ])
+        self.transforms = T.Compose(
+            [
+                T.RandomHorizontalFlip(p=0.5),
+                T.RandomRotation(degrees=5),
+                T.ColorJitter(brightness=0.1, contrast=0.1),
+            ]
+        )
 
     def generate_augments(self, x: torch.Tensor) -> list[torch.Tensor]:
         """Generates TTA variations of the input image tensor.
@@ -41,7 +43,9 @@ class TestTimeAugmenter:
             augments.append(self.transforms(x))
         return augments
 
-    def predict_with_tta(self, model: torch.nn.Module, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def predict_with_tta(
+        self, model: torch.nn.Module, x: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Runs model predictions with Test-Time Augmentation.
 
         Args:

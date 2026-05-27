@@ -1,7 +1,5 @@
 """Inference REST endpoints for chest radiograph tiered predictions."""
 
-
-
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status

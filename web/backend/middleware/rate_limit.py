@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 # Define Limiter with IP-based key function
 limiter = Limiter(key_func=get_remote_address)
 
+
 def setup_rate_limiting(app: FastAPI) -> None:
     """Registers slowapi rate limiter and error handlers on the application."""
     app.state.limiter = limiter

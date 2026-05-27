@@ -19,6 +19,7 @@ class DummyModel(nn.Module):
         x = torch.flatten(x, 1)
         return self.fc(x)
 
+
 def test_compute_predictive_entropy() -> None:
     """Verify entropy calculations for highly certain vs uncertain probabilities."""
     certain = np.array([1.0, 0.0])
@@ -30,18 +31,22 @@ def test_compute_predictive_entropy() -> None:
     assert h_certain < 1e-5
     assert abs(h_uncertain - np.log(2)) < 1e-5
 
+
 def test_compute_mutual_information() -> None:
     """Verify mutual information breakdown yields positive values."""
-    mc_probs = np.array([
-        [0.9, 0.1],
-        [0.8, 0.2],
-        [0.7, 0.3],
-    ])
+    mc_probs = np.array(
+        [
+            [0.9, 0.1],
+            [0.8, 0.2],
+            [0.7, 0.3],
+        ]
+    )
     pred_ent, exp_ent, mi = compute_mutual_information(mc_probs)
     assert pred_ent >= 0.0
     assert exp_ent >= 0.0
     assert mi >= 0.0
     assert pred_ent >= exp_ent
+
 
 def test_tta_prediction_pipeline() -> None:
     """Verify TestTimeAugmenter transforms and averages predictions correctly."""
