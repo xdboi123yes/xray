@@ -191,8 +191,8 @@ class AblationRunner:
                 return result
 
         try:
-            # Execute targeted python script command
-            cmd = [sys.executable, config["script"], *config.get("args", [])]
+            # Execute targeted python script command in unbuffered mode for real-time streaming
+            cmd = [sys.executable, "-u", config["script"], *config.get("args", [])]
             log.info(f"[AblationRunner] Executing command: {' '.join(cmd)}")
 
             # Use Popen to stream standard output and standard error in real-time
