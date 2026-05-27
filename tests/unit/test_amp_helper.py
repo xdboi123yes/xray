@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import torch
+
 from infrastructure.training.amp_helper import MixedPrecisionContext
+
 
 def test_mixed_precision_context_cpu() -> None:
     """Verify that MixedPrecisionContext executes without errors on CPU."""

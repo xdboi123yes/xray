@@ -23,6 +23,7 @@ succeeded.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import sys
 from pathlib import Path
@@ -93,10 +94,8 @@ def _download(url: str, dest: Path, timeout: float = 600.0) -> bool:
     except Exception as exc:
         log.error("ark_download_failed", url=url, error=str(exc))
         if dest.exists():
-            try:
+            with contextlib.suppress(OSError):
                 dest.unlink()
-            except OSError:
-                pass
         return False
 
 

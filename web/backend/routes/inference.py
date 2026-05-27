@@ -4,14 +4,13 @@
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 
 from application.dto.prediction_dto import PredictionDTO
 from application.services.inference_service import InferenceService
 from core.interfaces.base_model import BaseClassifier
 from core.interfaces.base_router import BaseRouter
 from web.backend.database import HistoryDatabaseManager
-from web.backend.middleware import limiter
 from web.backend.deps import (
     SystemState,
     get_db,
@@ -20,6 +19,7 @@ from web.backend.deps import (
     get_tier1_model,
     get_tier2_model,
 )
+from web.backend.middleware import limiter
 
 router = APIRouter(prefix="/api/v1", tags=["inference"])
 inference_service = InferenceService()

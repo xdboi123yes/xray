@@ -8,13 +8,12 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import structlog
 import torch
 from diffusers import StableDiffusionImg2ImgPipeline  # type: ignore[import-untyped]
 from PIL import Image
 
 from config.settings import Settings, get_settings
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

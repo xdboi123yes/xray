@@ -5,10 +5,10 @@ Saves training snapshots and weights to ensure progress retention.
 
 from typing import Any
 
+import structlog
+
 from core.interfaces.base_observer import TrainingObserver
 from infrastructure.persistence.checkpoint import CheckpointManager
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

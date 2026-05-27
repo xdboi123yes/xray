@@ -9,6 +9,7 @@ Forbidden: comments, docstrings, log messages, UI string literals (outside tr.js
 """
 
 from __future__ import annotations
+
 import re
 import sys
 from pathlib import Path

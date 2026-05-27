@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+
 from scripts.deploy_huggingface import deploy_to_spaces
+
 
 def test_deploy_huggingface_dry_run() -> None:
     """Verify that deploy_to_spaces runs successfully in dry-run mode."""

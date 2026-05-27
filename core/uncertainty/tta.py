@@ -6,9 +6,9 @@ predictive variance and improve model robustness under distribution shifts.
 
 from __future__ import annotations
 
-from typing import Any
 import torch
 import torchvision.transforms as T
+
 
 class TestTimeAugmenter:
     """Manages test-time augmentation ensembles for chest radiograph predictions."""

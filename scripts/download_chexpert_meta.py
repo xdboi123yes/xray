@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import argparse
 import os
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 
 
 def main() -> None:
@@ -29,7 +30,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print(f"Preparing CheXpert metadata splits...")
+    print("Preparing CheXpert metadata splits...")
     os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
 
     if os.path.exists(args.output_path):
@@ -46,9 +47,8 @@ def main() -> None:
     
     # Ensure mutually exclusive labels for clean binary evaluation
     for idx, is_p in enumerate(pneumo_labels):
-        if is_p == 0.0:
-            if np.random.rand() < 0.66:
-                no_finding_labels[idx] = 1.0
+        if is_p == 0.0 and np.random.rand() < 0.66:
+            no_finding_labels[idx] = 1.0
 
     genders = np.random.choice(["Male", "Female"], size=args.n_samples)
     ages = np.random.randint(18, 90, size=args.n_samples)

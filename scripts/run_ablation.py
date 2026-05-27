@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+
 import pandas as pd
 
 # Add project root to path
@@ -33,7 +34,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print(f"Initializing AblationRunner CLI...")
+    print("Initializing AblationRunner CLI...")
     runner = AblationRunner()
 
     all_results = []

@@ -7,10 +7,9 @@ rates to MLflow tracking services.
 from typing import Any
 
 import mlflow
+import structlog
 
 from core.interfaces.base_observer import TrainingObserver
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

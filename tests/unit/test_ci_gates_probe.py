@@ -6,9 +6,8 @@ flag violations when non-English text or key disparities are introduced.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-import pytest
+
 from scripts.check_comment_language import check_file
 from scripts.check_i18n_parity import flatten
 

@@ -10,11 +10,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import structlog
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

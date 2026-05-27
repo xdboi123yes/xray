@@ -6,9 +6,9 @@ at the beginning of each epoch.
 
 from typing import Any
 
-from core.interfaces.base_observer import TrainingObserver
-
 import structlog
+
+from core.interfaces.base_observer import TrainingObserver
 
 log = structlog.get_logger(__name__)
 

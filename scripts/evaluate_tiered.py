@@ -1,27 +1,24 @@
-import os
 import argparse
+import json
+import os
 import sys
+
+import mlflow
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import time
-import pandas as pd
-import json
-import mlflow
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from config.settings import get_settings
-from infrastructure.data.dataset import NIHChestXrayDataset
 from core.augmentation.classical import ClassicalAugmentation
-from core.models.factory import ModelFactory
-import core.models.tier1_mobilenet  # registers mobilenet_v2
-import core.models.tier2_efficientnet  # registers efficientnet_b4
-import core.models.tier2_ark  # registers ark_plus
-from core.models.tiered_system import TieredSystem
 from core.evaluation.metrics import compute_all_metrics
+from core.models.factory import ModelFactory
+from core.models.tiered_system import TieredSystem
 from core.uncertainty.conformal import ConformalPredictor
+from infrastructure.data.dataset import NIHChestXrayDataset
+
 
 def setup_mlflow_local(experiment_name="chest_xray_tiered", tracking_uri="experiments/mlruns"):
     os.makedirs(tracking_uri, exist_ok=True)
@@ -108,7 +105,7 @@ def main() -> None:
     # Load threshold
     threshold_path = 'outputs/models/tier1_mobilenet_threshold.json'
     if os.path.exists(threshold_path):
-        with open(threshold_path, 'r') as f:
+        with open(threshold_path) as f:
             t_data = json.load(f)
             static_threshold = t_data.get('optimal_threshold', settings.model.confidence_threshold)
     else:
@@ -164,10 +161,7 @@ def main() -> None:
         
         y_true.append(label)
         # 'Pneumothorax' is class 1. If prediction is Pneumothorax, confidence applies to class 1.
-        if result.prediction == 'Pneumothorax':
-            prob = result.confidence
-        else:
-            prob = 1.0 - result.confidence
+        prob = result.confidence if result.prediction == 'Pneumothorax' else 1.0 - result.confidence
             
         y_probs.append(prob)
         

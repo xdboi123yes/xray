@@ -8,10 +8,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import pandas as pd
+import structlog
 import torch
 import torch.nn as nn
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

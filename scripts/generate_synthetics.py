@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import sys
-from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
@@ -48,7 +46,7 @@ def main() -> None:
     # Read image_dir from image_dir.txt if available
     image_dir_txt = "data/processed/image_dir.txt"
     if os.path.exists(image_dir_txt):
-        with open(image_dir_txt, "r") as f:
+        with open(image_dir_txt) as f:
             real_images_dir = f.read().strip()
     else:
         real_images_dir = config.paths.image_dir

@@ -9,17 +9,14 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import structlog
 import torch
 from torch.utils.data import DataLoader
 
+# Explicitly import all classifiers to trigger registration decorators in ModelFactory
 from application.dto.training_config_dto import TrainingConfigDTO
 from config.settings import get_settings
 from core.models.factory import ModelFactory
-
-# Explicitly import all classifiers to trigger registration decorators in ModelFactory
-import core.models.tier1_mobilenet
-import core.models.tier2_efficientnet
-import core.models.tier2_ark
 from infrastructure.data.dataset import NIHChestXrayDataset
 from infrastructure.training.losses import get_class_weighted_loss
 from infrastructure.training.observers.carbon_tracker import CarbonTrackerObserver
@@ -29,8 +26,6 @@ from infrastructure.training.observers.lr_logger import LRLoggerObserver
 from infrastructure.training.observers.mlflow_observer import MLflowObserver
 from infrastructure.training.scheduler import get_scheduler
 from infrastructure.training.trainer import Trainer
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

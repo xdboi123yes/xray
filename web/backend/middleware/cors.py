@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from config.settings import get_settings
+
 
 def setup_cors(app: FastAPI) -> None:
     """Configures secure CORS rules matching the application environment settings."""

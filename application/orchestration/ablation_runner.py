@@ -11,9 +11,8 @@ import sys
 from datetime import datetime
 from typing import Any
 
-import yaml
-
 import structlog
+import yaml
 
 log = structlog.get_logger(__name__)
 

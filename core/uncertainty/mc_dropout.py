@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import os
 from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
+import structlog
 import torch
 from tqdm import tqdm
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

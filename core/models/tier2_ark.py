@@ -7,14 +7,13 @@ fully complying with the BaseClassifier interface.
 from pathlib import Path
 from typing import Literal, cast
 
+import structlog
 import timm
 import torch
 import torch.nn as nn
 
 from core.interfaces.base_model import BaseClassifier
 from core.models.factory import ModelFactory
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

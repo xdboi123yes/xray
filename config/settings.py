@@ -111,14 +111,14 @@ class Settings(BaseSettings):
 
         # 1. Load base.yaml
         if base_path.exists():
-            with open(base_path, "r", encoding="utf-8") as f:
+            with open(base_path, encoding="utf-8") as f:
                 loaded = yaml.safe_load(f)
                 if isinstance(loaded, dict):
                     config_dict = loaded
 
         # 2. Merge environment overrides (e.g. dev.yaml, test.yaml)
         if env_path.exists():
-            with open(env_path, "r", encoding="utf-8") as f:
+            with open(env_path, encoding="utf-8") as f:
                 env_loaded = yaml.safe_load(f)
                 if isinstance(env_loaded, dict):
                     for section, values_dict in env_loaded.items():

@@ -7,9 +7,9 @@ AI statistics for the bachelor thesis.
 
 from typing import Any
 
-from core.interfaces.base_observer import TrainingObserver
-
 import structlog
+
+from core.interfaces.base_observer import TrainingObserver
 
 log = structlog.get_logger(__name__)
 

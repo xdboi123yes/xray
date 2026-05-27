@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import os
+
 import torch
 import torch.nn as nn
+
 from infrastructure.export.torchscript_exporter import TorchScriptModelExporter
+
 
 class SimpleModel(nn.Module):
     def __init__(self) -> None:

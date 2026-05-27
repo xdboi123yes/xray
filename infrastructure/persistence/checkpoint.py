@@ -6,9 +6,8 @@ preserved and restored, supporting complete resume functionality.
 
 from typing import Any
 
-import torch
-
 import structlog
+import torch
 
 log = structlog.get_logger(__name__)
 

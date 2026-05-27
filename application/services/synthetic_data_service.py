@@ -11,10 +11,9 @@ import shutil
 from typing import Any
 
 import numpy as np
+import structlog
 import torch
 from PIL import Image
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

@@ -17,9 +17,6 @@ import torch
 
 from core.models.factory import ModelFactory
 from infrastructure.export.onnx_exporter import ONNXModelExporter
-import core.models.tier1_mobilenet  # registers mobilenet_v2
-import core.models.tier2_efficientnet  # registers efficientnet_b4
-import core.models.tier2_ark  # registers ark_plus
 
 
 def main() -> None:

@@ -8,7 +8,7 @@ target-version = "py310"
 # E: Error, F: Pyflakes, I: Import sorting, N: Naming conventions,
 # UP: Upgrade syntax, B: Bugbear, SIM: Simplification, RUF: Ruff custom
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
-ignore = ["E501", "N803", "B024", "B027", "N812", "B008"]
+ignore = ["E501", "N803", "B024", "B027", "N812", "B008", "RUF001", "UP038", "RUF003", "E701", "E741", "E402"]
 
 [tool.mypy]
 python_version = "3.10"

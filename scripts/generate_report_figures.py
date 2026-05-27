@@ -1,8 +1,10 @@
 import os
-import pandas as pd
+
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import auc, roc_curve
+
 
 def load_data(filepath):
     if os.path.exists(filepath):
@@ -96,8 +98,8 @@ def plot_roc_curve(df, output_path):
     roc_auc = auc(fpr, tpr)
     
     # Find Youden's J statistic optimal point
-    J = tpr - fpr
-    best_idx = J.argmax()
+    j_stat = tpr - fpr
+    best_idx = j_stat.argmax()
     best_threshold = thresholds[best_idx]
     
     plt.figure(figsize=(8, 8))

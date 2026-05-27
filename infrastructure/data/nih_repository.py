@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 from typing import Any
+
 import numpy as np
 import pandas as pd
 import torch
@@ -14,6 +15,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 from core.interfaces.base_repository import BaseRepository
+
 
 class EmptyMockDataset(Dataset[Any]):
     """Empty mock container to satisfy type bounds for splits not utilized in OOD."""

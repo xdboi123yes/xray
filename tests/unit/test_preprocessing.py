@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from PIL import Image
 import numpy as np
+from PIL import Image
+
 from infrastructure.data.preprocessing import ImagePreprocessor
+
 
 def test_image_preprocessor_clahe() -> None:
     """Verify that CLAHE is applied successfully and dimensions are maintained."""

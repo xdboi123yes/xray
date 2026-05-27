@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import albumentations as A
 import numpy as np
 from PIL import Image, ImageOps
-import albumentations as A
+
 
 class ImagePreprocessor:
     """Handles medical image preprocessing pipelines such as CLAHE and standardization."""

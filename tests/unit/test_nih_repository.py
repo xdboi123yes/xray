@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import os
+
 import pandas as pd
 import torch
-from infrastructure.data.nih_repository import NIHRepository, NIHDataset
+
+from infrastructure.data.nih_repository import NIHDataset, NIHRepository
+
 
 def test_nih_repository_empty_splits() -> None:
     """Verify that train, val, and calibration datasets return EmptyMockDataset."""

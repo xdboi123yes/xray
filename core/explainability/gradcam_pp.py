@@ -7,6 +7,7 @@ gradient attributions using the advanced Grad-CAM++ variant.
 from __future__ import annotations
 
 from typing import Any
+
 import cv2
 import numpy as np
 import torch

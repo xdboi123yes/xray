@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from typing import Any
+
+import structlog
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
-import structlog
 
 logger = structlog.get_logger()
 

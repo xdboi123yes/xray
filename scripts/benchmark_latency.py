@@ -6,6 +6,7 @@ Tracks metrics using codecarbon, measuring GPU/CPU latency and peak allocation s
 from __future__ import annotations
 
 import time
+
 import torch
 from codecarbon import EmissionsTracker
 

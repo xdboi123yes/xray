@@ -10,25 +10,23 @@ import argparse
 import json
 import os
 import sys
-from tqdm import tqdm
-import mlflow
 
+import mlflow
 import torch
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from config.settings import get_settings
-from core.models.factory import ModelFactory
-import core.models.tier1_mobilenet  # registers mobilenet_v2
-import core.models.tier2_efficientnet  # registers efficientnet_b4
-import core.models.tier2_ark  # registers ark_plus
-from core.models.tiered_system import TieredSystem
+from core.augmentation.classical import ClassicalAugmentation
 from core.evaluation.metrics import compute_all_metrics
+from core.models.factory import ModelFactory
+from core.models.tiered_system import TieredSystem
 from core.uncertainty.conformal import ConformalPredictor
 from infrastructure.data.chexpert_repository import CheXpertRepository
-from core.augmentation.classical import ClassicalAugmentation
+
 
 def setup_mlflow_local(experiment_name="chest_xray_tiered", tracking_uri="experiments/mlruns"):
     os.makedirs(tracking_uri, exist_ok=True)
@@ -168,10 +166,7 @@ def main() -> None:
         result = tiered_system.route(images, image_id=image_id)
 
         y_true.append(label)
-        if result.prediction == "Pneumothorax":
-            prob = result.confidence
-        else:
-            prob = 1.0 - result.confidence
+        prob = result.confidence if result.prediction == "Pneumothorax" else 1.0 - result.confidence
 
         y_probs.append(prob)
 

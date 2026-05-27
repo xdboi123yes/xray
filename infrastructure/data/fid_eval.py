@@ -9,12 +9,11 @@ import os
 import shutil
 from typing import Any
 
+import structlog
 import torch
 from pytorch_fid.fid_score import calculate_fid_given_paths  # type: ignore[import-untyped]
 
 from config.settings import Settings, get_settings
-
-import structlog
 
 log = structlog.get_logger(__name__)
 

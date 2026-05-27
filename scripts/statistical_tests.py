@@ -14,13 +14,14 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+
 import numpy as np
 import pandas as pd
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from core.evaluation.stats import bootstrap_ci, delong_test, mcnemar_test, permutation_test
+from core.evaluation.stats import bootstrap_ci, mcnemar_test, permutation_test
 
 
 def generate_tiered_simulation(n_samples: int = 500) -> dict[str, np.ndarray]:
