@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from application.dto.prediction_dto import HistoryRecordDTO
-from web.backend.database import HistoryDatabaseManager
+from infrastructure.persistence.prediction_log import HistoryDatabaseManager
 from web.backend.deps import get_db
 
 router = APIRouter(prefix="/api/v1", tags=["history"])

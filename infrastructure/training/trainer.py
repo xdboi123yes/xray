@@ -128,7 +128,8 @@ class Trainer:
             final_metrics = val_metrics
 
             # Print epoch summary
-            print(
+            _print = print
+            _print(
                 f"\n✨ [Epoch {self.current_epoch:02d}/{epochs}] "
                 f"Train Loss: {train_metrics['train_loss']:.4f} | Train AUC: {train_metrics['train_auc']:.4f} | Train Acc: {train_metrics['train_acc']:.4f} || "
                 f"Val Loss: {val_metrics['val_loss']:.4f} | Val AUC: {val_metrics['val_auc']:.4f} | Val Acc: {val_metrics['val_acc']:.4f}",

@@ -21,7 +21,7 @@ from core.interfaces.base_router import BaseRouter
 from core.models.factory import ModelFactory
 from core.routing.dynamic_router import DynamicThresholdRouter
 from core.routing.static_router import StaticThresholdRouter
-from web.backend.database import HistoryDatabaseManager
+from infrastructure.persistence.prediction_log import HistoryDatabaseManager
 
 
 class SystemState:

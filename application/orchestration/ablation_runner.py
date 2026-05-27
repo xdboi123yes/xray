@@ -208,8 +208,9 @@ class AblationRunner:
             
             # Read and print output in real-time
             if process.stdout is not None:
+                _print = print
                 for line in process.stdout:
-                    print(line, end="", flush=True)
+                    _print(line, end="", flush=True)
             
             returncode = process.wait()
             result["returncode"] = returncode

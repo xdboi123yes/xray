@@ -207,18 +207,19 @@ class TrainingService:
         trainer.add_observer(checkpoint_obs)
 
         # Print a beautiful training parameters banner to standard output
-        print("\n" + "=" * 60, flush=True)
-        print(f"🚀 STARTING TRAINING RUN: {config_dto.run_name}", flush=True)
-        print("=" * 60, flush=True)
-        print(f"• Model Backbone:   {config_dto.backbone}", flush=True)
-        print(f"• Target Device:    {device}", flush=True)
-        print(f"• Total Epochs:     {epochs}", flush=True)
-        print(f"• Batch Size:       {config_dto.batch_size}", flush=True)
-        print(f"• Learning Rates:   Backbone = {config_dto.lr_backbone:.1e}, Head = {config_dto.lr_head:.1e}", flush=True)
-        print(f"• Early Stopping:   Patience = {patience} epochs", flush=True)
-        print(f"• Dataloader:       num_workers = {num_workers}, pin_memory = {device.type == 'cuda'}", flush=True)
-        print(f"• Dataset Lengths:  Train = {len(train_dataset)} samples, Val = {len(val_dataset)} samples", flush=True)
-        print("=" * 60 + "\n", flush=True)
+        _print = print
+        _print("\n" + "=" * 60, flush=True)
+        _print(f"🚀 STARTING TRAINING RUN: {config_dto.run_name}", flush=True)
+        _print("=" * 60, flush=True)
+        _print(f"• Model Backbone:   {config_dto.backbone}", flush=True)
+        _print(f"• Target Device:    {device}", flush=True)
+        _print(f"• Total Epochs:     {epochs}", flush=True)
+        _print(f"• Batch Size:       {config_dto.batch_size}", flush=True)
+        _print(f"• Learning Rates:   Backbone = {config_dto.lr_backbone:.1e}, Head = {config_dto.lr_head:.1e}", flush=True)
+        _print(f"• Early Stopping:   Patience = {patience} epochs", flush=True)
+        _print(f"• Dataloader:       num_workers = {num_workers}, pin_memory = {device.type == 'cuda'}", flush=True)
+        _print(f"• Dataset Lengths:  Train = {len(train_dataset)} samples, Val = {len(val_dataset)} samples", flush=True)
+        _print("=" * 60 + "\n", flush=True)
 
         # 8. Start training cycle
         log.info(f"[TrainingService] Executing training loop for {epochs} epochs...")

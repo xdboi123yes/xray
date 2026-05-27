@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from application.services.inference_service import InferenceService
 from core.interfaces.base_model import BaseClassifier
 from core.interfaces.base_router import BaseRouter
-from web.backend.database import HistoryDatabaseManager
+from infrastructure.persistence.prediction_log import HistoryDatabaseManager
 from web.backend.deps import (
     SystemState,
     get_db,
