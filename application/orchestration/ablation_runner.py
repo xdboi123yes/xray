@@ -197,15 +197,30 @@ class AblationRunner:
             # Execute targeted python script command
             cmd = [sys.executable, config["script"], *config.get("args", [])]
             log.info(f"[AblationRunner] Executing command: {' '.join(cmd)}")
-            proc = subprocess.run(cmd, capture_output=False)
-            result["returncode"] = proc.returncode
+            
+            # Use Popen to stream standard output and standard error in real-time
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,  # Line-buffered
+            )
+            
+            # Read and print output in real-time
+            if process.stdout is not None:
+                for line in process.stdout:
+                    print(line, end="", flush=True)
+            
+            returncode = process.wait()
+            result["returncode"] = returncode
 
-            if proc.returncode == 0:
+            if returncode == 0:
                 result["status"] = "SUCCESS"
                 log.info(f"[AblationRunner] Ablation {ablation_id} completed successfully.")
             else:
                 log.error(
-                    f"[AblationRunner] Warning: Ablation {ablation_id} failed with exit code {proc.returncode}"
+                    f"[AblationRunner] Warning: Ablation {ablation_id} failed with exit code {returncode}"
                 )
 
         except Exception as ex:

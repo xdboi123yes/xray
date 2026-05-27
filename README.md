@@ -1,6 +1,8 @@
 # Tiered Confidence-Based Chest X-Ray Pathology Classification
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_training_auto.ipynb)
+* **Full Pipeline Training (T4/L4 GPU):** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_training_auto.ipynb)
+* **A100 GPU Ablations Only:** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_ablation_a100.ipynb)
+
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2](https://img.shields.io/badge/PyTorch-2.2-orange.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -11,11 +13,14 @@ or a deeper, more expensive model (**EfficientNet-B4** / **Ark+ Swin**) based on
 
 ---
 
-## 🚀 Quick Start — Train on Colab
+## 🚀 Quick Start — Google Colab Workflows
 
-Click the **Open in Colab** badge above, select a T4 GPU, and run cells top-to-bottom with `Shift+Enter`.
-The notebook automates everything end-to-end:
+We provide two production-grade Google Colab notebooks for training and evaluation:
 
+### 1. Full Auto-Training Pipeline (T4/L4 GPU)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_training_auto.ipynb)
+
+Select a **T4/L4 GPU** and run cells top-to-bottom. Automates everything:
 1. Clones the repo from GitHub
 2. Installs dependencies (with automatic kernel restart)
 3. Downloads the NIH ChestX-ray14 dataset from Kaggle
@@ -28,7 +33,17 @@ The notebook automates everything end-to-end:
 10. Exports models to ONNX with INT8 quantization
 11. Syncs outputs to Drive and downloads a single ZIP
 
-The only manual step is uploading `kaggle.json` (Kaggle Account > API > Create New Token).
+*Note: The only manual step is uploading `kaggle.json` (Kaggle Account > API > Create New Token).*
+
+### 2. A100 GPU Advanced Ablation Matrix
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_ablation_a100.ipynb)
+
+Select an **A100/L4 GPU** and run cells top-to-bottom. Specifically tailored for advanced Week 4 & 5 ablation matrices:
+* **Adaptive Weight Restoration:** Automatically mounts Google Drive or scans directly uploaded checkpoints in `/content/` to unzip, relocate nested folders, and align filenames (`best_tier2_arkplus.pth` $\leftrightarrow$ `best_tier2_ark_plus.pth`).
+* **On-the-Fly Calibration:** Generates `q_hat.pt` and routing thresholds dynamically if missing, so evaluation-only ablations (A13, A14) run flawlessly.
+* **GPU-Optimized Dataloading:** Saturates A100/L4 memory throughput using 8 parallel worker threads (`num_workers=8`).
+* **Live Streaming Console:** Displays `tqdm` progress bars, metrics, and observers live in your browser in real-time.
+* **Drive Mirror & Browser Download:** Zips results and triggers a direct browser download instantly on completion.
 
 ---
 

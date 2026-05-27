@@ -127,6 +127,14 @@ class Trainer:
             epoch_metrics = {**train_metrics, **val_metrics}
             final_metrics = val_metrics
 
+            # Print epoch summary
+            print(
+                f"\n✨ [Epoch {self.current_epoch:02d}/{epochs}] "
+                f"Train Loss: {train_metrics['train_loss']:.4f} | Train AUC: {train_metrics['train_auc']:.4f} | Train Acc: {train_metrics['train_acc']:.4f} || "
+                f"Val Loss: {val_metrics['val_loss']:.4f} | Val AUC: {val_metrics['val_auc']:.4f} | Val Acc: {val_metrics['val_acc']:.4f}",
+                flush=True
+            )
+
             # Adjust learning rate scheduler if present
             if self.scheduler is not None:
                 # Handle ReduceLROnPlateau which requires validation metric

@@ -71,3 +71,7 @@ class CheckpointObserver(TrainingObserver):
                 f"--> [CheckpointObserver] Improved! Saved best model weights "
                 f"(Epoch: {epoch}, {self._monitor}: {val_val:.4f}) to {self._checkpoint_path}"
             )
+            print(
+                f"💾 [Checkpoint] Metric improved! Saved best model weights (AUC: {val_val:.4f}) to {self._checkpoint_path}",
+                flush=True
+            )

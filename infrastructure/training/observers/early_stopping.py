@@ -72,10 +72,18 @@ class EarlyStoppingObserver(TrainingObserver):
                 f"--> [EarlyStoppingObserver] No improvement for "
                 f"{self._epochs_no_improve}/{self._patience} epochs."
             )
+            print(
+                f"⚠️ [EarlyStopping] No improvement on '{self._monitor}' for {self._epochs_no_improve}/{self._patience} epochs.",
+                flush=True
+            )
 
         if self._epochs_no_improve >= self._patience:
             trainer.stop_training = True
             log.info(
                 f"[EarlyStoppingObserver] Early stopping triggered at epoch {epoch}! "
                 f"No improvement on '{self._monitor}' for {self._patience} consecutive epochs."
+            )
+            print(
+                f"\n🛑 [EarlyStopping] Triggered at epoch {epoch}! Halting training since '{self._monitor}' did not improve for {self._patience} consecutive epochs.",
+                flush=True
             )

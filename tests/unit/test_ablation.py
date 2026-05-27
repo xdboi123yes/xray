@@ -38,13 +38,14 @@ def test_ablation_runner_configs() -> None:
     assert "ark_plus" in configs["A13"]["args"]
 
 
-@patch("subprocess.run")
-def test_ablation_runner_dry_run(mock_run: MagicMock) -> None:
+@patch("subprocess.Popen")
+def test_ablation_runner_dry_run(mock_popen: MagicMock) -> None:
     """Test that AblationRunner applies dry-run override and executes successfully."""
     # Setup mock subprocess return
     mock_proc = MagicMock()
-    mock_proc.returncode = 0
-    mock_run.return_value = mock_proc
+    mock_proc.wait.return_value = 0
+    mock_proc.stdout = None
+    mock_popen.return_value = mock_proc
 
     # Dummy config path that exists for override testing
     dummy_config_path = "tests/mock_config.yaml"
@@ -64,10 +65,10 @@ training:
 
         assert result["status"] == "SUCCESS"
         assert result["returncode"] == 0
-        assert mock_run.called
+        assert mock_popen.called
 
         # Confirm command executed contained targeted parameters
-        args, kwargs = mock_run.call_args
+        args, kwargs = mock_popen.call_args
         cmd = args[0]
         assert "scripts/train_tier2.py" in cmd[1]
         assert "ark_plus" in cmd
