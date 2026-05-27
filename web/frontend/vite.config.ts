@@ -8,8 +8,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('tr.json')) {
-            return 'tr';
+          if (id.includes('tr.json') || id.includes('en.json')) {
+            return 'tr-locales';
           }
         }
       }
