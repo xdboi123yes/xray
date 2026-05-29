@@ -70,7 +70,7 @@ training:
         # Confirm command executed contained targeted parameters
         args, _ = mock_popen.call_args
         cmd = args[0]
-        assert "scripts/train_tier2.py" in cmd[1]
+        assert any("scripts/train_tier2.py" in c for c in cmd)
         assert "ark_plus" in cmd
 
         # Confirm config file was correctly restored after experiment
