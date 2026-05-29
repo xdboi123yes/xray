@@ -68,7 +68,7 @@ training:
         assert mock_popen.called
 
         # Confirm command executed contained targeted parameters
-        args, kwargs = mock_popen.call_args
+        args, _ = mock_popen.call_args
         cmd = args[0]
         assert "scripts/train_tier2.py" in cmd[1]
         assert "ark_plus" in cmd

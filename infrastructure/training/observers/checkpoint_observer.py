@@ -48,7 +48,7 @@ class CheckpointObserver(TrainingObserver):
             metrics: Metrics computed for the epoch.
             trainer: The active Trainer instance.
         """
-        val_val = metrics.get(self._monitor, None)
+        val_val = metrics.get(self._monitor)
         if val_val is None:
             return
 
