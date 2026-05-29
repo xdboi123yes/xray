@@ -172,7 +172,7 @@ def plot_uncertainty_distribution(results: dict[str, Any], save_dir: str | None 
         "Mutual Information (Epistemic)": "mutual_informations",
     }
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    _, axes = plt.subplots(1, 3, figsize=(18, 5))
 
     for ax, (title, key) in zip(axes, metrics.items(), strict=False):
         correct_vals = results[key][correct_mask]
