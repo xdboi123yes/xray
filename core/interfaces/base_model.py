@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 
 
-class BaseClassifier(nn.Module, ABC):
+class BaseClassifier(nn.Module, ABC):  # type: ignore[misc]
     """Abstract base class for all tiered classifiers.
 
     Enforces standard PyTorch forward API along with uncertainty estimation methods

@@ -32,7 +32,7 @@ def _read_image_dir() -> str | None:
     return None
 
 
-class NIHChestXrayDataset(Dataset[tuple[torch.Tensor, torch.Tensor, str]]):
+class NIHChestXrayDataset(Dataset[tuple[torch.Tensor, torch.Tensor, str]]):  # type: ignore[misc]
     """Dataset implementation for NIH Chest X-Rays with optional synthetic additions."""
 
     def __init__(

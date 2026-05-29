@@ -17,7 +17,7 @@ from torch.utils.data import Dataset
 from core.interfaces.base_repository import BaseRepository
 
 
-class EmptyMockDataset(Dataset[Any]):
+class EmptyMockDataset(Dataset[Any]):  # type: ignore[misc]
     """Empty mock container to satisfy type bounds for splits not utilized in OOD."""
 
     def __len__(self) -> int:
@@ -27,7 +27,7 @@ class EmptyMockDataset(Dataset[Any]):
         raise IndexError("Mock dataset has zero elements")
 
 
-class NIHDataset(Dataset[Any]):
+class NIHDataset(Dataset[Any]):  # type: ignore[misc]
     """PyTorch Dataset loading NIH ChestX-ray14 radiographs for evaluation."""
 
     def __init__(

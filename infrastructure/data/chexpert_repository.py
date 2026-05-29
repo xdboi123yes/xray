@@ -13,7 +13,7 @@ from core.interfaces.base_repository import BaseRepository
 from infrastructure.data.chexpert_dataset import CheXpertDataset
 
 
-class EmptyMockDataset(Dataset[Any]):
+class EmptyMockDataset(Dataset[Any]):  # type: ignore[misc]
     """Empty mock container to satisfy type bounds for splits not utilized in OOD."""
 
     def __len__(self) -> int:

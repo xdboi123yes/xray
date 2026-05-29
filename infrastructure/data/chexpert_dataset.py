@@ -18,7 +18,7 @@ from torch.utils.data import Dataset
 log = structlog.get_logger(__name__)
 
 
-class CheXpertDataset(Dataset[Any]):
+class CheXpertDataset(Dataset[Any]):  # type: ignore[misc]
     """PyTorch Dataset loading CheXpert radiographs for out-of-distribution evaluation."""
 
     def __init__(

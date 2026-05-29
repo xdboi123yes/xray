@@ -32,7 +32,7 @@ class TieredPrediction:
     flagged_for_review: bool = False
 
 
-class TieredSystem(nn.Module):
+class TieredSystem(nn.Module):  # type: ignore[misc]
     """Multi-tiered confidence-routing diagnostic system wrapper."""
 
     def __init__(

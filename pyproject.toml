@@ -21,6 +21,8 @@ warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
 module = [
+    "torch",
+    "torch.*",
     "torchvision.*",
     "timm.*",
     "diffusers.*",
@@ -34,6 +36,9 @@ module = [
     "tqdm.*",
     "pytorch_grad_cam.*",
     "pydicom.*",
+    "scipy.*",
+    "PIL.*",
+    "structlog",
 ]
 ignore_missing_imports = true
 
