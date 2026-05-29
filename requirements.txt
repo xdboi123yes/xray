@@ -15,7 +15,6 @@ grad-cam==1.5.0
 pytorch-fid==0.3.0
 gradio==4.21.0
 plotly==5.19.0
-nonconformist==2.1.0
 memory-profiler==0.61.0
 diffusers==0.27.2
 transformers==4.38.2
