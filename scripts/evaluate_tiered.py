@@ -96,12 +96,18 @@ def main() -> None:
     # For compatibility, let's map settings conformal_coverage
     cp.alpha = 1.0 - settings.evaluation.conformal_coverage
 
+    need_calibration = True
     if os.path.exists(cp_path):
-        cp.load(cp_path)
-        print(f"Conformal calibration loaded (q_hat={cp.q_hat:.4f})")
-    else:
+        try:
+            cp.load(cp_path)
+            need_calibration = cp.q_hat is None
+            if not need_calibration:
+                print(f"Conformal calibration loaded (q_hat={cp.q_hat:.4f})")
+        except Exception as e:
+            print(f"Warning: could not load conformal calibration {cp_path} ({e}); recalibrating.")
+    if need_calibration:
         # Calibrate conformal predictor on validation set
-        print("No saved conformal calibration found. Calibrating on validation set...")
+        print("No usable conformal calibration found. Calibrating on validation set...")
         val_csv = 'data/processed/val.csv'
         if os.path.exists(val_csv):
             cal_dataset = NIHChestXrayDataset(
@@ -113,15 +119,17 @@ def main() -> None:
             os.makedirs('outputs/results', exist_ok=True)
             cp.save(cp_path)
             print(f"Conformal q_hat saved to {cp_path} (q_hat={cp.q_hat:.4f})")
-    
-    # Load threshold
+
+    # Load threshold (robust against an empty / corrupt restored JSON file)
     threshold_path = 'outputs/models/tier1_mobilenet_threshold.json'
+    static_threshold = settings.model.confidence_threshold
     if os.path.exists(threshold_path):
-        with open(threshold_path) as f:
-            t_data = json.load(f)
-            static_threshold = t_data.get('optimal_threshold', settings.model.confidence_threshold)
-    else:
-        static_threshold = settings.model.confidence_threshold
+        try:
+            with open(threshold_path) as f:
+                t_data = json.load(f)
+            static_threshold = t_data.get('optimal_threshold', static_threshold)
+        except (json.JSONDecodeError, ValueError, OSError) as e:
+            print(f"Warning: could not parse {threshold_path} ({e}); using default threshold {static_threshold}.")
         
     # Build dynamic/static config dict for TieredSystem compatibility
     config_dict = {
