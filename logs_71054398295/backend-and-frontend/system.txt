@@ -1,8 +1,0 @@
-2026-05-27T18:20:45.0410000Z Job is waiting for a hosted runner to come online.
-2026-05-27T18:20:45.0410000Z Job is about to start running on the hosted runner: GitHub Actions 1000000057
-2026-05-27T18:20:45.0320000Z Evaluating backend-and-frontend.if
-2026-05-27T18:20:45.0320000Z Evaluating: success()
-2026-05-27T18:20:45.0320000Z Result: true
-2026-05-27T18:20:45.0340000Z Requested labels: ubuntu-latest
-2026-05-27T18:20:45.0340000Z Job defined at: xdboi123yes/xray/.github/workflows/ci.yml@refs/heads/main
-2026-05-27T18:20:45.0340000Z Waiting for a runner to pick up this job...
