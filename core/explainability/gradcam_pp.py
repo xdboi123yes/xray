@@ -12,6 +12,8 @@ import cv2
 import numpy as np
 import torch
 
+from core.integrity import guard_mock
+
 try:
     from pytorch_grad_cam import GradCAMPlusPlus  # type: ignore[import-untyped]
     from pytorch_grad_cam.utils.image import show_cam_on_image  # type: ignore[import-untyped]
@@ -52,7 +54,8 @@ class XRayGradCAMPlusPlus:
             grayscale_cam = self.cam(input_tensor=input_tensor, targets=target_category)
             return np.asarray(grayscale_cam[0, :])
         else:
-            # Fallback mock gaussian focused at chest center to prevent failure
+            guard_mock("[GradCAM++] grad-cam package is not installed")
+            # Dry-run only (XRAY_ALLOW_MOCK=1): a centred gaussian, NOT a real attribution map.
             h, w = input_tensor.shape[2], input_tensor.shape[3]
             x, y = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h))
             d = np.sqrt(x * x + y * y)

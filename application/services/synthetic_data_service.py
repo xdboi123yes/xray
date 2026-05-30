@@ -15,6 +15,8 @@ import structlog
 import torch
 from PIL import Image
 
+from core.integrity import guard_mock
+
 log = structlog.get_logger(__name__)
 
 
@@ -127,9 +129,11 @@ class SyntheticDataService:
         generated_images: list[Image.Image] = []
 
         if self.pipe is None:
-            # Mock mode: generate high-fidelity simulated grayscale noise
-            log.info(
-                "[SyntheticDataService] Mock Mode active. Simulating high-fidelity radiographs..."
+            guard_mock("[SyntheticDataService] Stable Diffusion pipeline failed to load")
+            # Dry-run only (XRAY_ALLOW_MOCK=1): perturbation NOISE, not real diffusion.
+            log.warning(
+                "[SyntheticDataService] MOCK MODE — emitting NOISE placeholders, NOT diffusion. "
+                "These must never be used for real results (XRAY_ALLOW_MOCK=1)."
             )
             for _ in range(n_variations):
                 arr = np.array(init_img).astype(np.float32)
@@ -177,10 +181,12 @@ class SyntheticDataService:
         try:
             from pytorch_fid.fid_score import calculate_fid_given_paths
         except ImportError:
-            log.info(
-                "[SyntheticDataService] pytorch-fid is not installed. Returning simulated baseline."
-            )
-            return 42.12
+            guard_mock("[SyntheticDataService] pytorch-fid is not installed")
+            # Dry-run only: no real FID can be computed, so report +inf — the batch is rejected,
+            # never silently accepted on a fabricated score (the old behaviour returned 42.12,
+            # which passed the quality gate).
+            log.warning("[SyntheticDataService] MOCK MODE — no FID computed; returning +inf.")
+            return float("inf")
 
         # Check if directories exist first to avoid FileNotFoundError
         if not os.path.exists(real_dir) or not os.path.exists(synthetic_dir):
