@@ -191,7 +191,30 @@ def main() -> None:
         "avg_inference_time_ms": avg_inference_time,
         **metrics
     })
-    
+
+    # Persist headline metrics to a JSON marker. This lets the ablation runner
+    # detect that this evaluation is already complete (skip-existing) and keeps
+    # the final numbers around after a Colab session reset wipes the MLflow store.
+    try:
+        os.makedirs('outputs/results', exist_ok=True)
+        results_marker = os.path.join('outputs/results', f'{args.run_name}.json')
+        with open(results_marker, 'w') as rf:
+            json.dump(
+                {
+                    'run_name': args.run_name,
+                    'tier2_backbone': args.tier2_backbone,
+                    'dynamic_threshold': bool(args.dynamic_threshold),
+                    'percent_tier2': percent_tier2,
+                    'avg_inference_time_ms': avg_inference_time,
+                    'metrics': metrics,
+                },
+                rf,
+                indent=2,
+            )
+        print(f"Saved evaluation results marker to {results_marker}")
+    except Exception as dump_err:
+        print(f"Warning: could not write results marker: {dump_err}")
+
     mlflow.end_run()
 
 if __name__ == '__main__':
