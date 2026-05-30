@@ -18,6 +18,8 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from core.integrity import guard_mock
+
 
 def calculate_paired_bootstrap(
     targets: np.ndarray,
@@ -159,6 +161,7 @@ def generate_high_fidelity_simulation(n_samples: int = 500) -> tuple[np.ndarray,
     Returns:
         A tuple of (targets, efficientnet_predictions, ark_plus_predictions).
     """
+    guard_mock("[compare_models] simulated predictions requested")
     np.random.seed(42)
     # 35% positive prevalence for chest X-ray subset
     targets = (np.random.rand(n_samples) < 0.35).astype(int)
@@ -182,26 +185,33 @@ def main() -> None:
         default=1000,
         help="Number of bootstrap iterations.",
     )
+    parser.add_argument(
+        "--predictions",
+        default="outputs/results/tiered_predictions.csv",
+        help="Real per-image predictions CSV from scripts/export_predictions.py.",
+    )
+    parser.add_argument("--model-a", default="tier2_prob", help="Column for model A probabilities.")
+    parser.add_argument("--model-b", default="tiered_prob", help="Column for model B probabilities.")
     args = parser.parse_args()
 
     print(
         f"Starting paired bootstrap comparison (iterations: {args.n_iterations})..."
     )
 
-    # Attempt to load actual labels from processed test.csv if available
-    test_csv = "data/processed/test.csv"
-    if os.path.exists(test_csv):
-        print(f"Test dataset metadata detected at: {test_csv}")
-        # In a real environment, we would load the actual evaluation predictions
-        # For full self-containment, we generate predictions matching targets size
-        df = pd.read_csv(test_csv)
-        if "Finding Labels" in df.columns:
-            targets = (df["Finding Labels"].str.contains("Pneumothorax")).astype(int).values
-        else:
-            targets = (np.random.rand(len(df)) < 0.35).astype(int)
-        _, preds_a, preds_b = generate_high_fidelity_simulation(len(targets))
+    # Compare the REAL per-image predictions exported by scripts/export_predictions.py.
+    if os.path.exists(args.predictions):
+        df = pd.read_csv(args.predictions)
+        targets = df["y_true"].to_numpy()
+        preds_a = df[args.model_a].to_numpy()
+        preds_b = df[args.model_b].to_numpy()
+        print(
+            f"Loaded REAL predictions from {args.predictions} "
+            f"(A={args.model_a}, B={args.model_b}, n={len(targets)})."
+        )
     else:
-        print("No test.csv found. Generating high-fidelity mock data...")
+        # No real predictions: fail loudly rather than fabricate (unless explicitly allowed).
+        guard_mock(f"[compare_models] {args.predictions} not found")
+        print("MOCK MODE — generating placeholder predictions (XRAY_ALLOW_MOCK=1).")
         targets, preds_a, preds_b = generate_high_fidelity_simulation(500)
 
     # Compute paired bootstrap statistics
