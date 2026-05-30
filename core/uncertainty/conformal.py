@@ -98,9 +98,16 @@ class ConformalPredictor:
     def load(self, path: str) -> None:
         """Loads conformal thresholds from file.
 
+        Tolerant of partial or legacy payloads: a file carrying only ``q_hat``
+        (e.g. an older save or a placeholder) keeps the current ``alpha`` instead
+        of raising ``KeyError``. A bare scalar is treated as ``q_hat``.
+
         Args:
             path: Source file path.
         """
         data = torch.load(path, map_location="cpu", weights_only=False)
-        self.q_hat = data["q_hat"]
-        self.alpha = data["alpha"]
+        if isinstance(data, dict):
+            self.q_hat = data.get("q_hat", self.q_hat)
+            self.alpha = data.get("alpha", self.alpha)
+        else:
+            self.q_hat = float(data)

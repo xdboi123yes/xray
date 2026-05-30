@@ -15,6 +15,8 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
+from core.integrity import guard_mock
+
 log = structlog.get_logger(__name__)
 
 
@@ -91,14 +93,15 @@ class CheXpertDataset(Dataset[Any]):  # type: ignore[misc]
         image_id = row["Image Index"]
         label_val = int(row["Label"])
 
-        # Check if the file actually exists; if missing, use high-fidelity mock image for test safety
+        # If the image is missing, refuse to silently substitute a black placeholder in a real run.
         if not os.path.exists(img_path):
-            # Print a localized warning on first item to alert user
+            guard_mock(f"[CheXpertDataset] image not found at '{img_path}'")
+            # Dry-run only (XRAY_ALLOW_MOCK=1): black placeholder.
             if idx == 0:
                 log.warning(
-                    f"[CheXpertDataset] Warning: File not found at '{img_path}'. Using high-fidelity mock."
+                    f"[CheXpertDataset] MOCK MODE — '{img_path}' missing; using a BLACK placeholder "
+                    "image (XRAY_ALLOW_MOCK=1). Metrics on these rows are meaningless."
                 )
-            # Create a mock grayscale PIL image
             image = Image.fromarray(np.zeros((224, 224, 3), dtype=np.uint8))
         else:
             image = Image.open(img_path).convert("RGB")

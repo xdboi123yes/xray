@@ -8,9 +8,14 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 
 import numpy as np
 import pandas as pd
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from core.integrity import guard_mock
 
 
 def main() -> None:
@@ -36,6 +41,11 @@ def main() -> None:
     if os.path.exists(args.output_path):
         print(f"CheXpert metadata already exists at '{args.output_path}'. Skipping setup.")
         return
+
+    # This writes SIMULATED metadata with RANDOM labels — dry-run scaffolding only. For a real
+    # zero-shot CheXpert evaluation use the notebook's "CheXpert Zero-Shot Test Set" cell
+    # (Kaggle ashery/chexpert). Refuse to fabricate unless mock data is explicitly allowed.
+    guard_mock("[download_chexpert_meta] simulated CheXpert metadata with random labels")
 
     # Simulate high-fidelity clinical and demographic labels
     np.random.seed(42)

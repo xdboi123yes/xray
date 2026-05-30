@@ -10,6 +10,7 @@ import os
 from typing import Any
 
 import pandas as pd
+import pytest
 import torch
 
 from core.interfaces.base_repository import BaseRepository
@@ -44,11 +45,12 @@ def test_chexpert_dataset_label_mapping(tmp_path: Any) -> None:
     assert dataset.data_frame.iloc[1]["Label"] == 0
 
 
-def test_chexpert_dataset_getitem_mock(tmp_path: Any) -> None:
-    """Test that __getitem__ returns mock image gracefully when files are missing.
+def test_chexpert_dataset_getitem_mock(tmp_path: Any, monkeypatch: Any) -> None:
+    """Missing images fail loudly in a real run; only XRAY_ALLOW_MOCK=1 permits a placeholder.
 
     Args:
         tmp_path: Pytest temporary directory path.
+        monkeypatch: Pytest environment patching fixture.
     """
     dummy_csv = os.path.join(tmp_path, "chexpert_metadata.csv")
     df = pd.DataFrame(
@@ -61,6 +63,14 @@ def test_chexpert_dataset_getitem_mock(tmp_path: Any) -> None:
     df.to_csv(dummy_csv, index=False)
 
     dataset = CheXpertDataset(csv_file=dummy_csv)
+
+    # Without the opt-in, a missing image must raise rather than fabricate a black frame.
+    monkeypatch.delenv("XRAY_ALLOW_MOCK", raising=False)
+    with pytest.raises(RuntimeError):
+        _ = dataset[0]
+
+    # With XRAY_ALLOW_MOCK=1, the dry-run black placeholder is allowed.
+    monkeypatch.setenv("XRAY_ALLOW_MOCK", "1")
     image, label, image_id = dataset[0]
 
     assert image is not None

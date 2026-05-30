@@ -109,6 +109,12 @@ def main() -> None:
         temp_real_dir, temp_batch_dir, accepted_dir, rejected_dir
     )
 
+    # Log the real FID score per batch so synthetic_quality.ipynb plots real values, not hardcoded ones.
+    fid_log_path = os.path.join(synthetic_base_dir, "fid_log.csv")
+    fid_rows = pd.read_csv(fid_log_path).to_dict("records") if os.path.exists(fid_log_path) else []
+    fid_rows.append({"batch": len(fid_rows) + 1, "fid": float(fid_score), "accepted": bool(accepted)})
+    pd.DataFrame(fid_rows).to_csv(fid_log_path, index=False)
+
     if accepted:
         print(f"--> Batch ACCEPTED! FID: {fid_score:.2f} <= {evaluator.fid_threshold}")
         for filepath in moved_files:

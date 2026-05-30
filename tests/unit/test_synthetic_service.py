@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import pytest
 from PIL import Image
 
 from application.services.synthetic_data_service import SyntheticDataService
@@ -26,12 +27,15 @@ def test_synthetic_data_service_init(mock_config: dict[str, Any]) -> None:
     assert not service._pipeline_loaded
 
 
-def test_synthetic_data_service_generate_mock(mock_config: dict[str, Any], tmp_path: Any) -> None:
-    """Test mock variation generation using simulated image noise.
+def test_synthetic_data_service_generate_mock(
+    mock_config: dict[str, Any], tmp_path: Any, monkeypatch: Any
+) -> None:
+    """Mock noise generation is refused in a real run and only allowed via XRAY_ALLOW_MOCK=1.
 
     Args:
         mock_config: Pytest fixture representing mock parameters.
         tmp_path: Pytest temporary directory path.
+        monkeypatch: Pytest environment patching fixture.
     """
     service = SyntheticDataService(mock_config)
 
@@ -39,7 +43,14 @@ def test_synthetic_data_service_generate_mock(mock_config: dict[str, Any], tmp_p
     dummy_img_path = os.path.join(tmp_path, "conditioning_image.png")
     Image.new("RGB", (224, 224), color="gray").save(dummy_img_path)
 
-    # Execute mock generation
+    # Without the opt-in flag, the Stable Diffusion pipeline being unavailable must fail loudly
+    # instead of silently returning fabricated noise.
+    monkeypatch.delenv("XRAY_ALLOW_MOCK", raising=False)
+    with pytest.raises(RuntimeError):
+        service.generate_variations(dummy_img_path, n_variations=2, strength=0.3)
+
+    # With XRAY_ALLOW_MOCK=1, the dry-run noise path is allowed.
+    monkeypatch.setenv("XRAY_ALLOW_MOCK", "1")
     images = service.generate_variations(
         dummy_img_path,
         n_variations=2,
