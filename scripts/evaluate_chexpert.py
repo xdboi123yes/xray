@@ -36,6 +36,19 @@ def setup_mlflow_local(experiment_name="chest_xray_tiered", tracking_uri="experi
     print(f"MLflow initialized. Tracking URI: {absolute_uri}, Experiment: {experiment_name}")
 
 
+def load_model_weights(model, weights_path, device):
+    """Load weights into a model, unwrapping a training checkpoint if needed.
+
+    Training saves checkpoints as {'epoch', 'best_metric', 'model_state_dict', ...},
+    but load_state_dict expects the bare state dict. Passing the whole wrapper raised
+    'Missing/Unexpected key(s)' RuntimeError and made A13/A14 fail within seconds.
+    """
+    checkpoint = torch.load(weights_path, map_location=device)
+    if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
+        checkpoint = checkpoint["model_state_dict"]
+    model.load_state_dict(checkpoint)
+
+
 def main() -> None:
     """Run zero-shot evaluation loop over CheXpert validation/test splits."""
     parser = argparse.ArgumentParser(description="Evaluate Tiered System on CheXpert Zero-Shot")
@@ -82,9 +95,9 @@ def main() -> None:
         )
 
     if os.path.exists(tier1_path):
-        tier1.load_state_dict(torch.load(tier1_path, map_location=device))
+        load_model_weights(tier1, tier1_path, device)
     if os.path.exists(tier2_path):
-        tier2.load_state_dict(torch.load(tier2_path, map_location=device))
+        load_model_weights(tier2, tier2_path, device)
 
     tier1.eval()
     tier2.eval()
