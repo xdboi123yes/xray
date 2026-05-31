@@ -168,10 +168,9 @@
     "pneumoLabel": "Pneumothorax",
     "normalLabel": "Normal",
     "noImage": "Image Not Available"
-  }
+  },
+  "aboutPageTitle": "Clinical Mechanics & Thesis Context",
+  "exportingPdf": "Exporting...",
+  "labelConfidence": "Confidence",
+  "uploadDicomOnly": "Please select a .dcm file."
 }
-
-
-
-
-

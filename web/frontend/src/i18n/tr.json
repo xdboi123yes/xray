@@ -168,10 +168,9 @@
     "pneumoLabel": "Pnömotoraks",
     "normalLabel": "Normal",
     "noImage": "Görüntü Mevcut Değil"
-  }
+  },
+  "aboutPageTitle": "Klinik Mekanik ve Tez Bağlamı",
+  "exportingPdf": "Dışa aktarılıyor...",
+  "labelConfidence": "Güven",
+  "uploadDicomOnly": "Lütfen bir .dcm dosyası seçin."
 }
-
-
-
-
-

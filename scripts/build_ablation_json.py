@@ -24,6 +24,11 @@ log = structlog.get_logger(__name__)
 
 # Mapping from ablation ID to the MLflow run that produced it.
 # Metrics are NEVER hardcoded here; only the run identity + schema fields.
+#
+# MAINTENANCE: these run_ids are PINNED to specific MLflow runs. When you RE-RUN an
+# experiment (e.g. A14 on real CheXpert) MLflow creates a NEW run with a new id, so its
+# fresh metrics will NOT appear here until you update the run_id below to the new run.
+# Find it under experiments/mlruns/762301816938414973/<run_id>/tags/mlflow.runName.
 ABLATION_RUN_MAPPING: dict[str, dict[str, Any]] = {
     "A1": {
         "run_id": "0ab2960f8632435c835dab88023a5503",
