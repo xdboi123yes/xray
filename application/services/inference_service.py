@@ -161,7 +161,9 @@ class InferenceService:
         # Label Mapping
         prediction = "Pneumothorax" if prediction_idx == 1 else "No Finding"
 
-        # Conformal Set calculation (fallback simulation if predictor missing)
+        # Conformal prediction set. Only a real, calibrated ConformalPredictor provides the
+        # coverage guarantee; without one we fall back to a plain uncertainty-based set and
+        # report NO coverage figure, so the UI never claims a 95% guarantee it cannot back.
         if conformal_predictor and getattr(conformal_predictor, "q_hat", None) is not None:
             with torch.no_grad():
                 probs_val = (
@@ -176,13 +178,23 @@ class InferenceService:
                 conformal_set = ["Pneumothorax", "No Finding"]
             else:
                 conformal_set = [prediction]
-            conformal_coverage = 0.95
+            conformal_coverage = None
 
         end_time = time.perf_counter()
         inference_time = (end_time - start_time) * 1000.0
 
         req_id = str(uuid.uuid4())
         now_iso = datetime.now().isoformat() + "Z"
+
+        # Human-readable name of the model that actually produced the decision (the UI labels
+        # this "Active Specialist Model"). Derived from the real class, never a hardcoded string.
+        friendly_names = {
+            "Tier1MobileNet": "MobileNetV2 (Tier 1)",
+            "Tier2EfficientNet": "EfficientNet-B4 (Tier 2)",
+            "Tier2ArkPlus": "Ark+ Swin (Tier 2)",
+        }
+        active = tier2 if routed_tier == 2 else tier1
+        active_model_name = friendly_names.get(type(active).__name__, type(active).__name__)
 
         return PredictionDTO(
             request_id=req_id,
@@ -198,6 +210,6 @@ class InferenceService:
             inference_time_ms=inference_time,
             gradcam_tier1_b64=gcam_t1,
             gradcam_tier2_b64=gcam_t2,
-            model_version="t1_mbv2_1.0.0_t2_effb4_1.2.0",
+            model_version=active_model_name,
             timestamp=now_iso,
         )

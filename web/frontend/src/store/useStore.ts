@@ -376,13 +376,15 @@ export const useStore = create<AppState>((set, get) => ({
         mc_variance: record.mc_variance,
         mc_passes: record.tier_used === 2 ? 10 : null,
         tta_passes: record.tier_used === 2 ? 10 : null,
-        conformal_set: record.prediction === 'Pneumothorax' ? ['Pneumothorax'] : ['No Finding'],
-        conformal_coverage: 0.95,
+        // Older SQLite history records do not store conformal / timing / model details, so we
+        // leave those null instead of fabricating values (no fake 95% coverage or 300ms timing).
+        conformal_set: null,
+        conformal_coverage: null,
         flagged_for_review: record.flagged_for_review,
-        inference_time_ms: 300.5,
+        inference_time_ms: 0,
         gradcam_tier1_b64: null,
         gradcam_tier2_b64: null,
-        model_version: 't1_mbv2_1.0.0_t2_effb4_1.2.0',
+        model_version: record.tier_used === 2 ? 'Tier 2 Specialist' : 'MobileNetV2 (Tier 1)',
         timestamp: record.timestamp
       };
       
