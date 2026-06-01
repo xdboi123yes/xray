@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""MLflow Ablation Metrics Compiler.
+"""MLflow + evaluation-JSON Ablation Metrics Compiler.
 
-Reads actual training metric values directly from MLflow run outputs.
-Verifies that written metrics have genuine clock timestamps (>= start_time)
-so back-filled or synthetic metric files are rejected.
-If a run or its metrics are missing or fail the integrity check, the
-ablation row is written with `provenance: preliminary_placeholder` and
-`metrics: {auc_roc: null, accuracy: null, ece: null}` — never a fabricated
-number.
+Compiles ``outputs/results/ablation.json`` from REAL sources only, never
+fabricating a number:
+
+1. Preferred: the per-run evaluation marker ``outputs/results/<run_name>.json``
+   that ``evaluate_tiered.py`` / ``evaluate_chexpert.py`` write with genuine,
+   computed metrics. On Colab the MLflow store is ephemeral and frequently lacks
+   ``auc_roc`` / ``accuracy``, so these JSON markers are the durable source.
+2. Fallback: MLflow run metrics, with a timestamp integrity check (values whose
+   clock is earlier than the run start_time are rejected as back-filled).
+3. Otherwise: the row is written as ``provenance: preliminary_placeholder`` with
+   ``metrics: {auc_roc: null, accuracy: null, ece: null}``.
 """
 
 from __future__ import annotations
@@ -114,7 +118,47 @@ ABLATION_RUN_MAPPING: dict[str, dict[str, Any]] = {
 }
 
 MLRUNS_DIR = Path("experiments/mlruns/762301816938414973")
+RESULTS_DIR = Path("outputs/results")
 OUTPUT_FILE = Path("outputs/results/ablation.json")
+
+# Ablations whose REAL headline metrics are persisted by the evaluation scripts to
+# outputs/results/<name>.json. These are read first (they survive Colab resets and
+# carry auc_roc / accuracy that the ephemeral MLflow store often lacks).
+RESULT_JSON_BY_ID: dict[str, str] = {
+    "A13": "A13_Tiered_ArkPlus.json",
+    "A14": "A14_CheXpert_ZeroShot.json",
+}
+
+
+def _as_float(value: object) -> float | None:
+    """Coerce a JSON metric value to float, or None if it is not numeric."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def read_result_json_metrics(
+    filename: str,
+) -> tuple[float | None, float | None, float | None]:
+    """Return (auc_roc, accuracy, ece) from a results JSON marker, or all None.
+
+    The evaluation scripts write ``{"metrics": {...}}`` with real, computed values.
+    Missing keys yield None so the row stays honest rather than fabricated.
+    """
+    path = RESULTS_DIR / filename
+    if not path.exists():
+        return None, None, None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None, None, None
+    metrics = data.get("metrics", {}) if isinstance(data, dict) else {}
+    auc = metrics.get("auc_roc", metrics.get("auc"))
+    acc = metrics.get("accuracy")
+    ece = metrics.get("ece")
+    return _as_float(auc), _as_float(acc), _as_float(ece)
 
 
 def get_run_start_time_ms(run_id: str) -> int | None:
@@ -176,9 +220,10 @@ def read_genuine_metric(
 
 
 def compile_ablations() -> int:
-    """Compile ablation.json from MLflow without ever fabricating metric values.
+    """Compile ablation.json from real evaluation JSONs / MLflow, never fabricating.
 
-    Returns the number of rows whose provenance is `mlflow_run`.
+    Returns the number of rows whose provenance is a real source
+    (``evaluation_json`` or ``mlflow_run``).
     """
     results: list[dict[str, Any]] = []
     real_rows = 0
@@ -187,23 +232,40 @@ def compile_ablations() -> int:
 
     for ab_id, info in ABLATION_RUN_MAPPING.items():
         run_id = info["run_id"]
-        start_time_ms = get_run_start_time_ms(run_id)
+        auc_roc: float | None = None
+        accuracy: float | None = None
+        ece: float | None = None
+        provenance = "preliminary_placeholder"
 
-        auc_roc = read_genuine_metric(
-            run_id, ["auc_roc", "val_auc", "final_auc_roc"], start_time_ms
-        )
-        accuracy = read_genuine_metric(
-            run_id, ["accuracy", "val_acc", "final_accuracy"], start_time_ms
-        )
-        ece = read_genuine_metric(run_id, ["ece"], start_time_ms)
+        # 1. Preferred source: the real per-run evaluation JSON marker.
+        json_name = RESULT_JSON_BY_ID.get(ab_id)
+        if json_name:
+            j_auc, j_acc, j_ece = read_result_json_metrics(json_name)
+            if j_auc is not None and j_acc is not None:
+                auc_roc, accuracy, ece = j_auc, j_acc, j_ece
+                provenance = "evaluation_json"
 
-        if auc_roc is not None and accuracy is not None:
-            provenance = "mlflow_run"
+        # 2. Fallback source: MLflow run metrics (timestamp-integrity checked).
+        if provenance == "preliminary_placeholder":
+            start_time_ms = get_run_start_time_ms(run_id)
+            m_auc = read_genuine_metric(
+                run_id, ["auc_roc", "val_auc", "final_auc_roc"], start_time_ms
+            )
+            m_acc = read_genuine_metric(
+                run_id, ["accuracy", "val_acc", "final_accuracy"], start_time_ms
+            )
+            m_ece = read_genuine_metric(run_id, ["ece"], start_time_ms)
+            if m_auc is not None and m_acc is not None:
+                auc_roc, accuracy, ece = m_auc, m_acc, m_ece
+                provenance = "mlflow_run"
+
+        if provenance != "preliminary_placeholder":
             metrics = {"auc_roc": auc_roc, "accuracy": accuracy, "ece": ece}
             real_rows += 1
-            log.info("ablation_row_real", ab_id=ab_id, run_id=run_id, auc=auc_roc)
+            log.info(
+                "ablation_row_real", ab_id=ab_id, provenance=provenance, auc=auc_roc
+            )
         else:
-            provenance = "preliminary_placeholder"
             metrics = {"auc_roc": None, "accuracy": None, "ece": None}
             log.info(
                 "ablation_row_preliminary",
