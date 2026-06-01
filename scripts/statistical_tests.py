@@ -1,10 +1,15 @@
 """Comparative statistical testing CLI script for chest X-ray classifiers.
 
-Loads actual prediction outputs or generates realistic high-fidelity simulations to perform:
+Loads REAL per-image predictions exported by ``scripts/export_predictions.py``
+(``outputs/results/tiered_predictions.csv``) and performs:
 - DeLong tests for AUC differences
 - McNemar tests for paired classification accuracy
 - Paired permutation tests for distribution-free comparisons
 - Bootstrap confidence intervals for all major clinical metrics
+
+It NEVER fabricates results. If the real predictions file is missing the script
+refuses to run unless ``XRAY_ALLOW_MOCK=1`` is set (tests / offline dry-runs),
+in which case a clearly-labelled simulation is used instead.
 
 Generates thesis-ready LaTeX tables and CSV reports.
 """
@@ -21,17 +26,27 @@ import pandas as pd
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from core.evaluation.stats import bootstrap_ci, mcnemar_test, permutation_test
+from core.evaluation.stats import (
+    bootstrap_ci,
+    delong_test,
+    mcnemar_test,
+    permutation_test,
+)
+from core.integrity import guard_mock
 
 
 def generate_tiered_simulation(n_samples: int = 500) -> dict[str, np.ndarray]:
-    """Generates high-fidelity predictions for chest X-ray tiered classification models.
+    """Generate clearly-labelled SIMULATED predictions (mock path only).
+
+    This is used solely when no real predictions exist AND the caller opted in
+    via ``XRAY_ALLOW_MOCK=1``. It must never feed thesis numbers.
 
     Args:
         n_samples: Number of evaluation samples.
 
     Returns:
-        A dictionary containing y_true, t1_mobilenet, t2_effnet, t2_arkplus, and tiered_system predictions.
+        A dictionary containing y_true, t1_mobilenet, t2_effnet, t2_arkplus, and
+        tiered_system predictions.
     """
     np.random.seed(42)
     y_true = (np.random.rand(n_samples) < 0.35).astype(int)
@@ -48,15 +63,8 @@ def generate_tiered_simulation(n_samples: int = 500) -> dict[str, np.ndarray]:
     t2_ark = y_true * 0.68 + (1 - y_true) * 0.16 + np.random.normal(0, 0.14, n_samples)
     t2_ark = np.clip(t2_ark, 0.01, 0.99)
 
-    # Tiered System (Routed prediction):
-    # If Tier 1 confidence is very high (prob < 0.15 or prob > 0.85), accept T1.
-    # Otherwise, escalate to Tier 2 Ark+.
-    tiered = np.zeros(n_samples)
-    for i in range(n_samples):
-        if t1[i] < 0.15 or t1[i] > 0.85:
-            tiered[i] = t1[i]
-        else:
-            tiered[i] = t2_ark[i]
+    # Tiered System (Routed prediction): accept confident Tier 1, else escalate.
+    tiered = np.where((t1 < 0.15) | (t1 > 0.85), t1, t2_ark)
 
     return {
         "y_true": y_true,
@@ -65,6 +73,54 @@ def generate_tiered_simulation(n_samples: int = 500) -> dict[str, np.ndarray]:
         "t2_arkplus": t2_ark,
         "tiered_system": tiered,
     }
+
+
+def load_real_predictions(
+    ark_csv: str, eff_csv: str | None
+) -> dict[str, np.ndarray | dict[str, np.ndarray]]:
+    """Load REAL per-image predictions written by scripts/export_predictions.py.
+
+    The Ark+ export (``tiered_predictions.csv``) carries the tiered system and its
+    Tier 1 / Tier 2 component probabilities. The optional EfficientNet export
+    (``tiered_predictions_efficientnet.csv``) is merged by ``image_id`` so the
+    EfficientNet-vs-Ark+ comparison uses genuinely paired predictions.
+
+    Args:
+        ark_csv: Path to the Ark+ per-image predictions CSV (required).
+        eff_csv: Path to the EfficientNet per-image predictions CSV (optional).
+
+    Returns:
+        Dict with y_true, t1_mobilenet, t2_arkplus, tiered_system arrays, plus a
+        nested ``cmp_eff_ark`` dict (y_true/eff/ark) when the EfficientNet CSV
+        is present and shares images with the Ark+ export.
+
+    Raises:
+        FileNotFoundError: If the Ark+ predictions CSV does not exist.
+    """
+    if not os.path.exists(ark_csv):
+        raise FileNotFoundError(ark_csv)
+
+    ark = pd.read_csv(ark_csv)
+    data: dict[str, np.ndarray | dict[str, np.ndarray]] = {
+        "y_true": ark["y_true"].to_numpy().astype(int),
+        "t1_mobilenet": ark["tier1_prob"].to_numpy(dtype=float),
+        "t2_arkplus": ark["tier2_prob"].to_numpy(dtype=float),
+        "tiered_system": ark["tiered_prob"].to_numpy(dtype=float),
+    }
+
+    if eff_csv and os.path.exists(eff_csv):
+        eff = pd.read_csv(eff_csv)[["image_id", "tier2_prob"]].rename(
+            columns={"tier2_prob": "eff"}
+        )
+        a = ark[["image_id", "y_true", "tier2_prob"]].rename(columns={"tier2_prob": "ark"})
+        merged = a.merge(eff, on="image_id", how="inner")
+        if len(merged) > 0:
+            data["cmp_eff_ark"] = {
+                "y_true": merged["y_true"].to_numpy().astype(int),
+                "eff": merged["eff"].to_numpy(dtype=float),
+                "ark": merged["ark"].to_numpy(dtype=float),
+            }
+    return data
 
 
 def format_ci(val: float, ci: tuple[float, float]) -> str:
@@ -84,6 +140,10 @@ def run_comparison(
     """Runs a complete suite of comparative statistical tests between two models."""
     print(f"\nComparing {model1_name} vs {model2_name}...")
 
+    y_true = np.asarray(y_true)
+    y_probs1 = np.asarray(y_probs1, dtype=float)
+    y_probs2 = np.asarray(y_probs2, dtype=float)
+
     # 1. Bootstrap CI for key metrics
     metrics = ["auc", "accuracy", "sensitivity", "specificity", "f1"]
     bootstrap_results = {}
@@ -97,10 +157,14 @@ def run_comparison(
             seed=seed,
         )
 
-    # 2. McNemar's Test for accuracy difference
+    # 2. DeLong test for the AUC difference (correlated ROC curves).
+    # delong_test returns the two-tailed p-value as a float.
+    delong_p = delong_test(y_true, y_probs1, y_probs2)
+
+    # 3. McNemar's Test for accuracy difference
     mcnemar = mcnemar_test(y_true, y_probs1, y_probs2)
 
-    # 3. Permutation Test for AUC and F1 difference
+    # 4. Permutation Test for AUC and F1 difference
     perm_auc = permutation_test(
         y_true,
         y_probs1,
@@ -120,9 +184,7 @@ def run_comparison(
 
     # Display clean textual results
     print("-" * 70)
-    print(
-        f"{'Metric':<15} | {model1_name:<20} | {model2_name:<20} | {'Delta':<10}"
-    )
+    print(f"{'Metric':<15} | {model1_name:<20} | {model2_name:<20} | {'Delta':<10}")
     print("-" * 70)
     for metric in metrics:
         res = bootstrap_results[metric]
@@ -133,9 +195,7 @@ def run_comparison(
             f"{res['delta']:.4f} ({res['delta_ci'][0]:.3f}-{res['delta_ci'][1]:.3f})"
         )
     print("-" * 70)
-    print(
-        f"DeLong AUC p-value:                {bootstrap_results['auc'].get('p_value_delong', float('nan')):.6f}"
-    )
+    print(f"DeLong AUC p-value:                {delong_p:.6f}")
     print(f"Bootstrap AUC difference p-value:  {bootstrap_results['auc']['p_value_bootstrap']:.6f}")
     print(f"Permutation AUC difference p-value:{perm_auc['p_value']:.6f}")
     print(f"Permutation F1 difference p-value: {perm_f1['p_value']:.6f}")
@@ -156,93 +216,66 @@ def run_comparison(
         "model1_name": model1_name,
         "model2_name": model2_name,
         "bootstrap": bootstrap_results,
+        "delong_p": delong_p,
         "mcnemar": mcnemar,
         "permutation_auc": perm_auc,
         "permutation_f1": perm_f1,
     }
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Comparative Statistical Diagnostics CLI. / Karşılaştırmalı İstatistiksel Teşhis CLI Betiği."
-    )
-    parser.add_argument(
-        "--n-iterations",
-        type=int,
-        default=1000,
-        help="Number of bootstrap iterations and permutations. / Güven aralığı ve permütasyon yineleme sayısı.",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed for reproducibility. / Rastgelelik çekirdeği.",
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="outputs/results/statistical_comparison.csv",
-        help="Output CSV path. / Çıktı CSV dosyasının kaydedileceği yol.",
-    )
-    args = parser.parse_args()
+def _build_comparisons(data: dict, n_iterations: int, seed: int) -> list[dict]:
+    """Construct the comparison list defensively from whatever real data exists."""
+    comparisons: list[dict] = []
 
-    print(
-        f"Initializing comparative statistical suite (iterations: {args.n_iterations}, seed: {args.seed})..."
-    )
-
-    # Check if actual evaluation predictions exist in data/processed or outputs/results
-    # If not, generate high-fidelity simulated tiered classifications
-    test_csv = "data/processed/test.csv"
-    if os.path.exists(test_csv):
-        print(f"Test dataset metadata detected at: {test_csv}. Attempting evaluations...")
-        # Simulating based on the real dataset size for full offline capability
-        df = pd.read_csv(test_csv)
-        data = generate_tiered_simulation(len(df))
+    # EfficientNet vs Ark+ (paired, real subset) or simulated arrays.
+    if isinstance(data.get("cmp_eff_ark"), dict):
+        c = data["cmp_eff_ark"]
+        comparisons.append(
+            run_comparison(
+                c["y_true"], c["eff"], c["ark"],
+                "EfficientNetB4", "Ark+ Swin",
+                n_iterations=n_iterations, seed=seed,
+            )
+        )
+    elif "t2_effnet" in data:
+        comparisons.append(
+            run_comparison(
+                data["y_true"], data["t2_effnet"], data["t2_arkplus"],
+                "EfficientNetB4", "Ark+ Swin",
+                n_iterations=n_iterations, seed=seed,
+            )
+        )
     else:
-        print("No test.csv found. Generating high-fidelity mock datasets (500 samples)...")
-        data = generate_tiered_simulation(500)
+        print(
+            "Note: EfficientNet predictions not found "
+            "(outputs/results/tiered_predictions_efficientnet.csv); "
+            "skipping the EfficientNet-vs-Ark+ comparison."
+        )
 
     y_true = data["y_true"]
-
-    # Run comparisons
-    comp_eff_ark = run_comparison(
-        y_true,
-        data["t2_effnet"],
-        data["t2_arkplus"],
-        "EfficientNetB4",
-        "Ark+ Swin",
-        n_iterations=args.n_iterations,
-        seed=args.seed,
+    comparisons.append(
+        run_comparison(
+            y_true, data["t1_mobilenet"], data["tiered_system"],
+            "MobileNetV2 (T1)", "Tiered System",
+            n_iterations=n_iterations, seed=seed,
+        )
     )
-
-    comp_t1_tiered = run_comparison(
-        y_true,
-        data["t1_mobilenet"],
-        data["tiered_system"],
-        "MobileNetV2 (T1)",
-        "Tiered System",
-        n_iterations=args.n_iterations,
-        seed=args.seed,
+    comparisons.append(
+        run_comparison(
+            y_true, data["t2_arkplus"], data["tiered_system"],
+            "Ark+ Swin (T2)", "Tiered System",
+            n_iterations=n_iterations, seed=seed,
+        )
     )
+    return comparisons
 
-    comp_ark_tiered = run_comparison(
-        y_true,
-        data["t2_arkplus"],
-        data["tiered_system"],
-        "Ark+ Swin (T2)",
-        "Tiered System",
-        n_iterations=args.n_iterations,
-        seed=args.seed,
-    )
 
-    # Create CSV outputs
-    csv_path = args.output
+def _write_csv(comparisons: list[dict], csv_path: str) -> None:
+    """Write the structured per-metric comparison rows to CSV."""
     os.makedirs(os.path.dirname(csv_path) if os.path.dirname(csv_path) else ".", exist_ok=True)
-
     rows = []
-    for comp in [comp_eff_ark, comp_t1_tiered, comp_ark_tiered]:
-        m1 = comp["model1_name"]
-        m2 = comp["model2_name"]
+    for comp in comparisons:
+        m1, m2 = comp["model1_name"], comp["model2_name"]
         for metric in ["auc", "accuracy", "sensitivity", "specificity", "f1"]:
             boot = comp["bootstrap"][metric]
             rows.append(
@@ -259,7 +292,7 @@ def main() -> None:
                     "Delta_CI_Lower": boot["delta_ci"][0],
                     "Delta_CI_Upper": boot["delta_ci"][1],
                     "p_value_bootstrap": boot["p_value_bootstrap"],
-                    "p_value_delong": boot.get("p_value_delong", float("nan")),
+                    "p_value_delong": comp["delong_p"] if metric == "auc" else float("nan"),
                     "p_value_mcnemar": comp["mcnemar"]["p_value"]
                     if metric == "accuracy"
                     else float("nan"),
@@ -268,57 +301,124 @@ def main() -> None:
                     else float("nan"),
                 }
             )
-
     pd.DataFrame(rows).to_csv(csv_path, index=False)
     print(f"\nSaved structured CSV metrics to: {csv_path}")
 
-    # Generate a magnificent LaTeX table for the thesis document
-    latex_path = "outputs/results/statistical_comparison_table.tex"
 
-    def latex_row(comp, metric_key, metric_name):
-        boot = comp["bootstrap"][metric_key]
-        p_val_del = boot.get("p_value_delong", float("nan"))
-        p_val_str = f"{p_val_del:.4f}" if not np.isnan(p_val_del) else "N/A"
+def _write_latex(comparisons: list[dict], latex_path: str) -> None:
+    """Write a thesis-ready LaTeX comparison table from real results."""
+
+    def latex_row(comp: dict, key: str, label: str) -> str:
+        boot = comp["bootstrap"][key]
+        p_str = f"{comp['delong_p']:.4f}" if key == "auc" else "N/A"
         return (
-            f"{metric_name} & "
+            f"{label} & "
             f"{boot['model1_metric']:.3f} ({boot['model1_ci'][0]:.3f}, {boot['model1_ci'][1]:.3f}) & "
             f"{boot['model2_metric']:.3f} ({boot['model2_ci'][0]:.3f}, {boot['model2_ci'][1]:.3f}) & "
             f"{boot['delta']:.3f} ({boot['delta_ci'][0]:.3f}, {boot['delta_ci'][1]:.3f}) & "
-            f"{p_val_str} \\\\"
+            f"{p_str} \\\\"
         )
 
-    latex_table = f"""\\begin{{table}}[h!]
-\\centering
-\\caption{{Statistical Comparison of Diagnosis Classifiers and Tiered Architectures under Bootstrap and DeLong}}
-\\label{{tab:statistical_comparison_detailed}}
-\\begin{{tabular}}{{lcccc}}
-\\hline
-\\textbf{{Metric}} & \\textbf{{Model 1}} & \\textbf{{Model 2}} & \\textbf{{Difference (Model 2 - 1)}} & \\textbf{{DeLong p-value}} \\\\ \\hline
-\\multicolumn{{5}}{{l}}{{\\textbf{{Comparison A: Baseline EfficientNetB4 vs SOTA Ark+ Swin}}}} \\\\
-{latex_row(comp_eff_ark, 'auc', 'AUC-ROC')}
-{latex_row(comp_eff_ark, 'accuracy', 'Accuracy')}
-{latex_row(comp_eff_ark, 'sensitivity', 'Sensitivity')}
-{latex_row(comp_eff_ark, 'specificity', 'Specificity')}
-{latex_row(comp_eff_ark, 'f1', 'F1-Score')} \\\\ \\hline
-\\multicolumn{{5}}{{l}}{{\\textbf{{Comparison B: Baseline MobileNetV2 (T1) vs Tiered System}}}} \\\\
-{latex_row(comp_t1_tiered, 'auc', 'AUC-ROC')}
-{latex_row(comp_t1_tiered, 'accuracy', 'Accuracy')}
-{latex_row(comp_t1_tiered, 'sensitivity', 'Sensitivity')}
-{latex_row(comp_t1_tiered, 'specificity', 'Specificity')}
-{latex_row(comp_t1_tiered, 'f1', 'F1-Score')} \\\\ \\hline
-\\multicolumn{{5}}{{l}}{{\\textbf{{Comparison C: Full Ark+ Swin (T2-only) vs Routed Tiered System}}}} \\\\
-{latex_row(comp_ark_tiered, 'auc', 'AUC-ROC')}
-{latex_row(comp_ark_tiered, 'accuracy', 'Accuracy')}
-{latex_row(comp_ark_tiered, 'sensitivity', 'Sensitivity')}
-{latex_row(comp_ark_tiered, 'specificity', 'Specificity')}
-{latex_row(comp_ark_tiered, 'f1', 'F1-Score')} \\\\ \\hline
-\\end{{tabular}}
-\\end{{table}}
-"""
+    metric_labels = [
+        ("auc", "AUC-ROC"),
+        ("accuracy", "Accuracy"),
+        ("sensitivity", "Sensitivity"),
+        ("specificity", "Specificity"),
+        ("f1", "F1-Score"),
+    ]
+    sections = []
+    for comp in comparisons:
+        header = (
+            f"\\multicolumn{{5}}{{l}}{{\\textbf{{{comp['model1_name']} vs "
+            f"{comp['model2_name']}}}}} \\\\"
+        )
+        body = "\n".join(latex_row(comp, k, lbl) for k, lbl in metric_labels)
+        sections.append(header + "\n" + body + " \\\\ \\hline")
+    body_tex = "\n".join(sections)
 
+    latex_table = (
+        "\\begin{table}[h!]\n"
+        "\\centering\n"
+        "\\caption{Statistical Comparison of Diagnosis Classifiers and Tiered "
+        "Architectures (Bootstrap 95\\% CI and DeLong test on real test-set predictions)}\n"
+        "\\label{tab:statistical_comparison_detailed}\n"
+        "\\begin{tabular}{lcccc}\n"
+        "\\hline\n"
+        "\\textbf{Metric} & \\textbf{Model 1} & \\textbf{Model 2} & "
+        "\\textbf{Difference (Model 2 - 1)} & \\textbf{DeLong p-value} \\\\ \\hline\n"
+        f"{body_tex}\n"
+        "\\end{tabular}\n"
+        "\\end{table}\n"
+    )
     with open(latex_path, "w") as f:
         f.write(latex_table)
     print(f"Saved LaTeX thesis table to: {latex_path}")
+
+
+def main() -> None:
+    """CLI entrypoint for the comparative statistical suite."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Comparative Statistical Diagnostics CLI. / "
+            "Karsilastirmali Istatistiksel Teshis CLI Betigi."
+        )
+    )
+    parser.add_argument(
+        "--predictions",
+        type=str,
+        default="outputs/results/tiered_predictions.csv",
+        help="Real Ark+ per-image predictions CSV. / Gercek Ark+ tahmin CSV yolu.",
+    )
+    parser.add_argument(
+        "--eff-predictions",
+        type=str,
+        default="outputs/results/tiered_predictions_efficientnet.csv",
+        help="Optional EfficientNet predictions CSV. / Istege bagli EfficientNet tahmin CSV.",
+    )
+    parser.add_argument(
+        "--n-iterations",
+        type=int,
+        default=1000,
+        help="Number of bootstrap iterations and permutations. / Yineleme sayisi.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for reproducibility. / Rastgelelik cekirdegi.",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="outputs/results/statistical_comparison.csv",
+        help="Output CSV path. / Cikti CSV dosyasinin kaydedilecegi yol.",
+    )
+    args = parser.parse_args()
+
+    print(
+        f"Initializing comparative statistical suite "
+        f"(iterations: {args.n_iterations}, seed: {args.seed})..."
+    )
+
+    # Real predictions are the only honest source. Fall back to a simulation ONLY
+    # when explicitly allowed via XRAY_ALLOW_MOCK=1 (otherwise guard_mock raises).
+    try:
+        data = load_real_predictions(args.predictions, args.eff_predictions)
+        print(f"Loaded REAL predictions from {args.predictions} (n={len(data['y_true'])}).")
+    except FileNotFoundError:
+        guard_mock(
+            f"statistical_tests: real predictions missing at {args.predictions}; "
+            "run scripts/export_predictions.py first"
+        )
+        print("XRAY_ALLOW_MOCK=1 -> using SIMULATED predictions (NOT valid for the thesis).")
+        test_csv = "data/processed/test.csv"
+        n = len(pd.read_csv(test_csv)) if os.path.exists(test_csv) else 500
+        data = generate_tiered_simulation(n)
+
+    comparisons = _build_comparisons(data, n_iterations=args.n_iterations, seed=args.seed)
+
+    _write_csv(comparisons, args.output)
+    _write_latex(comparisons, "outputs/results/statistical_comparison_table.tex")
 
 
 if __name__ == "__main__":
