@@ -153,11 +153,17 @@ def main() -> None:
     tier2 = ModelFactory.create(args.tier2_backbone, num_classes=2, pretrained=False).to(device)
 
     t1_path = "outputs/models/best_tier1_mobilenet.pth"
-    t2_path = f"outputs/models/best_tier2_{args.tier2_backbone}.pth"
-    if args.tier2_backbone == "ark_plus" and not os.path.exists(t2_path):
-        alt = "outputs/models/best_tier2_arkplus.pth"
-        if os.path.exists(alt):
-            t2_path = alt
+    # Map backbone -> trained weight filename(s). The EfficientNet checkpoint is
+    # saved as best_tier2_efficientnet.pth (no _b4 suffix); Ark+ may be either
+    # best_tier2_ark_plus.pth or best_tier2_arkplus.pth depending on the run.
+    t2_candidates = {
+        "efficientnet_b4": ["best_tier2_efficientnet.pth", "best_tier2_efficientnet_b4.pth"],
+        "ark_plus": ["best_tier2_ark_plus.pth", "best_tier2_arkplus.pth"],
+    }.get(args.tier2_backbone, [f"best_tier2_{args.tier2_backbone}.pth"])
+    t2_path = next(
+        (f"outputs/models/{n}" for n in t2_candidates if os.path.exists(f"outputs/models/{n}")),
+        f"outputs/models/{t2_candidates[0]}",
+    )
     if not _load_weights(tier1, t1_path, device) or not _load_weights(tier2, t2_path, device):
         raise SystemExit(
             f"Trained weights not found ({t1_path} / {t2_path}). "
