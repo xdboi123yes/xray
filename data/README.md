@@ -22,7 +22,7 @@ data/
 ## How to fetch the data
 
 ### Option 1 — Colab notebook (recommended)
-`notebooks/xray_colab_training_auto.ipynb` downloads everything automatically from Kaggle.
+`notebooks/xray_colab_produce_all.ipynb` downloads everything automatically from Kaggle.
 
 ### Option 2 — Local Kaggle CLI
 ```bash

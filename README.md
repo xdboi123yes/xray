@@ -1,7 +1,6 @@
 # Tiered Confidence-Based Chest X-Ray Pathology Classification
 
-* **Full Pipeline Training (T4/L4 GPU):** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_training_auto.ipynb)
-* **A100 GPU Ablations Only:** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_ablation_a100.ipynb)
+* **Produce Everything — training + full pipeline (Colab):** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_produce_all.ipynb)
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.2](https://img.shields.io/badge/PyTorch-2.2-orange.svg)](https://pytorch.org/)
@@ -13,37 +12,41 @@ or a deeper, more expensive model (**EfficientNet-B4** / **Ark+ Swin**) based on
 
 ---
 
-## 🚀 Quick Start — Google Colab Workflows
+## 🚀 Quick Start — Google Colab (one notebook does everything)
 
-We provide two production-grade Google Colab notebooks for training and evaluation:
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_produce_all.ipynb)
 
-### 1. Full Auto-Training Pipeline (T4/L4 GPU)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_training_auto.ipynb)
+`notebooks/xray_colab_produce_all.ipynb` is a single, fully-automated notebook that
+restores trained models from Google Drive and produces **every** artifact the project
+needs. It does **not** retrain by default — flip a per-step switch to retrain a model.
 
-Select a **T4/L4 GPU** and run cells top-to-bottom. Automates everything:
-1. Clones the repo from GitHub
-2. Installs dependencies (with automatic kernel restart)
-3. Downloads the NIH ChestX-ray14 dataset from Kaggle
-4. Preprocesses and splits the data (train/val/test/calibration)
-5. Downloads the Ark+ checkpoint (with Swin-Base ImageNet fallback)
-6. Trains **Tier 1 (MobileNetV2)** + **Tier 2 (EffNet-B4)** + **Tier 2 (Ark+ Swin)**
-7. Performs temperature calibration and computes ECE
-8. Runs the ablation matrix (A8–A15)
-9. Runs statistical tests (DeLong + Bootstrap)
-10. Exports models to ONNX with INT8 quantization
-11. Syncs outputs to Drive and downloads a single ZIP
+Pick a GPU (A100 / L4 / T4), paste your Kaggle token, and **Run all**. In order, it:
 
-*Note: The only manual step is uploading `kaggle.json` (Kaggle Account > API > Create New Token).*
+1. Clones the repo and installs dependencies (NumPy-ABI-safe install)
+2. Restores models & prior outputs from Drive `xray_outputs` (no re-download, no re-zip)
+3. Caches the NIH ChestX-ray14 images + builds train/val/test/calibration splits; caches the CheXpert valid set
+4. **Trains** Tier 1 (MobileNetV2), Tier 2 (EfficientNet-B4), Tier 2 (Ark+ Swin) and ablations A8/A9/A11/A12/A15 — each **skipped** if its weights already exist
+5. Calibration — conformal `q_hat` + temperature scaling (ECE + reliability diagram)
+6. Evaluates A13 (tiered) and A14 (CheXpert zero-shot)
+7. Exports **real** per-image predictions (Ark+ and EfficientNet)
+8. Builds the honest `ablation.json`, runs statistical tests (DeLong + bootstrap) and the paired model comparison
+9. Renders thesis figures + executes the 5 analysis notebooks (headless), exports ONNX, runs the latency / carbon benchmark
+10. Merges **only** the session's new files into a single Drive `xray_outputs/outputs` tree
 
-### 2. A100 GPU Advanced Ablation Matrix
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/xdboi123yes/xray/blob/main/notebooks/xray_colab_ablation_a100.ipynb)
+**Switches (first config cell):**
 
-Select an **A100/L4 GPU** and run cells top-to-bottom. Specifically tailored for advanced Week 4 & 5 ablation matrices:
-* **Adaptive Weight Restoration:** Automatically mounts Google Drive or scans directly uploaded checkpoints in `/content/` to unzip, relocate nested folders, and align filenames (`best_tier2_arkplus.pth` $\leftrightarrow$ `best_tier2_ark_plus.pth`).
-* **On-the-Fly Calibration:** Generates `q_hat.pt` and routing thresholds dynamically if missing, so evaluation-only ablations (A13, A14) run flawlessly.
-* **GPU-Optimized Dataloading:** Saturates A100/L4 memory throughput using 8 parallel worker threads (`num_workers=8`).
-* **Live Streaming Console:** Displays `tqdm` progress bars, metrics, and observers live in your browser in real-time.
-* **Drive Mirror & Browser Download:** Zips results and triggers a direct browser download instantly on completion.
+| Switch | Effect |
+|--------|--------|
+| `STEPS['<step>']['run']` | enable/disable any single model or artifact |
+| `STEPS['<step>']['force']` | re-generate and overwrite it even if it already exists |
+| `SKIP_EXISTING` / `FORCE_ALL` | global skip / force-everything overrides |
+| `DRY_RUN` | train 1 epoch per model for a fast end-to-end check |
+
+The engine never throws: a failed step is reported (non-fatal) and a status table is
+printed at the end, so a re-run after a fix skips everything already produced and only
+fills in what is missing.
+
+*The only manual step is your `kaggle.json` token (Kaggle Account > API > Create New Token).*
 
 ---
 
@@ -133,11 +136,16 @@ python scripts/generate_synthetics.py
 
 ### 8. Clinical Statistical Tests
 
-DeLong, McNemar, DCA, Bootstrap CIs:
+DeLong, McNemar, permutation, and bootstrap CIs run on **real** per-image predictions.
+Export those first, then run the tests:
 
 ```bash
+python scripts/export_predictions.py --tier2-backbone ark_plus    # writes outputs/results/tiered_predictions.csv
 python scripts/statistical_tests.py --output outputs/results/statistical_comparison.csv
 ```
+
+The test script refuses to fabricate data: if `tiered_predictions.csv` is missing it
+errors out (set `XRAY_ALLOW_MOCK=1` only for an explicit, clearly-labelled dry-run).
 
 ### 9. Ablation Matrix
 
@@ -193,7 +201,7 @@ xray/
 │   ├── data/                   # NIHChestXrayDataset
 │   └── training/               # Trainer, observers (checkpoint, mlflow, ...)
 ├── scripts/                    # CLI entry points
-├── notebooks/                  # Colab + analysis notebooks
+├── notebooks/                  # produce-all Colab notebook + 5 analysis notebooks
 ├── web/                        # React frontend + FastAPI backend
 ├── docker/                     # Dockerfiles
 ├── config.yaml                 # Centralized configuration
