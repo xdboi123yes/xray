@@ -5,12 +5,26 @@ Tracks metrics using codecarbon, measuring GPU/CPU latency and peak allocation s
 
 from __future__ import annotations
 
+import os
+import sys
 import time
 
 import torch
-from codecarbon import EmissionsTracker
+
+# Support standalone execution (python scripts/benchmark_latency.py): add the project
+# root to sys.path so `core` is importable regardless of the current working directory.
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.models.factory import ModelFactory
+
+# CodeCarbon is optional: it is frequently unavailable on Colab and may fail to read
+# power sensors. Latency / throughput are always reported; carbon only when possible.
+try:
+    from codecarbon import EmissionsTracker
+
+    _CODECARBON_AVAILABLE = True
+except ImportError:
+    _CODECARBON_AVAILABLE = False
 
 
 def benchmark_model(backbone_key: str, device: torch.device, num_iters: int = 100) -> None:
@@ -57,17 +71,30 @@ def main() -> None:
         else ("cuda" if torch.cuda.is_available() else "cpu")
     )
 
-    print("Initializing CodeCarbon emissions tracker...")
-    # Instantiate carbon tracker in a sandbox/offline mode
-    tracker = EmissionsTracker(measure_power_secs=15, save_to_file=True, log_level="warning")
-    tracker.start()
+    tracker = None
+    if _CODECARBON_AVAILABLE:
+        print("Initializing CodeCarbon emissions tracker...")
+        try:
+            tracker = EmissionsTracker(measure_power_secs=15, save_to_file=False, log_level="warning")
+            tracker.start()
+        except Exception as exc:
+            print(f"CodeCarbon tracker unavailable ({exc}); reporting latency without carbon.")
+            tracker = None
+    else:
+        print("CodeCarbon not installed; reporting latency without carbon.")
 
     try:
         benchmark_model("mobilenet_v2", device)
         benchmark_model("efficientnet_b4", device)
     finally:
-        emissions: float = tracker.stop()
-        print(f"\nBenchmark completed. Tracked Carbon Footprint Emissions: {emissions:.8f} kg CO2eq")
+        if tracker is not None:
+            try:
+                emissions = tracker.stop()
+                print(f"\nBenchmark completed. Tracked Carbon Footprint Emissions: {emissions:.8f} kg CO2eq")
+            except Exception as exc:
+                print(f"\nBenchmark completed. Carbon tracking failed: {exc}")
+        else:
+            print("\nBenchmark completed. (Carbon footprint not measured.)")
 
 
 if __name__ == "__main__":
