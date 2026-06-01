@@ -18,6 +18,7 @@ class ONNXModelExporter:
         model: nn.Module,
         export_path: str,
         input_size: tuple[int, ...] = (1, 3, 224, 224),
+        opset_version: int = 18,
     ) -> None:
         """Export the PyTorch model to ONNX format.
 
@@ -25,6 +26,10 @@ class ONNXModelExporter:
             model: PyTorch nn.Module instance to export.
             export_path: Destination path for the exported ONNX model.
             input_size: Tuple representing standard input dimensions.
+            opset_version: Target ONNX opset. Defaults to 18 because the torch 2.7+
+                exporter natively emits opset >= 18, and requesting a lower opset
+                triggers a non-fatal version-downgrade that fails noisily on these
+                graphs (the model still exports, but at opset 18).
         """
         model.eval()
         device = next(model.parameters()).device
@@ -36,7 +41,7 @@ class ONNXModelExporter:
             dummy_input,
             export_path,
             export_params=True,
-            opset_version=15,
+            opset_version=opset_version,
             do_constant_folding=True,
             input_names=["input"],
             output_names=["output"],
