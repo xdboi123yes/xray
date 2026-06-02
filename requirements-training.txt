@@ -1,6 +1,21 @@
-# Deep training and synthetic generation dependencies for Chest X-Ray system
+# Deep training, synthetic generation, and thesis-figure dependencies.
+# Installed ON TOP of requirements.txt (the Colab notebook installs both).
+# None of these are imported by the FastAPI runtime / core inference path.
 
+# --- Synthetic data generation (Stable Diffusion) ---
 diffusers>=0.27
 transformers>=4.40
 accelerate>=0.29
+pytorch-fid==0.3.0   # FID quality gate for synthetic batches
+
+# --- Hyperparameter search ---
 optuna>=3.6          # Hyperparameter sweep and optimization
+
+# --- Thesis figures & exploratory plots ---
+seaborn>=0.13.0      # Styling for generate_report_figures.py
+plotly==5.19.0       # Interactive / exploratory plots
+
+# --- Demo & benchmarking ---
+gradio==4.21.0       # Standalone Gradio demo (demo/app.py)
+memory-profiler==0.61.0  # Latency/memory benchmark script
+codecarbon>=2.3.0    # Carbon-tracking training observer + benchmark

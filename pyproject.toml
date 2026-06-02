@@ -27,7 +27,6 @@ module = [
     "timm.*",
     "diffusers.*",
     "albumentations.*",
-    "mlflow.*",
     "codecarbon.*",
     "sklearn.*",
     "yaml",
@@ -93,3 +92,11 @@ module = [
     "application.dto.ablation_dto",
 ]
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+# MLflow ships py.typed, but its optional integrations (langchain, etc.) import
+# packages we do not install, so following into it errors inconsistently across
+# environments. Treat MLflow as an opaque external dependency.
+module = ["mlflow", "mlflow.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
