@@ -20,7 +20,11 @@ import torchvision.transforms as transforms  # type: ignore[import-untyped]
 from PIL import Image
 
 from application.dto.prediction_dto import PredictionDTO
-from core.explainability.gradcam import XRayGradCAM
+from core.explainability.hirescam import (
+    XRayHiResCAM,
+    resolve_target_layers,
+    suppress_background,
+)
 from core.interfaces.base_model import BaseClassifier
 from core.interfaces.base_router import BaseRouter
 
@@ -30,10 +34,22 @@ class InferenceService:
 
     def __init__(self) -> None:
         """Initialize InferenceService."""
-        # Standard chest radiograph normalizer transformation
+        self.image_size = 224
+        # Model input MUST match the training/eval pipeline, which applies ImageNet
+        # normalization (see ClassicalAugmentation). Feeding un-normalized [0, 1]
+        # images is out-of-distribution for the models and produces unreliable
+        # predictions and border-focused Grad-CAM maps.
         self.preprocess = transforms.Compose(
             [
-                transforms.Resize((224, 224)),
+                transforms.Resize((self.image_size, self.image_size)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+            ]
+        )
+        # Un-normalized image (in [0, 1]) used only as the Grad-CAM overlay base.
+        self.display_preprocess = transforms.Compose(
+            [
+                transforms.Resize((self.image_size, self.image_size)),
                 transforms.ToTensor(),
             ]
         )
@@ -45,50 +61,61 @@ class InferenceService:
             file_bytes: Raw bytes from radiograph upload.
 
         Returns:
-            A preprocessed float tensor of shape [1, 3, 224, 224].
+            An ImageNet-normalized float tensor of shape [1, 3, 224, 224].
         """
         image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
-        # Returns [1, 3, 224, 224] tensor normalized in [0, 1] range
         return self.preprocess(image).unsqueeze(0)
+
+    def display_image(self, file_bytes: bytes) -> np.ndarray[Any, Any]:
+        """Return the resized, un-normalized RGB image in [0, 1] for CAM overlays.
+
+        Args:
+            file_bytes: Raw bytes from radiograph upload.
+
+        Returns:
+            Float array of shape [H, W, 3] in range [0, 1].
+        """
+        image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+        return np.asarray(self.display_preprocess(image).permute(1, 2, 0).numpy())
 
     def _generate_gradcam_b64(
         self,
         model: BaseClassifier,
         tensor: torch.Tensor,
-        backbone_name: str,
+        display_img: np.ndarray[Any, Any],
         device: torch.device,
     ) -> str | None:
-        """Generates base64-encoded Grad-CAM overlay safely.
+        """Generates a base64-encoded HiResCAM overlay safely.
 
         Args:
             model: Target model classifier.
-            tensor: Image tensor of shape [1, 3, 224, 224].
-            backbone_name: String descriptor to locate correct activation layers.
+            tensor: Normalized image tensor of shape [1, 3, 224, 224].
+            display_img: Un-normalized RGB image [H, W, 3] in [0, 1] for the overlay.
             device: Active computing device.
 
         Returns:
             Base64 PNG data URL or None if generation failed.
         """
         try:
-            if "efficientnet" in backbone_name or "mobilenet" in backbone_name:
-                target_layers = [model.backbone.features[-1]]
-            else:
-                target_layers = [model.backbone.norm]
+            # Target layers (and a reshape transform for Swin/Ark+) are resolved
+            # from the model's own backbone, never from a hardcoded backbone name.
+            target_layers, reshape_transform = resolve_target_layers(model)
+            cam = XRayHiResCAM(model, target_layers, reshape_transform=reshape_transform)
+            heatmap = cam.generate(tensor.to(device))
 
-            gradcam = XRayGradCAM(model, target_layers)
-            heatmap = gradcam.generate(tensor.to(device))
-
-            rgb_img = tensor.squeeze(0).permute(1, 2, 0).cpu().numpy()
-            rgb_img = np.clip(rgb_img, 0, 1)
-
-            visualization = gradcam.overlay(rgb_img, heatmap, alpha=0.45)
+            # Overlay onto the un-normalized image so the heatmap aligns with what
+            # the clinician sees, not the mean-subtracted model input.
+            rgb_img = np.clip(display_img, 0.0, 1.0).astype(np.float32)
+            # Keep attribution off the black collimation border (no diagnostic signal).
+            heatmap = suppress_background(heatmap, rgb_img)
+            visualization = cam.overlay(rgb_img, heatmap, alpha=0.45)
 
             vis_bgr = cv2.cvtColor(visualization, cv2.COLOR_RGB2BGR)
             _, buffer = cv2.imencode(".png", vis_bgr)
             b64_str = base64.b64encode(buffer).decode("utf-8")
             return f"data:image/png;base64,{b64_str}"
         except Exception:
-            # Fallback to prevent complete request failure if Grad-CAM library throws
+            # Fallback to prevent complete request failure if the CAM library throws.
             return None
 
     def predict(
@@ -105,7 +132,7 @@ class InferenceService:
 
         Args:
             image_bytes: Uploaded radiograph file contents in bytes.
-            tier1: Lightweight MobileNetV3 screening model.
+            tier1: Lightweight MobileNetV2 screening model.
             tier2: Heavyweight specialist classifier.
             router: Confidence routing model wrapper.
             device: Compute acceleration target.
@@ -117,6 +144,7 @@ class InferenceService:
         """
         start_time = time.perf_counter()
         tensor = self.preprocess_image(image_bytes)
+        display_img = self.display_image(image_bytes)
         tensor_device = tensor.to(device)
 
         # 1. Tier 1 Inference (Lightweight screening)
@@ -152,11 +180,11 @@ class InferenceService:
                 flagged = True
 
             if return_gradcam:
-                gcam_t2 = self._generate_gradcam_b64(tier2, tensor, "efficientnet", device)
+                gcam_t2 = self._generate_gradcam_b64(tier2, tensor, display_img, device)
         else:
             # Bypassed escalation
             if return_gradcam:
-                gcam_t1 = self._generate_gradcam_b64(tier1, tensor, "mobilenet", device)
+                gcam_t1 = self._generate_gradcam_b64(tier1, tensor, display_img, device)
 
         # Label Mapping
         prediction = "Pneumothorax" if prediction_idx == 1 else "No Finding"
@@ -203,7 +231,7 @@ class InferenceService:
             tier_used=routed_tier,
             mc_variance=mc_variance,
             mc_passes=10 if routed_tier == 2 else None,
-            tta_passes=10 if routed_tier == 2 else None,
+            tta_passes=None,
             conformal_set=conformal_set,
             conformal_coverage=conformal_coverage,
             flagged_for_review=flagged,

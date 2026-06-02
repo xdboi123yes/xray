@@ -28,8 +28,9 @@ export const GradCAMViewer: React.FC<GradCAMViewerProps> = ({
   const activeHeatmap = activeTier === 2 ? gradcamTier2B64 : gradcamTier1B64;
   const hasBoth = !!(gradcamTier1B64 && gradcamTier2B64);
 
-  // If no original image, render a beautiful fallback placeholder
-  if (!originalImageB64) {
+  // Render the placeholder only when there is nothing at all to display
+  // (the Grad-CAM overlay is self-contained, so it can show without the original).
+  if (!originalImageB64 && !activeHeatmap) {
     return (
       <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-200/50 dark:border-slate-800/50 rounded-3xl bg-slate-50/50 dark:bg-slate-950/20">
         <EyeOff className="w-8 h-8 text-slate-400 mb-2" />
@@ -137,13 +138,7 @@ export const GradCAMViewer: React.FC<GradCAMViewerProps> = ({
           </div>
 
           <div className="relative border border-slate-200/50 dark:border-slate-800/50 rounded-3xl overflow-hidden bg-black flex items-center justify-center aspect-square shadow-lg">
-            <img src={originalImageB64} alt="Original X-Ray" className="w-full h-full object-cover" />
-            <img
-              src={activeHeatmap}
-              alt="Grad-CAM Saliency Overlay"
-              className="absolute inset-0 w-full h-full object-cover mix-blend-jetpack" // absolute cover overlay
-              style={{ opacity: 0.8 }}
-            />
+            <img src={activeHeatmap} alt="Grad-CAM Saliency Overlay" className="w-full h-full object-cover" />
             <div className="absolute top-4 left-4 bg-teal-500/80 backdrop-blur-md px-2.5 py-1 rounded-xl text-[9px] font-bold text-white uppercase tracking-wider">
               Grad-CAM (Tier {activeTier})
             </div>
@@ -154,11 +149,11 @@ export const GradCAMViewer: React.FC<GradCAMViewerProps> = ({
         /* Overlay / Single Mode */
         <div className="relative border border-slate-200/50 dark:border-slate-800/50 rounded-3xl overflow-hidden bg-black flex items-center justify-center aspect-square max-w-lg mx-auto shadow-2xl">
           <img
-            src={originalImageB64}
+            src={originalImageB64 || activeHeatmap}
             alt="Original Chest X-Ray"
             className="w-full h-full object-cover"
           />
-          {!hideHeatmap && activeHeatmap && (
+          {!hideHeatmap && activeHeatmap && originalImageB64 && (
             <img
               src={activeHeatmap}
               alt="Grad-CAM Heatmap"

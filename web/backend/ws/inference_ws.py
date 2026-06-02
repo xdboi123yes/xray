@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import time
 import uuid
 from contextlib import suppress
 from datetime import datetime
@@ -62,6 +63,10 @@ async def websocket_predict_endpoint(
 
             image_bytes = base64.b64decode(b64_data)
             tensor = inference_service.preprocess_image(image_bytes)
+            # Un-normalized image used only as the Grad-CAM overlay base.
+            display_img = inference_service.display_image(image_bytes)
+            compute_start = time.perf_counter()
+            ux_sleep_total = 0.0
 
             # 2. Tier 1 Inference step
             await websocket.send_json(
@@ -69,6 +74,7 @@ async def websocket_predict_endpoint(
             )
             # Use non-blocking asyncio.sleep to keep the thread cooperative and responsive
             await asyncio.sleep(0.3)
+            ux_sleep_total += 0.3
 
             tensor_device = tensor.to(state.device)
             with torch.no_grad():
@@ -98,6 +104,7 @@ async def websocket_predict_endpoint(
                     }
                 )
                 await asyncio.sleep(0.4)
+                ux_sleep_total += 0.4
 
                 mean_probs, variances = tier2.mc_forward(tensor_device, T=10)
                 t2_prob = float(mean_probs[0, 1].item())
@@ -117,7 +124,7 @@ async def websocket_predict_endpoint(
                     }
                 )
                 gcam_t2 = inference_service._generate_gradcam_b64(
-                    tier2, tensor, "efficientnet", state.device
+                    tier2, tensor, display_img, state.device
                 )
             else:
                 # Skipping Tier 2
@@ -129,6 +136,7 @@ async def websocket_predict_endpoint(
                     }
                 )
                 await asyncio.sleep(0.3)
+                ux_sleep_total += 0.3
                 await websocket.send_json(
                     {
                         "type": "progress",
@@ -137,7 +145,7 @@ async def websocket_predict_endpoint(
                     }
                 )
                 gcam_t1 = inference_service._generate_gradcam_b64(
-                    tier1, tensor, "mobilenet", state.device
+                    tier1, tensor, display_img, state.device
                 )
 
             # Compile DTO outcome
@@ -150,6 +158,20 @@ async def websocket_predict_endpoint(
 
             req_id = str(uuid.uuid4())
             now_iso = datetime.now().isoformat() + "Z"
+
+            # Honest, derived display values (never hardcoded metrics).
+            friendly_names = {
+                "Tier1MobileNet": "MobileNetV2 (Tier 1)",
+                "Tier2EfficientNet": "EfficientNet-B4 (Tier 2)",
+                "Tier2ArkPlus": "Ark+ Swin (Tier 2)",
+            }
+            active_model = tier2 if routed_tier == 2 else tier1
+            model_version = friendly_names.get(
+                type(active_model).__name__, type(active_model).__name__
+            )
+            inference_time_ms = max(
+                0.0, (time.perf_counter() - compute_start - ux_sleep_total) * 1000.0
+            )
 
             # Save diagnostic results to SQLite history
             db.save_prediction(
@@ -169,14 +191,14 @@ async def websocket_predict_endpoint(
                 "tier_used": routed_tier,
                 "mc_variance": mc_variance,
                 "mc_passes": 10 if routed_tier == 2 else None,
-                "tta_passes": 10 if routed_tier == 2 else None,
+                "tta_passes": None,
                 "conformal_set": conformal_set,
-                "conformal_coverage": 0.95,
+                "conformal_coverage": None,
                 "flagged_for_review": flagged,
-                "inference_time_ms": 300.5,  # Standardize display metric
+                "inference_time_ms": inference_time_ms,
                 "gradcam_tier1_b64": gcam_t1,
                 "gradcam_tier2_b64": gcam_t2,
-                "model_version": "t1_mbv2_1.0.0_t2_effb4_1.2.0",
+                "model_version": model_version,
                 "timestamp": now_iso,
             }
 
