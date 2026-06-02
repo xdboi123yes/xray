@@ -18,8 +18,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-# Install dependencies in a separate path for clean multi-stage extraction
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Resolve torch/torchvision from the PyTorch CPU index (no multi-GB CUDA wheels)
+# and every other dependency from PyPI, in a single resolution so the constraint
+# solver sees a consistent set. The API serves inference on CPU.
+RUN pip install --no-cache-dir --prefix=/install \
+        --index-url https://download.pytorch.org/whl/cpu \
+        --extra-index-url https://pypi.org/simple \
+        -r requirements.txt
 
 # ---- Stage 2: Runtime environment ----
 FROM ${BASE_IMAGE} AS runtime

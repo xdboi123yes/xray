@@ -33,7 +33,7 @@ jobs:
 
       - name: Ruff check
         run: |
-          ruff check core/ application/ infrastructure/ web/ tests/
+          ruff check core/ application/ infrastructure/ web/ tests/ scripts/
 
       - name: Mypy static check
         run: |
@@ -53,7 +53,7 @@ jobs:
 
       - name: Run unit and integration tests with coverage
         run: |
-          pytest tests/ -v --cov=core --cov=application --cov-fail-under=70
+          pytest tests/ -v --cov=core --cov=application --cov-fail-under=72
 
       - name: Verify no raw print statements leak to production layers
         run: |

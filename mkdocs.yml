@@ -1,0 +1,16 @@
+site_name: Chest X-Ray Tiered Classification — Technical Docs
+site_description: >-
+  Architecture and reproducibility documentation for the tiered, uncertainty-aware
+  pneumothorax detection thesis project (NIH ChestX-ray14, zero-shot CheXpert).
+docs_dir: docs
+theme:
+  name: readthedocs
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Ablation Studies (A1-A15): ablations.md
+  - Reproducibility: reproducibility.md
+markdown_extensions:
+  - admonition
+  - tables
+  - fenced_code
