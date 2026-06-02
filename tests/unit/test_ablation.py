@@ -84,8 +84,14 @@ training:
             os.remove(dummy_config_path)
 
 
-def test_ablation_json_mlflow_validation() -> None:
-    """Verify that every row in ablation.json carries a valid provenance and metrics."""
+def test_ablation_json_provenance_validation() -> None:
+    """Verify every row in ablation.json carries an honest provenance and metrics.
+
+    Genuine rows (``evaluation_json``) must expose real numeric auc_roc and
+    accuracy; placeholder rows must keep null metrics so no number is faked.
+    A legacy ``mlflow_run`` provenance is still accepted and re-validated against
+    the MLflow store for backward compatibility.
+    """
     ablation_json_path = "outputs/results/ablation.json"
     assert os.path.exists(ablation_json_path), f"{ablation_json_path} must exist"
 
@@ -101,27 +107,37 @@ def test_ablation_json_mlflow_validation() -> None:
         assert "metrics" in row
 
         provenance = row["provenance"]
-        assert provenance in ["mlflow_run", "preliminary_placeholder"]
+        assert provenance in ["evaluation_json", "mlflow_run", "preliminary_placeholder"], (
+            f"ablation_id {row['ablation_id']} has unexpected provenance '{provenance}'"
+        )
 
-        if provenance == "mlflow_run":
+        metrics = row["metrics"]
+        if provenance == "evaluation_json":
+            # A genuine row must carry real, numeric headline metrics.
+            for key in ("auc_roc", "accuracy"):
+                value = metrics.get(key)
+                assert isinstance(value, (int, float)), (
+                    f"ablation_id {row['ablation_id']} marked evaluation_json but "
+                    f"metric '{key}' is not numeric: {value!r}"
+                )
+        elif provenance == "preliminary_placeholder":
+            # A placeholder must stay null — never silently fabricated.
+            assert metrics.get("auc_roc") is None, (
+                f"ablation_id {row['ablation_id']} is a placeholder but has a non-null auc_roc"
+            )
+        else:  # mlflow_run (legacy)
             run_id = row["run_id"]
             assert run_id, (
                 f"ablation_id {row['ablation_id']} has empty run_id with mlflow_run provenance"
             )
-
-            # Verify MLflow run metrics directory exists
             metrics_dir = os.path.join(
                 "experiments", "mlruns", "762301816938414973", run_id, "metrics"
             )
             assert os.path.isdir(metrics_dir), (
                 f"MLflow metrics directory not found for run {run_id}"
             )
-
-            # Verify at least one version of the auc_roc metric is present in MLflow metrics
-            auc_roc_found = False
-            for metric_name in ["auc_roc", "val_auc", "final_auc_roc"]:
-                metric_file = os.path.join(metrics_dir, metric_name)
-                if os.path.exists(metric_file):
-                    auc_roc_found = True
-                    break
+            auc_roc_found = any(
+                os.path.exists(os.path.join(metrics_dir, name))
+                for name in ("auc_roc", "val_auc", "final_auc_roc")
+            )
             assert auc_roc_found, f"auc_roc metric not found in MLflow metrics for run {run_id}"

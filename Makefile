@@ -28,8 +28,14 @@ evaluate-nih:      ## Evaluate on NIH test set
 evaluate-chexpert: ## Cross-dataset zero-shot on CheXpert
 	python -m scripts.evaluate_chexpert --run-name FinalEval_CheXpert
 
-ablation:          ## Run all ablations A1-A15
+ablation:          ## Run the ablation training/orchestration runs (A8/A9/A11/A12/A15, A13/A14)
 	python -m scripts.run_ablation --start A1 --end A15
+
+evaluate-ablations: ## Compute genuine A1-A12,A15 test metrics from trained weights (needs GPU + NIH data)
+	python -m scripts.evaluate_ablation --all
+
+ablation-table:    ## Compile outputs/results/ablation.json from the per-row evaluation JSONs
+	python -m scripts.build_ablation_json
 
 stats:             ## Run statistical tests
 	python -m scripts.statistical_tests
@@ -111,7 +117,7 @@ help:              ## Show this help
 	  awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: install install-dev install-training train-tier1 train-tier2 train-tier2-ark \
-        evaluate-nih evaluate-chexpert ablation stats benchmark generate-synthetic \
+        evaluate-nih evaluate-chexpert ablation evaluate-ablations ablation-table stats benchmark generate-synthetic \
         export-onnx serve-api serve-frontend serve serve-prod docker-run docker-stop test test-unit \
         test-integration lint format check-imports check-lang docker-build docker-push \
         figures thesis-build clean help

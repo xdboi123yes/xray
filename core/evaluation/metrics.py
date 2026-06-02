@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
 from typing import Any
 
 import numpy as np
@@ -55,6 +56,45 @@ def compute_all_metrics(y_true: Any, y_probs: Any, threshold: float = 0.5) -> di
         "precision": float(precision_score(y_true, y_pred, zero_division=0)),
         "mcc": float(matthews_corrcoef(y_true, y_pred)),
     }
+
+
+def expected_calibration_error(y_true: Any, y_probs: Any, n_bins: int = 15) -> float:
+    """Compute the Expected Calibration Error (ECE) for binary predictions.
+
+    Bins predictions by the confidence of the predicted class (max(p, 1 - p)),
+    then accumulates the gap between bin accuracy and bin confidence weighted by
+    bin population, following Guo et al. (2017).
+
+    Args:
+        y_true: Ground-truth binary labels (0 or 1).
+        y_probs: Predicted probabilities for the positive class.
+        n_bins: Number of equal-width confidence bins.
+
+    Returns:
+        The ECE as a float in [0, 1], or NaN when the input is empty.
+    """
+    y_true_arr = np.asarray(y_true, dtype=float)
+    y_probs_arr = np.asarray(y_probs, dtype=float)
+    n = y_true_arr.size
+    if n == 0:
+        return float("nan")
+
+    predictions = (y_probs_arr >= 0.5).astype(float)
+    confidences = np.maximum(y_probs_arr, 1.0 - y_probs_arr)
+    accuracies = (predictions == y_true_arr).astype(float)
+
+    bin_edges = np.linspace(0.0, 1.0, n_bins + 1)
+    ece = 0.0
+    for low, high in pairwise(bin_edges):
+        in_bin = (confidences > low) & (confidences <= high)
+        bin_count = int(in_bin.sum())
+        if bin_count == 0:
+            continue
+        bin_accuracy = float(accuracies[in_bin].mean())
+        bin_confidence = float(confidences[in_bin].mean())
+        ece += (bin_count / n) * abs(bin_accuracy - bin_confidence)
+
+    return float(ece)
 
 
 def find_optimal_threshold(y_true: Any, y_probs: Any) -> float:

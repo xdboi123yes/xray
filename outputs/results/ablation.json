@@ -2,7 +2,7 @@
   {
     "ablation_id": "A1",
     "name": "Tier 1 Only",
-    "description": "Baseline screening model using MobileNetV2 without escalating to Tier 2.",
+    "description": "Baseline screening model (MobileNetV2) with no escalation to Tier 2.",
     "tier1": "MobileNetV2",
     "tier2": "None (Bypassed)",
     "routing": "None",
@@ -18,7 +18,7 @@
   {
     "ablation_id": "A2",
     "name": "Tier 2 Only (EfficientNet)",
-    "description": "All cases run directly on the deep Tier 2 EfficientNet-B4 backbone.",
+    "description": "All cases run directly on the EfficientNet-B4 backbone, no MC/TTA.",
     "tier1": "None",
     "tier2": "EfficientNetB4",
     "routing": "All Escalated",
@@ -33,8 +33,136 @@
   },
   {
     "ablation_id": "A3",
-    "name": "Tier 2 Only (Ark+ Swin)",
-    "description": "All cases run directly on the Tier 2 Ark+ Swin backbone.",
+    "name": "Tiered (Static Threshold)",
+    "description": "Tiered cascade with a static escalation threshold; Tier 2 single forward.",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Static Threshold",
+    "uncertainty": "None",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A4",
+    "name": "Tiered (Dynamic Threshold)",
+    "description": "Tiered cascade with an adaptive escalation threshold; Tier 2 single forward.",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "None",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A5",
+    "name": "Tiered + MC Dropout",
+    "description": "Dynamic tiered cascade adding Monte Carlo dropout uncertainty (no TTA).",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "MC Dropout",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A6",
+    "name": "Tiered + MC + TTA",
+    "description": "Dynamic tiered cascade with MC dropout and test-time augmentation.",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "MC + TTA",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A7",
+    "name": "Tiered + Conformal",
+    "description": "Full EfficientNet tiered system with MC, TTA and conformal prediction sets.",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "MC + TTA + Conformal",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A8",
+    "name": "Without Synthetic Augmentation",
+    "description": "A6 configuration with a Tier 2 trained without Stable Diffusion synthetics.",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "MC + TTA",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A9",
+    "name": "Without Any Augmentation",
+    "description": "A6 configuration with a Tier 2 trained without any augmentation.",
+    "tier1": "MobileNetV2",
+    "tier2": "EfficientNetB4",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "MC + TTA",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A10",
+    "name": "Always Tier 2 (No Routing)",
+    "description": "Every case forced to the EfficientNet Tier 2 with MC + TTA, bypassing routing.",
+    "tier1": "None",
+    "tier2": "EfficientNetB4",
+    "routing": "All Escalated",
+    "uncertainty": "MC + TTA",
+    "run_id": "",
+    "provenance": "preliminary_placeholder",
+    "metrics": {
+      "auc_roc": null,
+      "accuracy": null,
+      "ece": null
+    }
+  },
+  {
+    "ablation_id": "A11",
+    "name": "Tier 2 = Ark+ (No MC/TTA)",
+    "description": "Ark+ Swin Tier 2 evaluated standalone with a single forward pass.",
     "tier1": "None",
     "tier2": "Ark+ Swin",
     "routing": "All Escalated",
@@ -48,45 +176,13 @@
     }
   },
   {
-    "ablation_id": "A6",
-    "name": "Proposed Tiered (Static)",
-    "description": "Tiered cascading classifier with static escalation threshold (t=0.75).",
-    "tier1": "MobileNetV2",
-    "tier2": "EfficientNetB4",
-    "routing": "Static Threshold",
-    "uncertainty": "None",
-    "run_id": "",
-    "provenance": "preliminary_placeholder",
-    "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
-    }
-  },
-  {
-    "ablation_id": "A8",
-    "name": "Without Diffusion Augmentation",
-    "description": "Tiered system trained without synthetic Stable Diffusion images.",
-    "tier1": "MobileNetV2",
-    "tier2": "EfficientNetB4",
-    "routing": "Static Threshold",
-    "uncertainty": "None",
-    "run_id": "",
-    "provenance": "preliminary_placeholder",
-    "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
-    }
-  },
-  {
-    "ablation_id": "A9",
-    "name": "Without Any Augmentations",
-    "description": "Baseline tiered system trained without Mixup, CutMix, or synthetic data.",
-    "tier1": "MobileNetV2",
-    "tier2": "EfficientNetB4",
-    "routing": "Static Threshold",
-    "uncertainty": "None",
+    "ablation_id": "A12",
+    "name": "Tier 2 = Ark+ + MC + TTA",
+    "description": "Ark+ Swin Tier 2 evaluated standalone with MC dropout and TTA.",
+    "tier1": "None",
+    "tier2": "Ark+ Swin",
+    "routing": "All Escalated",
+    "uncertainty": "MC + TTA",
     "run_id": "",
     "provenance": "preliminary_placeholder",
     "metrics": {
@@ -98,43 +194,43 @@
   {
     "ablation_id": "A13",
     "name": "Proposed Tiered + Ark+",
-    "description": "Tiered system using MobileNetV2 (T1) and Ark+ (T2) with dynamic routing.",
+    "description": "Tiered MobileNetV2 (T1) + Ark+ (T2) with dynamic routing, MC, TTA, conformal.",
     "tier1": "MobileNetV2",
     "tier2": "Ark+ Swin",
-    "routing": "Dynamic Routing",
-    "uncertainty": "MC Dropout",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "MC + TTA + Conformal",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
+      "auc_roc": 0.9227912699278713,
+      "accuracy": 0.8281642917015927,
       "ece": null
     }
   },
   {
     "ablation_id": "A14",
     "name": "Zero-Shot CheXpert",
-    "description": "Out-of-domain validation of A13 evaluated on the CheXpert cohort.",
+    "description": "Out-of-domain validation of A13 evaluated zero-shot on the CheXpert cohort.",
     "tier1": "MobileNetV2",
     "tier2": "Ark+ Swin",
-    "routing": "Dynamic Routing",
-    "uncertainty": "MC Dropout",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "MC + TTA + Conformal",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
+      "auc_roc": 0.8846153846153846,
+      "accuracy": 0.8181818181818182,
       "ece": null
     }
   },
   {
     "ablation_id": "A15",
     "name": "Mixup/CutMix Regularized",
-    "description": "A13 trained with additional Mixup/CutMix regularization.",
+    "description": "A13 configuration with an Ark+ Tier 2 trained using Mixup/CutMix regularization.",
     "tier1": "MobileNetV2",
     "tier2": "Ark+ Swin",
-    "routing": "Dynamic Routing",
-    "uncertainty": "MC Dropout",
+    "routing": "Dynamic Threshold",
+    "uncertainty": "MC + TTA + Conformal",
     "run_id": "",
     "provenance": "preliminary_placeholder",
     "metrics": {

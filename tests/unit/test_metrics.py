@@ -6,7 +6,11 @@ import math
 
 import numpy as np
 
-from core.evaluation.metrics import compute_all_metrics, find_optimal_threshold
+from core.evaluation.metrics import (
+    compute_all_metrics,
+    expected_calibration_error,
+    find_optimal_threshold,
+)
 
 
 def test_compute_all_metrics_basic() -> None:
@@ -22,6 +26,26 @@ def test_compute_all_metrics_single_class_gives_nan_auc() -> None:
     y_probs = np.array([0.1, 0.2, 0.3])
     m = compute_all_metrics(y_true, y_probs)
     assert math.isnan(m["auc_roc"])
+
+
+def test_expected_calibration_error_perfectly_calibrated_is_low() -> None:
+    # Confident and correct predictions: confidence ~1.0, accuracy 1.0 -> ECE ~0.
+    y_true = np.array([0, 0, 1, 1])
+    y_probs = np.array([0.0, 0.0, 1.0, 1.0])
+    ece = expected_calibration_error(y_true, y_probs)
+    assert 0.0 <= ece < 1e-9
+
+
+def test_expected_calibration_error_confidently_wrong_is_high() -> None:
+    # Maximally confident but always wrong: confidence 1.0, accuracy 0.0 -> ECE 1.0.
+    y_true = np.array([0, 0, 1, 1])
+    y_probs = np.array([1.0, 1.0, 0.0, 0.0])
+    ece = expected_calibration_error(y_true, y_probs)
+    assert math.isclose(ece, 1.0, abs_tol=1e-9)
+
+
+def test_expected_calibration_error_empty_is_nan() -> None:
+    assert math.isnan(expected_calibration_error([], []))
 
 
 def test_find_optimal_threshold_returns_valid_range() -> None:

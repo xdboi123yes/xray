@@ -111,7 +111,7 @@ export const AblationPage: React.FC = () => {
           </strong>
           {t(
             'preliminaryBannerBody',
-            'Some rows have no genuine MLflow metrics yet — they are shown without numbers. After running real ablations, regenerate ablation.json via scripts/build_ablation_json.py.',
+            'Some rows have no genuine evaluation metrics yet — they are shown without numbers. After running the ablation evaluations on Colab, regenerate ablation.json via scripts/build_ablation_json.py.',
           )}
         </div>
       )}
@@ -138,7 +138,7 @@ export const AblationPage: React.FC = () => {
           </div>
           <div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
-              {t('kpiRunsLoaded', 'Genuine MLflow runs loaded')}
+              {t('kpiRunsLoaded', 'Genuine evaluation runs loaded')}
             </span>
             <span className="text-2xl font-extrabold text-slate-900 dark:text-white block mt-0.5">
               {kpis.realCount} / {kpis.totalCount}
