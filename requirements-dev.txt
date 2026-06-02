@@ -9,3 +9,4 @@ pre-commit==3.6.2
 import-linter==2.0
 httpx==0.27.0
 pytorch-fid==0.3.0   # Exercised by test_synthetic_service (compute_fid); not an API runtime dep
+mlflow-skinny>=2.11.3   # Tracking client for trainer/eval tests; API runtime never imports mlflow

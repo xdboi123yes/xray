@@ -8,6 +8,9 @@ transformers>=4.40
 accelerate>=0.29
 pytorch-fid==0.3.0   # FID quality gate for synthetic batches
 
+# --- Experiment tracking (lightweight client; full server UI is a separate compose image) ---
+mlflow-skinny>=2.11.3   # File-store tracking for training/eval runs (no UI/SQL/serving deps)
+
 # --- Hyperparameter search ---
 optuna>=3.6          # Hyperparameter sweep and optimization
 

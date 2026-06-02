@@ -18,6 +18,12 @@ warn_return_any = false
 files = ["core", "application", "infrastructure"]
 exclude = ["src", "tests"]
 warn_unused_ignores = false
+# Type-check our own packages strictly, but never report errors found *inside*
+# imported third-party libraries (mlflow, onnx, onnxscript, ...). Their py.typed
+# internals reference optional deps we do not install, which made cold mypy runs
+# non-deterministic across environments. Our explicitly-passed modules are still
+# fully checked; only followed (site-packages) modules are silenced.
+follow_imports = "silent"
 
 [[tool.mypy.overrides]]
 module = [
