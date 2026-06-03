@@ -8,11 +8,11 @@
     "routing": "None",
     "uncertainty": "None",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9177724747486729,
+      "accuracy": 0.8551969823973177,
+      "ece": 0.08638261116878944
     }
   },
   {
@@ -24,11 +24,11 @@
     "routing": "All Escalated",
     "uncertainty": "None",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9101206149194345,
+      "accuracy": 0.8524727577535625,
+      "ece": 0.0860167583810397
     }
   },
   {
@@ -40,11 +40,11 @@
     "routing": "Static Threshold",
     "uncertainty": "None",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9136783359663979,
+      "accuracy": 0.8707041072925398,
+      "ece": 0.08904820805523243
     }
   },
   {
@@ -56,11 +56,11 @@
     "routing": "Dynamic Threshold",
     "uncertainty": "None",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.903542539412945,
+      "accuracy": 0.8805532271584241,
+      "ece": 0.0741903670850364
     }
   },
   {
@@ -72,11 +72,11 @@
     "routing": "Dynamic Threshold",
     "uncertainty": "MC Dropout",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9086557453786949,
+      "accuracy": 0.8887259010896899,
+      "ece": 0.05544393999878343
     }
   },
   {
@@ -88,11 +88,11 @@
     "routing": "Dynamic Threshold",
     "uncertainty": "MC + TTA",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9110936627747915,
+      "accuracy": 0.8880972338642079,
+      "ece": 0.05008272774211521
     }
   },
   {
@@ -104,11 +104,11 @@
     "routing": "Dynamic Threshold",
     "uncertainty": "MC + TTA + Conformal",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9113919186264416,
+      "accuracy": 0.8874685666387259,
+      "ece": 0.05035680925906053
     }
   },
   {
@@ -120,11 +120,11 @@
     "routing": "Dynamic Threshold",
     "uncertainty": "MC + TTA",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.909961207762243,
+      "accuracy": 0.8872590108968986,
+      "ece": 0.08116553862456606
     }
   },
   {
@@ -136,11 +136,11 @@
     "routing": "Dynamic Threshold",
     "uncertainty": "MC + TTA",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9010859612583676,
+      "accuracy": 0.8868398994132439,
+      "ece": 0.09322013438047723
     }
   },
   {
@@ -152,11 +152,11 @@
     "routing": "All Escalated",
     "uncertainty": "MC + TTA",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9134735420491726,
+      "accuracy": 0.8269069572506287,
+      "ece": 0.05169831749201878
     }
   },
   {
@@ -168,11 +168,11 @@
     "routing": "All Escalated",
     "uncertainty": "None",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9095498803655611,
+      "accuracy": 0.8830678960603521,
+      "ece": 0.017948449268072132
     }
   },
   {
@@ -184,11 +184,11 @@
     "routing": "All Escalated",
     "uncertainty": "MC + TTA",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9151204330561103,
+      "accuracy": 0.7321877619446773,
+      "ece": 0.10105018423868645
     }
   },
   {
@@ -232,11 +232,11 @@
     "routing": "Dynamic Threshold",
     "uncertainty": "MC + TTA + Conformal",
     "run_id": "",
-    "provenance": "preliminary_placeholder",
+    "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": null,
-      "accuracy": null,
-      "ece": null
+      "auc_roc": 0.9236909398854736,
+      "accuracy": 0.8822296730930428,
+      "ece": 0.05995234428799836
     }
   }
 ]
