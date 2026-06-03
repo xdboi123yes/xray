@@ -60,10 +60,10 @@ ablations (A1–A15) are genuinely evaluated** (`outputs/results/ablation.json` 
 ---
 
 ## Phase 0 — Make everything English  ⏳ IN PROGRESS
-- [ ] 0.1 `notebooks/xray_colab_produce_all.ipynb` — translate Turkish markdown
+- [x] 0.1 `notebooks/xray_colab_produce_all.ipynb` — translate Turkish markdown
       cells + Turkish code comments to English (≈213 Turkish chars). Keep all code
       logic identical; re-validate the notebook still parses + cells compile.
-- [ ] 0.2 4 analysis notebooks (`error_analysis`, `tier_disagreement`,
+- [x] 0.2 4 analysis notebooks (`error_analysis`, `tier_disagreement`,
       `subgroup_analysis`, `decision_curve_analysis`) — Turkish markdown/comments → English.
 - [ ] 0.3 `PLAN.md` — full English rewrite (≈676 Turkish chars; it is entirely
       Turkish). Also update its §1 language policy to "English-only". Consider moving to `docs/`.
