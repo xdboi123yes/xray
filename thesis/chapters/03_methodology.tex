@@ -3,6 +3,14 @@
 
 The proposed tiered chest X-ray classification architecture is shown in Figure \ref{fig:architecture}. The system is based on tiered routing logic that activates a lightweight or a deep model according to the difficulty of the image.
 
+\begin{figure}[htbp]\centering
+\IfFileExists{figures/architecture.png}
+  {\includegraphics[width=\textwidth]{figures/architecture.png}}
+  {\fbox{\parbox[c][6cm][c]{\textwidth}{\centering\itshape Placeholder --- system architecture diagram. Draw per \texttt{thesis/figures/SPEC.md} and save as \texttt{figures/architecture.png}.}}}
+\caption{Overview of the tiered classification and confidence-based routing system.}
+\label{fig:architecture}
+\end{figure}
+
 \section{Tiered Classification System}
 The first stage of the system (Tier 1) is the computationally efficient MobileNetV2 \cite{sandler2018mobilenetv2} model. For a given image $x$, the first-stage model computes a probability score $p_1$ and an uncertainty value $u_1$. Using the chosen confidence thresholds, when the first stage is sufficiently certain ($u_1 < \tau$) the final prediction is produced by Tier 1.
 

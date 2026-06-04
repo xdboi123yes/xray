@@ -59,6 +59,31 @@ ablations (A1–A15) are genuinely evaluated** (`outputs/results/ablation.json` 
 
 ---
 
+## ⛔ BLOCKERS — regeneration the USER must run on Colab/GPU
+These were discovered while building the thesis tables/figures. They do **not**
+block the genuine work already done, but they gate the per-sample figures and
+the tiered/MobileNet statistical tests. **Until fixed, do NOT put numbers from
+the stale artifacts into the thesis** — only `ablation.json` (15/15) and the
+EfficientNet-vs-Ark+ rows of `statistical_comparison.csv` are trusted.
+
+1. **Stale per-sample tiered predictions.** `outputs/results/tiered_predictions.csv`
+   (Jun 1) has a BROKEN Tier-1 column: its `tier1_prob` scores AUC ≈ **0.78** and
+   `tiered_prob` ≈ 0.80, contradicting the genuine `ablation.json` A1 (MobileNet
+   Tier-1) AUC ≈ **0.92**. Its `tier2_prob` (Ark+, AUC 0.916) IS fine. Everything
+   derived from the file inherits the break: `val_predictions.csv` (AUC 0.796),
+   `threshold_sweep.csv`, `model_comparison_bootstrap.csv`, the MobileNet/Tiered
+   rows of `statistical_comparison.csv`, and **all 4 analysis notebooks**.
+   → **FIX:** re-export per-sample tiered predictions with the current pipeline
+   (`scripts/evaluate_tiered.py`, same models as `ablation.json`) so the CSV's
+   Tier-1/tiered columns match A1/A13. Then 1.5 + reliability diagram + the
+   tiered/MobileNet stat tests become valid.
+2. **CheXpert eval not reproducible.** `data/processed/chexpert_test.csv` has only
+   **5 rows**, but A14 was genuinely computed on **33 images** (7 pneumothorax /
+   26 normal — exact from the A14 metric denominators 6/7, 21/26). The 33-image
+   metadata was overwritten/truncated.
+   → **FIX:** regenerate via `scripts/download_chexpert_meta.py` (33-image split)
+   so A14 reproduces; the A14 *result* in `ablation.json` is already genuine.
+
 ## Phase 0 — Make everything English  ✅ DONE
 - [x] 0.1 `notebooks/xray_colab_produce_all.ipynb` — translate Turkish markdown
       cells + Turkish code comments to English (≈213 Turkish chars). Keep all code
@@ -74,30 +99,46 @@ ablations (A1–A15) are genuinely evaluated** (`outputs/results/ablation.json` 
 - [x] 0.6 README / CHANGELOG / CONTRIBUTING — VERIFIED already English (0 Turkish chars). ✅
 - [x] 0.7 Verify CI gates still green after Phase 0 (comment-lang, i18n-parity, ui-language, build).
 
-## Phase 1 — Results: figures & tables (auto-generated)  ⬜ TODO
-- [ ] 1.1 Generate the **main A1–A15 ablation table** (AUC + bootstrap CI +
-      DeLong p-value where available) as LaTeX from `ablation.json` →
-      `thesis/tables/ablation_main.tex`. Add a small generator script.
-- [ ] 1.2 Move existing generated `.tex` (`outputs/results/model_comparison_table.tex`,
-      `statistical_comparison_table.tex`) → `thesis/tables/` and `\input` them.
-- [ ] 1.3 Dataset-statistics table (Tbl 4.1) + hyperparameter table (Tbl 4.2) → `thesis/tables/`.
-- [ ] 1.4 Generate missing data-driven figures → `thesis/figures/`:
-      conformal-coverage histogram, DeLong pairwise-significance heatmap,
-      NIH-vs-CheXpert cross-dataset bars, reliability/calibration diagram.
-- [ ] 1.5 Re-run the 4 executed analysis notebooks headless and SAVE their figures
-      to `thesis/figures/` (currently the figures are trapped inside the .ipynb).
+## Phase 1 — Results: figures & tables (auto-generated)  🟡 PARTIAL
+All tables/figures are produced by `scripts/build_thesis_tables.py` and
+`scripts/build_thesis_figures.py` (genuine artifacts only). See the **BLOCKERS**
+section below for why the per-sample items are deferred.
+- [x] 1.1 **main A1–A15 ablation table** → `thesis/tables/ablation_main.tex`
+      (AUC/Acc/ECE from `ablation.json`; best AUC bolded). NOTE: per-row
+      bootstrap CI / DeLong are NOT in `ablation.json`, so the table reports the
+      genuine AUC/Acc/ECE only; pairwise CIs live in the comparison table (1.2).
+- [x] 1.2 Tier-2 backbone comparison → `thesis/tables/tier2_backbone_comparison.tex`
+      (EfficientNet-B4 vs Ark+ Swin, bootstrap 95% CI + DeLong/McNemar/bootstrap
+      p-values, from `statistical_comparison.csv`). **Did NOT move the old
+      `model_comparison_table.tex` / `statistical_comparison_table.tex`**: their
+      MobileNet/Tiered rows derive from the stale `tiered_predictions.csv` (see
+      BLOCKERS). Only the EfficientNet-vs-Ark+ rows (consistent) are used.
+- [x] 1.3 Dataset-statistics table → `thesis/tables/dataset_stats.tex` (NIH splits,
+      genuine counts) + hyperparameter table → `thesis/tables/hyperparameters.tex`
+      (genuine `config/base.yaml`). Fixed the fabricated inline ch4 table.
+- [x] 1.4 (partial) Genuine figures → `thesis/figures/`: `ablation_overview.png`
+      (AUC/ECE bars A1–A15) and `cross_dataset_generalization.png` (NIH A13 vs
+      zero-shot CheXpert A14). **BLOCKED (need per-sample regen):** reliability/
+      calibration diagram, DeLong pairwise heatmap, conformal-coverage histogram.
+- [ ] 1.5 **BLOCKED** — the 4 analysis notebooks all read the stale
+      `tiered_predictions.csv` (16 refs). Regenerate per-sample predictions first
+      (see BLOCKERS), then re-run headless and save figures to `thesis/figures/`.
 - [ ] 1.6 (USER) hand-drawn diagrams: system overview, routing flowchart, SD
-      pipeline. I will write an exact spec for each in `thesis/figures/SPEC.md`.
+      pipeline. I write the spec in `thesis/figures/SPEC.md` (TODO next).
 
-## Phase 2 — Calibration metrics (Table 5.3)  ⬜ TODO
-- [ ] 2.1 Add `brier_score` + `calibration_slope_intercept` to
-      `core/evaluation/metrics.py` (typed, English docstrings, + unit tests).
-- [ ] 2.2 Wire them into the stats/prediction export so the calibration table is complete.
+## Phase 2 — Calibration metrics (Table 5.3)  ✅ DONE
+- [x] 2.1 Added `brier_score` + `calibration_slope_intercept` (Newton/IRLS, pure
+      numpy) to `core/evaluation/metrics.py` (typed, English docstrings) + 6 unit
+      tests. ruff/mypy/pytest green.
+- [x] 2.2 Wired into the **genuine** evaluator `scripts/evaluate_ablation.py`
+      (not the stale-data stats export), so per-row JSONs carry `brier` /
+      `calibration_slope` / `calibration_intercept` on the next eval run.
 
-## Phase 3 — Bibliography  ⬜ TODO
-- [ ] 3.1 Expand `thesis/bibliography.bib` 5 → ~40 English entries (CheXNet,
-      EfficientNet, MobileNetV2, Swin, Ark+, Gal&Ghahramani MC-Dropout, Angelopoulos/
-      Romano conformal, Stable Diffusion, NIH ChestX-ray14, CheXpert, Grad-CAM/HiResCAM…).
+## Phase 3 — Bibliography  ✅ DONE
+- [x] 3.1 Expanded `thesis/bibliography.bib` 5 → **45** genuine entries across
+      backbones, datasets, uncertainty/calibration, conformal, generative/synthetic,
+      augmentation, explainability, optimization and frameworks. The 5 cited keys
+      are preserved. (unsrt prints only \cite'd entries; use \nocite{*} when drafting.)
 
 ## Phase 4 — Reproducibility & repo hygiene  ⬜ TODO
 - [x] 4.1 Commit the genuine results (`ablation.json` 15/15). ✅ (see Done log)
@@ -126,3 +167,16 @@ ablations (A1–A15) are genuinely evaluated** (`outputs/results/ablation.json` 
 
 ## Done log (append with commit SHAs)
 - 2026-06-03 — Created this tracker; committed genuine 15/15 `ablation.json`. (commit: TBD)
+- 2026-06-03 — Phase 0 English-only conversion complete. (commit: d12fa68)
+- 2026-06-04 — Phase 3.1: bibliography 5→45 entries. (commit: d45fd1f)
+- 2026-06-04 — Phase 1.1/1.2: `scripts/build_thesis_tables.py` +
+  `ablation_main.tex` + `tier2_backbone_comparison.tex`, wired into ch5;
+  removed ch5 fabricated threshold table + fixed fabricated conformal coverage
+  (genuine target 0.95, empirical 97.3%/100%). (commit: 4314103)
+- 2026-06-04 — Phase 1.3: `dataset_stats.tex` + `hyperparameters.tex`, fixed the
+  fabricated ch4 hyperparameter/version/hardware claims. (commit: 0a01d1d)
+- 2026-06-04 — Phase 2: `brier_score` + `calibration_slope_intercept` + tests,
+  wired into `evaluate_ablation.py`. (commit: de33bc1)
+- 2026-06-04 — Phase 1.4 (partial): `scripts/build_thesis_figures.py` +
+  `ablation_overview.png` + `cross_dataset_generalization.png`, wired into ch5.
+  (commit: f5bce6d)
