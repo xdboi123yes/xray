@@ -58,3 +58,39 @@ Two GitHub Actions workflows gate every push and pull request:
 To reproduce the CI checks faithfully, match the pinned tool versions
 (Python 3.10, `mypy==1.10`, `ruff==0.4.5`); "passes locally" only equals
 "passes on CI" when the versions match.
+
+## Local CI-faithful environment
+
+Create an isolated environment that matches the CI tool versions, then run the
+exact gates CI runs:
+
+```bash
+conda create -n xray-ci python=3.10 -y
+conda activate xray-ci
+pip install -r requirements.txt -r requirements-dev.txt
+pip install "mypy==1.10.0" "ruff==0.4.5"
+
+# The full gate (mirrors .github/workflows/ci.yml)
+ruff check core application infrastructure web tests scripts
+mypy core application infrastructure
+lint-imports
+python scripts/check_comment_language.py
+python scripts/check_i18n_parity.py
+pytest tests/ --cov=core --cov=application --cov-fail-under=72
+
+# Frontend production build
+cd web/frontend && npm ci && npm run build
+```
+
+## Generating the thesis tables and figures
+
+The result tables and figures are regenerated from the genuine evaluation
+artifacts (no GPU required — they read `outputs/results/`):
+
+```bash
+python scripts/build_thesis_tables.py     # -> thesis/tables/*.tex
+python scripts/build_thesis_figures.py    # -> thesis/figures/*.png
+```
+
+Re-run both after any new evaluation so the thesis numbers track
+`outputs/results/ablation.json` exactly.
