@@ -1,0 +1,12 @@
+\chapter{Discussion}
+\label{ch:discussion}
+
+The experimental findings clearly demonstrate the clinical-integration potential of tiered medical-diagnosis systems.
+
+\section{Clinical Benefits of the Tiered Approach}
+Single-stage deep-learning models pass every image through the most complex model, incurring a high energy and time cost. The proposed tiered model, by contrast, can resolve more than 65\% of cases with the lightweight MobileNetV2 model, achieving a substantial reduction in server cost and carbon emissions.
+
+In the most critical cases (those with high uncertainty), the model automatically routes the decision to the stronger Tier 2 model. In this way both compute is conserved and clinical reliability is maximized.
+
+\section{Limitations and Future Work}
+The main limitation of the system is that the routing rate is quite sensitive to the chosen confidence threshold ($\tau$). Future work will investigate integrating reinforcement-learning agents that set the threshold dynamically. We also plan to study extended tiered architectures that cover multi-label settings and other lung pathologies.

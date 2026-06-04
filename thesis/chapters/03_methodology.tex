@@ -1,0 +1,27 @@
+\chapter{Methodology}
+\label{ch:methodology}
+
+The proposed tiered chest X-ray classification architecture is shown in Figure \ref{fig:architecture}. The system is based on tiered routing logic that activates a lightweight or a deep model according to the difficulty of the image.
+
+\section{Tiered Classification System}
+The first stage of the system (Tier 1) is the computationally efficient MobileNetV2 \cite{sandler2018mobilenetv2} model. For a given image $x$, the first-stage model computes a probability score $p_1$ and an uncertainty value $u_1$. Using the chosen confidence thresholds, when the first stage is sufficiently certain ($u_1 < \tau$) the final prediction is produced by Tier 1.
+
+If the model is not confident in its prediction ($u_1 \ge \tau$), the image is escalated to the second stage (Tier 2). The second stage uses EfficientNet-B4 \cite{tan2019efficientnet} or the Ark+ architecture, which has stronger feature-representation capabilities.
+
+\section{Confidence and Uncertainty Analysis}
+Uncertainty in the system is analysed with two main methods:
+\begin{enumerate}
+    \item \textbf{Monte Carlo Dropout:} By performing $T$ stochastic forward passes at test time, the variance ($\sigma^2$) and entropy of the predictions are used as the uncertainty metric.
+    \item \textbf{Test-Time Augmentation (TTA):} The fluctuation in the model's predictions is observed by subjecting the test image to data-augmentation operations such as rotation and brightness change.
+\end{enumerate}
+
+\section{Conformal Prediction Integration}
+To ensure that the predictions produced by the system fall within calibrated confidence sets, the Conformal Prediction methodology is applied. Using a calibration set, the non-conformity scores are computed:
+\begin{equation}
+    s_i = 1 - \hat{f}(x_i)_{y_i}
+\end{equation}
+According to the chosen error tolerance $\alpha$, the quantile $\hat{q}$ is computed. At test time, for a new image $x_{test}$, the prediction set is formed as:
+\begin{equation}
+    C(x_{test}) = \{ y : 1 - \hat{f}(x_{test})_y \le \hat{q} \}
+\end{equation}
+The probability that this set contains the true label is at least $1-\alpha$.

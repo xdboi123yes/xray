@@ -59,7 +59,7 @@ ablations (A1–A15) are genuinely evaluated** (`outputs/results/ablation.json` 
 
 ---
 
-## Phase 0 — Make everything English  ⏳ IN PROGRESS
+## Phase 0 — Make everything English  ✅ DONE
 - [x] 0.1 `notebooks/xray_colab_produce_all.ipynb` — translate Turkish markdown
       cells + Turkish code comments to English (≈213 Turkish chars). Keep all code
       logic identical; re-validate the notebook still parses + cells compile.
@@ -67,12 +67,12 @@ ablations (A1–A15) are genuinely evaluated** (`outputs/results/ablation.json` 
       `subgroup_analysis`, `decision_curve_analysis`) — Turkish markdown/comments → English.
 - [x] 0.3 `PLAN.md` — full English rewrite (≈676 Turkish chars; it is entirely
       Turkish). Also update its §1 language policy to "English-only". Consider moving to `docs/`.
-- [ ] 0.4 Thesis scaffold → English: `thesis/main.tex` (title page, Özet→Abstract,
+- [x] 0.4 Thesis scaffold → English: `thesis/main.tex` (title page, Özet→Abstract,
       TOC, list of figures/tables) and English **section skeletons** for the 7
       chapters (`thesis/chapters/*.tex`) — headings/structure only; USER writes prose.
 - [x] 0.5 Frontend EN locale — VERIFIED already 100% English (no action). ✅
 - [x] 0.6 README / CHANGELOG / CONTRIBUTING — VERIFIED already English (0 Turkish chars). ✅
-- [ ] 0.7 Verify CI gates still green after Phase 0 (comment-lang, i18n-parity, ui-language, build).
+- [x] 0.7 Verify CI gates still green after Phase 0 (comment-lang, i18n-parity, ui-language, build).
 
 ## Phase 1 — Results: figures & tables (auto-generated)  ⬜ TODO
 - [ ] 1.1 Generate the **main A1–A15 ablation table** (AUC + bootstrap CI +

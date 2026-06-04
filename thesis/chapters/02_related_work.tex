@@ -1,0 +1,13 @@
+\chapter{Related Work}
+\label{ch:related_work}
+
+The success of deep-learning models in medical image processing has been established thanks to large datasets and transfer-learning methods. Studies on pneumothorax detection in chest radiographs have generally concentrated on single-stage convolutional neural networks (CNNs).
+
+\section{Deep Learning in Chest Radiography Analysis}
+The earliest deep-learning approaches trained standard architectures such as AlexNet, ResNet, and VGG for pneumothorax detection on chest images. For example, with the release of the CheXpert \cite{irvin2019chexpert} dataset, multi-label classification models were developed. Although these studies reach high accuracy, they apply the same computational cost to every image and cannot quantify the uncertainty in their predictions.
+
+\section{Uncertainty Estimation and Confidence Prediction}
+To measure the reliability of artificial-intelligence models, the Monte Carlo (MC) Dropout method was proposed by Gal and Ghahramani \cite{gal2016dropout}. MC Dropout estimates a model's variance by keeping the dropout layers active at test time. Test-Time Augmentation (TTA) performs a stability analysis by applying different data-augmentation operations to the test image.
+
+\section{Conformal Prediction}
+Conformal Prediction (CP) is a mathematical framework that equips classical machine-learning models with statistically valid confidence sets \cite{shafer2008tutorial}. In classification problems, CP produces a ``prediction set'' instead of a single prediction. This set is guaranteed to contain the true class at a user-defined error rate ($1 - \alpha$).

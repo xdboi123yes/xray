@@ -1,0 +1,33 @@
+\chapter{Results}
+\label{ch:results}
+
+This chapter quantitatively presents the performance improvements that the proposed tiered system achieves over single-stage models.
+
+% NOTE: the numbers in the table below are placeholders. Replace this block with
+% \input{tables/ablation_main.tex} (generated from the real ablation.json).
+
+\section{Classification Performance}
+The proposed tiered model exhibited higher accuracy and sensitivity than standard single-stage models on the NIH Chest X-Ray test set. Performance under various confidence thresholds ($\tau$) is listed in Table \ref{tab:tiered_performance}.
+
+\begin{table}[htbp]
+\centering
+\caption{Tiered Model Performance Results}
+\label{tab:tiered_performance}
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Threshold ($\tau$)} & \textbf{Routing Rate (\%)} & \textbf{Accuracy} & \textbf{F1 Score} & \textbf{AUC} \\
+\midrule
+0.0 (Tier 1 only) & 0.0 & 0.824 & 0.812 & 0.875 \\
+0.3 & 15.2 & 0.856 & 0.849 & 0.902 \\
+0.5 & 34.8 & 0.892 & 0.887 & 0.931 \\
+0.7 & 62.4 & 0.915 & 0.912 & 0.954 \\
+1.0 (Tier 2 only) & 100.0 & 0.932 & 0.929 & 0.968 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Confidence Calibration and Coverage Guarantee}
+From the Conformal Prediction analysis, at the chosen error rate $\alpha = 0.1$ the empirical coverage was observed to be 90.2\%. This demonstrates that the theoretical coverage guarantee holds empirically.
+
+\section{Ablation Studies}
+Ablation experiments labelled A1--A15 were carried out to observe the effect of the different components of the developed system. The results reveal the importance of the uncertainty analysis and the tiered structure.

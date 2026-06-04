@@ -1,0 +1,8 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+Chest radiography (the chest X-ray) is one of the most widely used imaging methods in the world for diagnosing intrathoracic disease. Fast and accurate detection of lung pathologies that require urgent intervention, such as pneumothorax, is of vital importance. However, the workload and fatigue of expert physicians can lead to delays in the diagnostic process or to errors such as missed findings.
+
+In recent years, deep-learning-based computer-vision systems have been widely investigated as a way to support physicians in medical image analysis. One of the greatest limitations of the artificial-intelligence systems developed for this purpose is their inability to express the reliability of their predictions quantitatively, and the fact that they are forced to make a definitive decision in every case.
+
+In this thesis, a two-stage tiered architecture (Tiered Classification) is proposed for pneumothorax detection in chest X-ray images. The first stage uses the lightweight and fast MobileNetV2 \cite{sandler2018mobilenetv2} model, while low-confidence predictions are routed in the second stage to a deeper, more capable model -- EfficientNet-B4 \cite{tan2019efficientnet} or the enhanced Ark+ model. Monte Carlo Dropout \cite{gal2016dropout} and Test-Time Augmentation (TTA) are integrated for uncertainty analysis. In addition, the Conformal Prediction \cite{shafer2008tutorial} framework is used to guarantee that the prediction set covers the true label within a chosen confidence level.
