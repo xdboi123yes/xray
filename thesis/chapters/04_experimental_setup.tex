@@ -10,7 +10,11 @@ The NIH ChestX-Ray14 dataset \cite{wang2017chestxray} was used for pneumothorax 
 \input{tables/dataset_stats.tex}
 
 \subsection{CheXpert}
-The Stanford CheXpert dataset \cite{irvin2019chexpert} was used to test the generalizability of the developed tiered system and to measure its zero-shot cross-dataset performance. A small out-of-domain probe (33 frontal radiographs, 7 pneumothorax-positive and 26 normal) was evaluated zero-shot, without any fine-tuning on CheXpert; the corresponding result is reported as configuration A14 in Chapter \ref{ch:results}.
+The Stanford CheXpert dataset \cite{irvin2019chexpert} was used to test the generalizability of the developed tiered system and to measure its zero-shot cross-dataset performance, evaluating the proposed system without any fine-tuning on CheXpert. The corresponding result is reported as configuration A14 in Chapter \ref{ch:results}.
+% author: the current A14 result is a PRELIMINARY zero-shot probe on a small
+% CheXpert subset. It is to be re-run on a larger cohort (comparable in scale to
+% the NIH evaluation); regenerate the tables/figures afterwards.
+The A14 evaluation reported in this thesis is a preliminary zero-shot probe on a small CheXpert subset and is intended to be expanded to a larger cohort.
 
 \section{Hardware and Software Infrastructure}
 % author: confirm the exact training hardware you used before final submission.

@@ -101,7 +101,10 @@ def build_cross_dataset_figure() -> Path:
     width = 0.38
     fig, ax = plt.subplots(figsize=(9, 5.5))
     bars1 = ax.bar([i - width / 2 for i in x], nih_vals, width, label="NIH (in-domain, A13)", color=ACCENT)
-    bars2 = ax.bar([i + width / 2 for i in x], chex_vals, width, label="CheXpert (zero-shot, A14)", color=MUTED)
+    bars2 = ax.bar(
+        [i + width / 2 for i in x], chex_vals, width,
+        label="CheXpert (zero-shot, A14, preliminary)", color=MUTED,
+    )
 
     ax.set_ylim(0, 1.0)
     ax.set_ylabel("Score")
@@ -113,8 +116,17 @@ def build_cross_dataset_figure() -> Path:
         for b in bars:
             ax.text(b.get_x() + b.get_width() / 2, b.get_height() + 0.012, f"{b.get_height():.3f}",
                     ha="center", va="bottom", fontsize=8)
+    fig.text(
+        0.5,
+        0.005,
+        "CheXpert (A14) is a preliminary zero-shot evaluation on a small subset, "
+        "to be expanded to a larger cohort.",
+        ha="center",
+        fontsize=8,
+        color="#475569",
+    )
 
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.03, 1, 1))
     out = FIGURES_DIR / "cross_dataset_generalization.png"
     fig.savefig(out, dpi=200)
     plt.close(fig)

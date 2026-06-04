@@ -77,12 +77,16 @@ EfficientNet-vs-Ark+ rows of `statistical_comparison.csv` are trusted.
    (`scripts/evaluate_tiered.py`, same models as `ablation.json`) so the CSV's
    Tier-1/tiered columns match A1/A13. Then 1.5 + reliability diagram + the
    tiered/MobileNet stat tests become valid.
-2. **CheXpert eval not reproducible.** `data/processed/chexpert_test.csv` has only
-   **5 rows**, but A14 was genuinely computed on **33 images** (7 pneumothorax /
-   26 normal — exact from the A14 metric denominators 6/7, 21/26). The 33-image
-   metadata was overwritten/truncated.
-   → **FIX:** regenerate via `scripts/download_chexpert_meta.py` (33-image split)
-   so A14 reproduces; the A14 *result* in `ablation.json` is already genuine.
+2. **A14 CheXpert eval is a small preliminary probe.** The current A14 result was
+   computed on only **33 images** (7 pneumothorax / 26 normal — exact from the
+   metric denominators 6/7, 21/26), far smaller than the NIH evaluation. USER will
+   **re-run A14 on a larger CheXpert cohort** later (the result is genuine but
+   under-powered at N=33). The thesis now frames A14 as *preliminary* everywhere
+   (ch4/ch5 prose, the cross-dataset figure footnote, the ablation-table caption).
+   → **FIX (USER, later):** build a larger CheXpert subset (extend
+   `scripts/download_chexpert_meta.py`), re-run A14, then re-run
+   `build_thesis_tables.py` + `build_thesis_figures.py` (numbers update
+   automatically; no prose edits needed beyond removing the "preliminary" wording).
 
 ## Phase 0 — Make everything English  ✅ DONE
 - [x] 0.1 `notebooks/xray_colab_produce_all.ipynb` — translate Turkish markdown

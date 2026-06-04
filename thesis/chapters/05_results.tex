@@ -32,7 +32,7 @@ The ablation experiments A1--A15 (Table \ref{tab:ablation_main}) isolate the con
 
 \section{Cross-Dataset Generalization}
 % author: expand the narrative; figure is generated from the A13/A14 results.
-To assess out-of-domain robustness, the proposed system (A13) was evaluated zero-shot on the external CheXpert cohort (A14), without any fine-tuning. Figure \ref{fig:cross_dataset} compares the two. The system retains most of its in-domain performance under domain shift --- AUC falls only from 0.923 to 0.885 --- which is examined further in Chapter \ref{ch:discussion}.
+To assess out-of-domain robustness, the proposed system (A13) was evaluated zero-shot on an external CheXpert subset (A14), without any fine-tuning. Figure \ref{fig:cross_dataset} compares the two. On this preliminary subset the system retains most of its in-domain performance under domain shift (AUC 0.923 versus 0.885); a larger-scale CheXpert evaluation is planned. The cross-dataset behaviour is examined further in Chapter \ref{ch:discussion}.
 
 \begin{figure}[htbp]
 \centering
