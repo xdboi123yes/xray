@@ -65,7 +65,7 @@ ablations (A1–A15) are genuinely evaluated** (`outputs/results/ablation.json` 
       logic identical; re-validate the notebook still parses + cells compile.
 - [x] 0.2 4 analysis notebooks (`error_analysis`, `tier_disagreement`,
       `subgroup_analysis`, `decision_curve_analysis`) — Turkish markdown/comments → English.
-- [ ] 0.3 `PLAN.md` — full English rewrite (≈676 Turkish chars; it is entirely
+- [x] 0.3 `PLAN.md` — full English rewrite (≈676 Turkish chars; it is entirely
       Turkish). Also update its §1 language policy to "English-only". Consider moving to `docs/`.
 - [ ] 0.4 Thesis scaffold → English: `thesis/main.tex` (title page, Özet→Abstract,
       TOC, list of figures/tables) and English **section skeletons** for the 7

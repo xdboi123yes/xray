@@ -1,157 +1,116 @@
 # Chest X-Ray Tiered Classification — Master Refactor & Extension Plan
 **Bachelor Thesis Project · "1 Decembrie 1918" University of Alba Iulia**
-**Hedef Teslim:** ~10 hafta (Q3 2026 başı) · **Mevcut tarih:** 2026-05-24
+**Target delivery:** ~10 weeks (early Q3 2026) · **Current date:** 2026-05-24
 
 ---
 
-## 0. Bu Doküman Nedir, Nasıl Okunur
+## 0. What This Document Is, How to Read It
 
-Bu plan, projenin **fiilen** taranmasıyla hazırlanmış, **uygulamaya dönük** master plandır. İçinde:
+This plan was prepared from an **actual** scan of the project and is an **action-oriented** master plan. It contains:
 
-1. **Dil politikası** — proje/tez ve kod yorumlama kuralları (Madde 1)
-2. **Yönetici özeti** — mevcut durum envanteri ve çıkış hedefi (Madde 2)
-3. **Yeniden yapılandırılmış mimari** — katman katman klasör yapısı ve bağımlılık yönü (Madde 3)
-4. **Design pattern detayları** — kod-seviye örnek imzalar (Madde 4)
-5. **Ark+ entegrasyonu** — strateji, implementasyon, ablation (Madde 5)
-6. **ML pipeline geliştirmeleri** — trainer, sentetik veri, istatistik, fairness (Madde 6)
-7. **Web uygulaması** — FastAPI sözleşmeleri, React component hiyerarşisi (Madde 7)
-8. **DevOps & reproducibility** — Docker, Makefile, CI, monitoring (Madde 8)
-9. **Test stratejisi** — piramit, kritik senaryolar, fixtures (Madde 9)
-10. **Tez yazımı planı** — bölüm bölüm, figür kaynakları (Madde 10)
-11. **10 haftalık roadmap** — milestone'larla (Madde 11)
-12. **Risk register** ve karar log şablonu (Madde 12)
-13. **Cowork prompt** — yeni oturuma kopyala-yapıştır (Madde 13)
-14. **Açık sorular** ve **DoD** — minimum kabul kriteri (Madde 14-15)
-15. **Ekler** — bağımlılıklar, pyproject örneği (Madde 16+)
+1. **Language policy** — project/thesis and code-commenting rules (Section 1)
+2. **Executive summary** — current-state inventory and the exit goal (Section 2)
+3. **Restructured architecture** — layer-by-layer folder structure and dependency direction (Section 3)
+4. **Design pattern details** — code-level example signatures (Section 4)
+5. **Ark+ integration** — strategy, implementation, ablation (Section 5)
+6. **ML pipeline improvements** — trainer, synthetic data, statistics, fairness (Section 6)
+7. **Web application** — FastAPI contracts, React component hierarchy (Section 7)
+8. **DevOps & reproducibility** — Docker, Makefile, CI, monitoring (Section 8)
+9. **Test strategy** — pyramid, critical scenarios, fixtures (Section 9)
+10. **Thesis writing plan** — chapter by chapter, figure sources (Section 10)
+11. **10-week roadmap** — with milestones (Section 11)
+12. **Risk register** and decision-log template (Section 12)
+13. **Cowork prompt** — copy-paste into a new session (Section 13)
+14. **Open questions** and **DoD** — minimum acceptance criteria (Sections 14-15)
+15. **Appendices** — dependencies, pyproject example (Section 16+)
 
-Plan dosyası **canlı**: faz tamamlandıkça `[x]` işaretleri konacak, kararlar `Decision Log` bölümüne eklenecek.
-
----
-
-## 1. Dil Politikası (Hard Constraint)
-
-Bu kural projedeki her dosya, her yazılı çıktı için **bağlayıcıdır**.
-
-### 1.1 Türkçe Olacak Olanlar
-- **Tez tamamı** — LaTeX kaynak dosyaları (`thesis/chapters/*.tex`), abstract, başlıklar, figür altyazıları, tablo başlıkları, bibliyografya açıklamaları
-- **README.md** ve **CHANGELOG.md** kullanıcıya dönük tüm açıklamalar
-- **Plan dokümanları** (`PLAN.md`, `Project plan.md`, decision log)
-- **Notebook markdown hücreleri** (`notebooks/*.ipynb` text/markdown blokları)
-- **CLI script argümanları için help text'lerin Türkçe açıklama satırı** (örn. `--epochs  # Eğitim epoch sayısı`)
-- **Tez supplementary materyali** (reproducibility eki dahil)
-- **Demo videosu, slayt ve sunum**
-- **Frontend kullanıcı arayüzü metinleri** (button label, error mesajı, tooltip) — varsayılan TR; i18n stretch goal olarak EN eklenir
-- **Frontend için kullanıcıya gösterilen tüm string sabitler** (`src/locale/tr.ts`)
-
-### 1.2 Zorunlu İngilizce Olacak Olanlar
-- **Kod yorumları (`#`, `//`, `/* */`)** — istisnasız. Hiçbir Python/TS/JS yorumu Türkçe olamaz.
-- **Docstring'ler** — Google-style, İngilizce. Class, method, function, module docstring'leri.
-- **Type hint açıklamaları** ve **TODO/FIXME yorumları**
-- **Logging mesajları** (`logger.info(...)`, `logger.error(...)`) — operasyonel/teknik nitelik
-- **Exception mesajları** (`raise ValueError("Model not found")`)
-- **API response error mesajları** (`{"error": "Invalid image format"}`) — API standardı için
-- **Değişken, fonksiyon, class, dosya, klasör isimleri** — İngilizce (mevcut kodla uyumlu)
-- **MLflow run name, parameter ve metric isimleri**
-- **Git commit mesajları** — Conventional Commits formatında İngilizce
-- **Test isimleri, fixture'lar, assertion mesajları**
-- **OpenAPI schema description'ları** (Swagger UI için)
-- **`pyproject.toml`, Dockerfile, Makefile yorum satırları**
-- **Inline yorum ve module-level comment** dahil **her şey**
-
-### 1.3 İki Dilli Olabilir (Sadece Bu İstisnalar)
-- **CLI `--help` çıktısı**: `argparse` argümanlarına İngilizce kısa help + Türkçe açıklama satırı eklenebilir (örn. `help="Number of training epochs. / Eğitim epoch sayısı."`)
-- **Web frontend hata sayfaları**: Türkçe kullanıcı mesajı + İngilizce technical detail (developer console için)
-
-### 1.4 Doğrulama
-- `pre-commit` hook'una basit bir regex check eklenir: Python yorum satırlarında Türkçe karakter (`ç ğ ı ö ş ü`) bulunursa hata. Edge case'ler için `# noqa: lang` ile bypass.
-- Tez LaTeX dosyalarında ters check: kod blokları dışındaki satırlarda yeterli Türkçe karakter sıklığı kontrolü (opsiyonel, manual review yeter).
-
-### 1.5 Hatırlatıcı Örnek
-
-```python
-# DOĞRU
-def compute_metrics(y_true: np.ndarray, y_probs: np.ndarray) -> MetricsDTO:
-    """Compute classification metrics for binary prediction.
-
-    Args:
-        y_true: Ground-truth labels (0 or 1).
-        y_probs: Predicted probabilities for the positive class.
-
-    Returns:
-        MetricsDTO with accuracy, AUC-ROC, sensitivity, specificity.
-
-    Raises:
-        ValueError: If input arrays have mismatched length.
-    """
-    # Validate input shapes before computing
-    if len(y_true) != len(y_probs):
-        raise ValueError("y_true and y_probs must have the same length")
-    ...
-
-# YANLIŞ
-def compute_metrics(y_true, y_probs):
-    """Metrikleri hesaplar."""  # ← TÜRKÇE DOCSTRING, YASAK
-    # Boyutları kontrol et  ← TÜRKÇE YORUM, YASAK
-    if len(y_true) != len(y_probs):
-        raise ValueError("Boyutlar uyuşmuyor")  # ← TÜRKÇE EXCEPTION, YASAK
-```
+This plan file is **live**: `[x]` marks are added as phases complete, and decisions are appended to the `Decision Log` section.
 
 ---
 
-## 2. Yönetici Özeti
+## 1. Language Policy (Hard Constraint)
 
-### 2.1 Tez Tek-Cümle (TR)
-*Confidence-routed tiered inference (MobileNetV2 → EfficientNetB4/Ark+) + MC-Dropout + Test-Time Augmentation + Conformal Prediction + Stable-Diffusion sentetik veri zenginleştirmesi ile, NIH ChestX-ray14 üzerinde eğitilip CheXpert'te zero-shot test edilen, klinik-aware bir pneumothorax tespit sistemi.*
+> **Update (2026-06-03):** This project originally mandated a bilingual split (Turkish for the thesis / README / UI / notebook prose, English for code). That policy was **reversed**: the entire project and thesis are now **English-only**. The section below reflects the current policy.
 
-### 2.2 Mevcut Durum (Olgusal)
-| Bileşen | Durum | Not |
+This rule is **binding** for every file and every written output in the project.
+
+### 1.1 English (everything)
+- **The entire thesis** — LaTeX sources (`thesis/chapters/*.tex`), abstract, titles, figure captions, table headers, bibliography.
+- **README.md**, **CHANGELOG.md**, `PLAN.md`, and all documentation.
+- **Notebook markdown cells** and all notebook text/markdown blocks.
+- **Code comments (`#`, `//`, `/* */`)**, **docstrings** (Google-style), **type hints**, and TODO/FIXME comments.
+- **Logging messages**, **exception messages**, and **API error messages**.
+- **Variable / function / class / file / folder names**, MLflow run/parameter/metric names, git commit messages, test names, OpenAPI descriptions, and `pyproject.toml` / Dockerfile / Makefile comments.
+- **All user-facing frontend strings** — the English locale (`web/frontend/src/i18n/en.json`) is the default.
+
+### 1.2 The only allowed Turkish (intentional)
+- **`web/frontend/src/i18n/tr.json`** — the optional Turkish UI translation behind the bilingual EN/TR toggle. English is the default/fallback (`i18n/index.ts` `fallbackLng:'en'`).
+- The language-switch labels in `en.json` (`"Türkçe"`, `"Türkçe (TR)"`).
+- The Turkish **detectors / fixtures**: `scripts/check_comment_language.py`, `.github/workflows/ui-language.yml`, `tests/unit/test_ci_gates_probe.py`.
+
+### 1.3 Verification
+- A pre-commit / CI check (`scripts/check_comment_language.py`) fails on Turkish characters (`ç ğ ı ö ş ü`) in Python/TS comments and docstrings.
+- The `ui-language.yml` workflow scans the built frontend bundle for stray Turkish outside the `tr` locale chunk.
+- The `check_i18n_parity.py` check keeps the EN and TR locales key-aligned.
+
+---
+
+## 2. Executive Summary
+
+### 2.1 Thesis in One Sentence
+*A clinically-aware pneumothorax detection system using confidence-routed tiered inference (MobileNetV2 → EfficientNetB4/Ark+) + MC-Dropout + Test-Time Augmentation + Conformal Prediction + Stable-Diffusion synthetic-data enrichment, trained on NIH ChestX-ray14 and tested zero-shot on CheXpert.*
+
+### 2.2 Current State (Factual)
+
+> Historical starting-state snapshot from the original scan; most ❌ items below have since been implemented.
+| Component | Status | Note |
 |---|---|---|
-| Tier 1 (MobileNetV2) | ✅ Eğitildi | `outputs/models/best_tier1_mobilenet.pth` · optimal threshold 0.75 |
-| Tier 2 (EfficientNetB4) | ✅ Eğitildi | `outputs/models/best_tier2_efficientnet.pth` · MC + TTA implementasyonu var |
-| TieredSystem routing | ✅ Çalışıyor | Static + dynamic threshold |
-| Conformal Prediction | ✅ Kalibre edildi | `q_hat.pt` mevcut |
-| Temperature Scaling | ✅ Var | `temperature.pt` |
-| MLflow tracking | ✅ Var | `experiments/mlruns/` |
-| Gradio demo | ✅ Çalışıyor | `demo/app.py` |
-| Plotly threshold dashboard | ✅ Var | `dashboard/` |
-| Docker multi-stage | ✅ Var | builder + runtime stages |
-| docker-compose (5 service) | ✅ Var | demo, dashboard, evaluate, figures, mlflow profile'ları |
-| Stable Diffusion sentetik veri | 🟡 Kod var, üretim eksik | `src/data/synthetic_gen.py` |
-| FID değerlendirme | 🟡 Kod var | `src/data/fid_eval.py` |
-| CheXpert cross-dataset | ❌ Yok | Kod sıfır |
-| Ark+ entegrasyonu | ❌ Yok | Yeni ekleme |
-| FastAPI + React | ❌ Yok | Sadece Gradio var |
-| Test suite | ❌ Yok | `tests/` klasörü yok |
-| Type hints + docstring | ❌ Yok | Hiçbir yerde yok |
-| Abstract base classes | ❌ Yok | Implicit interface |
-| Factory/Strategy/Observer patterns | ❌ Yok | Hardcoded importlar |
-| Mixed precision + checkpoint resume | ❌ Yok | Trainer ilkel |
-| Statistical testing (DeLong/bootstrap) | ❌ Yok | Tez için kritik |
-| ONNX export + quantization | ❌ Yok | Mobile claim için lazım |
-| CI/CD (GitHub Actions) | ❌ Yok | Reproducibility için |
-| Subgroup fairness analysis | ❌ Yok | Modern medical AI gereği |
-| Decision curve analysis | ❌ Yok | Klinik utility metric |
-| DICOM input support | ❌ Yok | Klinik veri formatı |
-| Carbon footprint (CodeCarbon) | ❌ Yok | Tier1 ekonomik kanıt |
-| MLflow Model Registry | ❌ Yok | A/B karşılaştırma için |
-| Failure case taxonomy notebook | ❌ Yok | Tez için kritik figür |
+| Tier 1 (MobileNetV2) | ✅ Trained | `outputs/models/best_tier1_mobilenet.pth` · optimal threshold 0.75 |
+| Tier 2 (EfficientNetB4) | ✅ Trained | `outputs/models/best_tier2_efficientnet.pth` · MC + TTA implemented |
+| TieredSystem routing | ✅ Working | Static + dynamic threshold |
+| Conformal Prediction | ✅ Calibrated | `q_hat.pt` present |
+| Temperature Scaling | ✅ Present | `temperature.pt` |
+| MLflow tracking | ✅ Present | `experiments/mlruns/` |
+| Gradio demo | ✅ Working | `demo/app.py` |
+| Plotly threshold dashboard | ✅ Present | `dashboard/` |
+| Docker multi-stage | ✅ Present | builder + runtime stages |
+| docker-compose (5 services) | ✅ Present | demo, dashboard, evaluate, figures, mlflow profiles |
+| Stable Diffusion synthetic data | 🟡 Code present, generation missing | `src/data/synthetic_gen.py` |
+| FID evaluation | 🟡 Code present | `src/data/fid_eval.py` |
+| CheXpert cross-dataset | ❌ Missing | No code |
+| Ark+ integration | ❌ Missing | New addition |
+| FastAPI + React | ❌ Missing | Only Gradio exists |
+| Test suite | ❌ Missing | No `tests/` folder |
+| Type hints + docstring | ❌ Missing | Nowhere |
+| Abstract base classes | ❌ Missing | Implicit interface |
+| Factory/Strategy/Observer patterns | ❌ Missing | Hardcoded imports |
+| Mixed precision + checkpoint resume | ❌ Missing | Primitive trainer |
+| Statistical testing (DeLong/bootstrap) | ❌ Missing | Critical for the thesis |
+| ONNX export + quantization | ❌ Missing | Needed for the mobile claim |
+| CI/CD (GitHub Actions) | ❌ Missing | For reproducibility |
+| Subgroup fairness analysis | ❌ Missing | Modern medical-AI requirement |
+| Decision curve analysis | ❌ Missing | Clinical utility metric |
+| DICOM input support | ❌ Missing | Clinical data format |
+| Carbon footprint (CodeCarbon) | ❌ Missing | Tier1 economic evidence |
+| MLflow Model Registry | ❌ Missing | For A/B comparison |
+| Failure case taxonomy notebook | ❌ Missing | Critical thesis figure |
 
-### 2.3 Çıkış Hedefi (Definition of Done)
+### 2.3 Exit Goal (Definition of Done)
 
-Tez savunmasında jürinin önüne koyulacak paket:
-1. **Code:** Layered architecture, type-hint+docstring %95+, test coverage core/ için %80+, pre-commit hooks aktif
-2. **Models:** Tier1 MobileNet, Tier2 EfficientNetB4 (mevcut weights korunur), Tier2 Ark+ (yeni), tümü ONNX export edilebilir
-3. **Evaluation:** A1-A15 ablation tablosu, NIH + CheXpert cross-dataset metrikler, DeLong testleri, bootstrap CI'lar
-4. **Web:** FastAPI backend (OpenAPI dokümanlı) + React/TS frontend (Inference + Dashboard + History + About), Docker'da tek komutla ayağa kalkıyor
-5. **DevOps:** Multi-stage Docker (CPU + GPU varyantları), docker-compose dev/prod, GitHub Actions (lint + test + build), MLflow Model Registry
-6. **Thesis:** ~80 sayfa Türkçe LaTeX, 18-25 figür, tümü `scripts/generate_*.py` ile reproducible
-7. **Demo:** Canlı demo videosu, gradio.app veya HuggingFace Spaces'e deploy
+The package put in front of the jury at the thesis defense:
+1. **Code:** Layered architecture, 95%+ type-hint+docstring coverage, 80%+ test coverage for core/, active pre-commit hooks.
+2. **Models:** Tier1 MobileNet, Tier2 EfficientNetB4 (existing weights preserved), Tier2 Ark+ (new), all ONNX-exportable.
+3. **Evaluation:** A1-A15 ablation table, NIH + CheXpert cross-dataset metrics, DeLong tests, bootstrap CIs.
+4. **Web:** FastAPI backend (OpenAPI-documented) + React/TS frontend (Inference + Dashboard + History + About), brought up with a single command in Docker.
+5. **DevOps:** Multi-stage Docker (CPU + GPU variants), docker-compose dev/prod, GitHub Actions (lint + test + build), MLflow Model Registry.
+6. **Thesis:** ~80 pages of English LaTeX, 18-25 figures, all reproducible via `scripts/generate_*.py`.
+7. **Demo:** Live demo video, deployed to gradio.app or HuggingFace Spaces.
 
 ---
 
-## 3. Yeniden Yapılandırılmış Mimari
+## 3. Restructured Architecture
 
-### 3.1 Klasör Yapısı (Tam)
+### 3.1 Folder Structure (Complete)
 
 ```
 xray/                              # Repo root
@@ -449,7 +408,7 @@ xray/                              # Repo root
     └── (existing structure with import shims)
 ```
 
-### 3.2 src/ Klasörü Stratejisi
+### 3.2 src/ Folder Strategy
 
 Eski `src/` silinmez. Her dosya yerine, **import shim** koyulur:
 
@@ -466,9 +425,9 @@ warnings.warn(
 )
 ```
 
-Notebook, eski script ve mevcut Gradio demo kırılmaz. 1 sürüm sonra (`v1.1.0`) tamamen silinir.
+The notebook, old scripts, and the existing Gradio demo do not break. One version later (`v1.1.0`) it is removed entirely.
 
-### 3.3 Bağımlılık Yönü (Mimari Disiplin)
+### 3.3 Dependency Direction (Architectural Discipline)
 
 ```
 web/  ->  application/  ->  core/         (allowed)
@@ -476,11 +435,11 @@ infrastructure/  ->  core/                (allowed)
 core/  ↛  application/  ↛  web/           (forbidden)
 ```
 
-`pyproject.toml`'da `import-linter` config'i ile compile-time check edilir.
+It is checked at compile time via the `import-linter` config in `pyproject.toml`.
 
 ---
 
-## 4. Design Pattern Detayları (Kod-Seviye)
+## 4. Design Pattern Details (Code-Level)
 
 ### 4.1 Factory Pattern — ModelFactory
 
@@ -654,16 +613,16 @@ async def predict(
 
 ---
 
-## 5. Ark+ Entegrasyonu (Detay)
+## 5. Ark+ Integration (Detail)
 
-### 5.1 Strateji
-Ark+ pretrained encoder Tier 2'nin alternatif backbone'u olarak entegre edilir.
+### 5.1 Strategy
+The Ark+ pretrained encoder is integrated as Tier 2's alternative backbone.
 
 1. **Primary:** Download official Ark+ checkpoint from GitHub `JLiangLab/Ark` (Swin-Base, pretrained on multiple CXR datasets)
 2. **Secondary:** Fallback to `swin_base_patch4_window7_224` ImageNet pretrained (via timm)
 3. **Tertiary:** `swin_tiny_patch4_window7_224` (for CI and low-RAM dev environments)
 
-### 5.2 Implementasyon İskeleti
+### 5.2 Implementation Skeleton
 
 ```python
 # core/models/tier2_ark.py
@@ -759,36 +718,36 @@ ARK_URL = "https://github.com/JLiangLab/Ark/releases/download/v1.0/ark_plus_swin
 # If unavailable: HuggingFace mirror, or fall back to Swin-Base ImageNet
 ```
 
-### 5.4 Ablation Tablosu Genişlemesi
+### 5.4 Ablation Table Expansion
 
-| ID | İsim | Tier1 | Tier2 | Aug | Notlar |
+| ID | Name | Tier1 | Tier2 | Aug | Notes |
 |----|------|-------|-------|-----|--------|
-| A1 | Tier1 only | MobileNetV2 | — | Classic | Mevcut |
-| A2 | Tier2 only (no MC/TTA) | — | EfficientNetB4 | Classic | Mevcut |
-| A3 | Tiered (static threshold) | MNv2 | EffB4+MC+TTA | Classic | Mevcut |
-| A4 | Tiered (dynamic threshold) | MNv2 | EffB4+MC+TTA | Classic | Mevcut |
-| A5 | Tiered + MC only (no TTA) | MNv2 | EffB4+MC | Classic | Mevcut |
-| A6 | Tiered + MC + TTA | MNv2 | EffB4+MC+TTA | Classic | Mevcut |
-| A7 | Tiered + Conformal | MNv2 | EffB4+MC+TTA+Conf | Classic | Mevcut |
+| A1 | Tier1 only | MobileNetV2 | — | Classic | Existing |
+| A2 | Tier2 only (no MC/TTA) | — | EfficientNetB4 | Classic | Existing |
+| A3 | Tiered (static threshold) | MNv2 | EffB4+MC+TTA | Classic | Existing |
+| A4 | Tiered (dynamic threshold) | MNv2 | EffB4+MC+TTA | Classic | Existing |
+| A5 | Tiered + MC only (no TTA) | MNv2 | EffB4+MC | Classic | Existing |
+| A6 | Tiered + MC + TTA | MNv2 | EffB4+MC+TTA | Classic | Existing |
+| A7 | Tiered + Conformal | MNv2 | EffB4+MC+TTA+Conf | Classic | Existing |
 | A8 | No synthetic aug | MNv2 | EffB4 | Classic only | Retrain |
 | A9 | No augmentation at all | MNv2 | EffB4 | None | Retrain |
-| A10 | Always Tier2 (no routing) | — | EffB4+MC+TTA | Classic | Mevcut |
-| **A11** | **Tier2 = Ark+ (no MC/TTA)** | — | ArkPlus | Classic | **YENİ** |
-| **A12** | **Tier2 = Ark+ + MC+TTA** | — | ArkPlus+MC+TTA | Classic | **YENİ** |
-| **A13** | **Tiered + Ark+ Tier2** | MNv2 | ArkPlus+MC+TTA+Conf | Classic+Synth | **YENİ** |
-| **A14** | **A13 + CheXpert zero-shot** | MNv2 | ArkPlus | Classic+Synth | **YENİ generalization** |
-| **A15** | **A13 with Mixup/Cutmix** | MNv2 | ArkPlus | Classic+Synth+Mixup | **YENİ regularization** |
+| A10 | Always Tier2 (no routing) | — | EffB4+MC+TTA | Classic | Existing |
+| **A11** | **Tier2 = Ark+ (no MC/TTA)** | — | ArkPlus | Classic | **NEW** |
+| **A12** | **Tier2 = Ark+ + MC+TTA** | — | ArkPlus+MC+TTA | Classic | **NEW** |
+| **A13** | **Tiered + Ark+ Tier2** | MNv2 | ArkPlus+MC+TTA+Conf | Classic+Synth | **NEW** |
+| **A14** | **A13 + CheXpert zero-shot** | MNv2 | ArkPlus | Classic+Synth | **NEW generalization** |
+| **A15** | **A13 with Mixup/Cutmix** | MNv2 | ArkPlus | Classic+Synth+Mixup | **NEW regularization** |
 
-### 5.5 Direkt Karşılaştırma Tablosu (Tez Anahtar Figürü)
-Tek bir tabloda: EfficientNetB4 vs ArkPlus, aynı koşullar altında, paired bootstrap CI'lar ile.
+### 5.5 Direct Comparison Table (Key Thesis Figure)
+A single table: EfficientNetB4 vs ArkPlus, under identical conditions, with paired bootstrap CIs.
 
 ---
 
-## 6. ML Pipeline Geliştirmeleri
+## 6. ML Pipeline Improvements
 
-### 6.1 Trainer Sınıfı — Production-Grade
+### 6.1 Trainer Class — Production-Grade
 
-Yeni `Trainer` özellikleri:
+New `Trainer` features:
 - **Mixed precision (AMP):** `torch.cuda.amp.autocast` + `GradScaler`
 - **Gradient accumulation:** `accumulate_grad_batches` from config
 - **LR warmup:** `LinearWarmup` + cosine schedule
@@ -799,7 +758,7 @@ Yeni `Trainer` özellikleri:
 - **Stochastic Weight Averaging (SWA):** Stretch
 - **Carbon tracking:** CodeCarbon `kWh` measurement (table in thesis)
 
-### 6.2 Trainer İmzası
+### 6.2 Trainer Signature
 
 ```python
 class Trainer:
@@ -832,17 +791,17 @@ class Trainer:
     def _load_checkpoint(self, path) -> int: ...  # returns start_epoch
 ```
 
-### 6.3 Sentetik Veri Pipeline'ı (Tezin Diğer Yarı Katkısı)
+### 6.3 Synthetic Data Pipeline (The Thesis's Other Half-Contribution)
 
-Mevcut `src/data/synthetic_gen.py` Stable Diffusion ile pneumothorax görüntüleri üretiyor. Eksikler:
+The existing `src/data/synthetic_gen.py` generates pneumothorax images with Stable Diffusion. Gaps:
 
-1. **Conditional generation:** Severity (mild/moderate/severe), location (apical/basal) prompt'ları
-2. **FID quality gate:** Üretilen batch FID > threshold ise reject (mevcut `fid_eval.py` entegre değil)
+1. **Conditional generation:** Severity (mild/moderate/severe), location (apical/basal) prompts
+2. **FID quality gate:** Reject the generated batch if FID > threshold (the existing `fid_eval.py` is not integrated)
 3. **Manual review UI:** `notebooks/synthetic_quality.ipynb` — grid view + accept/reject
-4. **Provenance tracking:** Her sentetik görüntü metadata'sı (prompt, seed, FID, generation date)
+4. **Provenance tracking:** Metadata for each synthetic image (prompt, seed, FID, generation date)
 5. **Ablation entegrasyonu:** A8 = no synthetic, retrain otomatik
 
-`SyntheticDataService` yeni iş akışı:
+`SyntheticDataService` new workflow:
 ```python
 service = SyntheticDataService(cfg)
 batch = service.generate(
@@ -856,7 +815,7 @@ filtered = service.quality_gate(batch, fid_threshold=50.0)
 service.save(filtered, output_dir="data/synthetic/v2/")
 ```
 
-### 6.4 Statistical Testing Modülü (Tez İçin Hayati)
+### 6.4 Statistical Testing Module (Vital for the Thesis)
 
 ```python
 # scripts/statistical_tests.py
@@ -881,16 +840,16 @@ results = bootstrap_ci(
 
 ### 6.5 Decision Curve Analysis
 
-Yeni notebook: `notebooks/decision_curve_analysis.ipynb`. AUC'dan daha klinik-relevant: "Threshold X'te net benefit Y" eğrisi.
+New notebook: `notebooks/decision_curve_analysis.ipynb`. More clinically relevant than AUC: a "net benefit Y at threshold X" curve.
 
 ### 6.6 Subgroup Fairness Analysis
 
-NIH CSV'de `Patient Age`, `Patient Gender`, `View Position` kolonları var. Subgroup AUC:
+The NIH CSV has `Patient Age`, `Patient Gender`, `View Position` columns. Subgroup AUC:
 - Age bins: <40, 40-60, 60-80, 80+
 - Gender: M/F
 - View: PA, AP
 
-Her subgroup için AUC + CI + DeLong vs overall. Tez Bölüm 5.4 "Adalet Analizi".
+Per-subgroup AUC + CI + DeLong vs overall. Thesis Chapter 5.4 "Fairness Analysis".
 
 ### 6.7 Domain Shift / CheXpert Cross-Dataset
 
@@ -899,13 +858,13 @@ Her subgroup için AUC + CI + DeLong vs overall. Tez Bölüm 5.4 "Adalet Analizi
 2. Image preprocessing (drop CheXpert laterals, keep AP/PA)
 3. Label mapping: "Pneumothorax" 1.0 -> 1, NaN -> 0, -1 (uncertain) -> exclude
 4. Inference, metrics, calibration drift figure
-5. Tez Bölüm 5.5 "Veri Kümeleri Arası Genelleme"
+5. Thesis Chapter 5.5 "Cross-Dataset Generalization"
 
 ---
 
-## 7. Web Uygulaması (Tam Detay)
+## 7. Web Application (Full Detail)
 
-### 7.1 FastAPI Backend Endpoint Sözleşmeleri
+### 7.1 FastAPI Backend Endpoint Contracts
 
 OpenAPI/Swagger otomatik `/docs` adresinde.
 
@@ -962,7 +921,7 @@ OpenAPI/Swagger otomatik `/docs` adresinde.
 
 **GET /api/v1/health** -> `{"status": "ok", "gpu": true, "models_loaded": ["tier1", "tier2"], "version": "2.0.0", "uptime_s": 12345}`
 
-### 7.2 React Frontend Component Hiyerarşisi
+### 7.2 React Frontend Component Hierarchy
 
 ```
 App
@@ -980,7 +939,7 @@ App
 │       ├── ConfidenceBar
 │       ├── UncertaintyBar (MC variance)
 │       ├── ConformalSet (set members + coverage chip)
-│       ├── TierBadge ("Hızlı Yol" / "Derin Yönlendirme")
+│       ├── TierBadge ("Fast Path" / "Deep Routing")
 │       ├── InferenceTimeChip
 │       ├── FlaggedBanner (conditional)
 │       └── ExportMenu (JSON, PDF report, PNG with overlay)
@@ -1004,7 +963,7 @@ App
     └── References
 ```
 
-### 7.3 Tasarım Sistemi
+### 7.3 Design System
 
 - **Renkler:**
   - Primary: `#0F172A` (slate-900, navy)
@@ -1019,7 +978,7 @@ App
 - **Motion:** Framer Motion, 200ms cubic-bezier(0.4, 0, 0.2, 1)
 - **Dark mode:** `class`-based, persisted in localStorage
 - **Responsive:** sm/md/lg/xl/2xl, mobile-first
-- **Dil:** Varsayılan TR (`locale/tr.ts`). EN stretch goal (`locale/en.ts`)
+- **Language:** English default (`i18n/en.json`); Turkish translation available via the toggle (`i18n/tr.json`).
 
 ### 7.4 State Management (Zustand)
 
@@ -1036,15 +995,15 @@ interface InferenceState {
 }
 ```
 
-### 7.5 PDF Report Üretimi
+### 7.5 PDF Report Generation
 
-Frontend'de jsPDF + html2canvas ile:
+On the frontend, via jsPDF + html2canvas:
 - Logo + date
 - Image thumbnail + GradCAM
 - Prediction + confidence + tier
 - Conformal set + coverage
 - Model versions + signatures
-- "Klinik tanı değildir" disclaimer (Turkish for end users)
+- "Not a clinical diagnosis" disclaimer
 
 ---
 
@@ -1261,7 +1220,7 @@ jobs:
 
 **`.github/workflows/docker.yml`:** On tag push, multi-arch image build + ghcr.io push
 
-### 8.7 Konfigürasyon Sistemi
+### 8.7 Configuration System
 
 `config/settings.py`:
 ```python
@@ -1327,17 +1286,17 @@ def get_settings() -> Settings:
 
 ---
 
-## 9. Test Stratejisi
+## 9. Test Strategy
 
-### 9.1 Test Piramidi
+### 9.1 Test Pyramid
 
-| Seviye | Sayı Hedefi | Çalışma Süresi | Ne Test Eder |
+| Level | Target Count | Runtime | What It Tests |
 |--------|-------------|----------------|---------------|
-| Unit | ~80 test | <30s | Pure functions, factory, routing logic, metrics |
-| Integration | ~25 test | <3 dakika | Services, FastAPI TestClient, repository |
-| E2E | ~5 test | <10 dakika | Full pipeline (dummy data), ablation runner |
+| Unit | ~80 tests | <30s | Pure functions, factory, routing logic, metrics |
+| Integration | ~25 tests | <3 minutes | Services, FastAPI TestClient, repository |
+| E2E | ~5 tests | <10 minutes | Full pipeline (dummy data), ablation runner |
 
-### 9.2 Kritik Test Senaryoları
+### 9.2 Critical Test Scenarios
 
 **Unit:**
 - `ModelFactory.create("unknown")` raises `ValueError` with available models listed
@@ -1370,9 +1329,9 @@ def get_settings() -> Settings:
 
 ---
 
-## 10. Tez Yazımı Planı
+## 10. Thesis Writing Plan
 
-### 10.1 LaTeX Yapısı (Türkçe)
+### 10.1 LaTeX Structure
 
 `thesis/main.tex`:
 ```latex
@@ -1394,44 +1353,44 @@ def get_settings() -> Settings:
 \end{document}
 ```
 
-### 10.2 Bölüm Bölüm İçerik + Figür Kaynakları
+### 10.2 Chapter-by-Chapter Content + Figure Sources
 
-| Bölüm | Sayfa | Anahtar İçerik | Figür/Tablo | Üretim Scripti |
+| Chapter | Pages | Key Content | Figure/Table | Generation Script |
 |-------|-------|----------------|-------------|----------------|
-| **1. Giriş** | 5-7 | Motivasyon, problem, katkılar, yapı | Şek 1.1: Sistem genel akışı | Manual (Inkscape/Excalidraw) |
-| **2. İlgili Çalışmalar** | 8-10 | CXR CNN'leri (CheXNet vb.), tıbbi AI'da belirsizlik, temel modeller (Ark+), tiered inference | — | — |
-| **3. Metodoloji** | 12-15 | Tiered mimari, MC Dropout, TTA, Conformal, Stable Diffusion zenginleştirme | Şek 3.1: Yönlendirme akış şeması, Şek 3.2: SD pipeline | `generate_report_figures.py --section method` |
-| **4. Deneysel Kurulum** | 6-8 | Veri kümeleri (NIH + CheXpert), splitler, eğitim konfigi, ablation tasarımı | Tbl 4.1: Veri istatistikleri, Tbl 4.2: Hiperparametreler | `generate_report_figures.py --section setup` |
-| **5. Sonuçlar** | 18-22 | Ablation tablosu, eşik analizi, kalibrasyon, conformal kapsama, veri kümeleri arası, alt grup, karar eğrisi | Şek 5.1–5.12 (12 figür), Tbl 5.1–5.6 | `generate_report_figures.py --section results` |
-| **6. Tartışma** | 6-8 | Klinik fayda, sınırlamalar, etik, gelecek iş | — | — |
-| **7. Sonuç** | 2-3 | Özet katkılar, ileri çalışma | — | — |
-| **Toplam** | 60-75 | + ekler ile ~80 | ~25 figür, 8 tablo | |
+| **1. Introduction** | 5-7 | Motivation, problem, contributions, structure | Fig 1.1: System overview | Manual (Inkscape/Excalidraw) |
+| **2. Related Work** | 8-10 | CXR CNNs (CheXNet etc.), uncertainty in medical AI, foundation models (Ark+), tiered inference | — | — |
+| **3. Methodology** | 12-15 | Tiered architecture, MC Dropout, TTA, Conformal, Stable Diffusion enrichment | Fig 3.1: Routing flowchart, Fig 3.2: SD pipeline | `generate_report_figures.py --section method` |
+| **4. Experimental Setup** | 6-8 | Datasets (NIH + CheXpert), splits, training config, ablation design | Tbl 4.1: Data statistics, Tbl 4.2: Hyperparameters | `generate_report_figures.py --section setup` |
+| **5. Results** | 18-22 | Ablation table, threshold analysis, calibration, conformal coverage, cross-dataset, subgroup, decision curve | Fig 5.1–5.12 (12 figures), Tbl 5.1–5.6 | `generate_report_figures.py --section results` |
+| **6. Discussion** | 6-8 | Clinical utility, limitations, ethics, future work | — | — |
+| **7. Conclusion** | 2-3 | Summary of contributions, future work | — | — |
+| **Total** | 60-75 | ~80 with appendices | ~25 figures, 8 tables | |
 
-### 10.3 Önemli Figürler
+### 10.3 Key Figures
 
-1. **Sistem genel görünümü** (Şek 1.1) — Single-page diagram of tiered flow, color-coded
-2. **Yönlendirme karar akış şeması** (Şek 3.1) — Confidence -> tier decision tree
-3. **Stable Diffusion örnek grid** (Şek 3.3) — 3x3 grid, severity x location
-4. **FID kalite eğrisi** (Şek 3.4) — FID over generation iterations
-5. **Tier1 vs Tier2 GradCAM karşılaştırma** (Şek 5.4) — Disagreement cases
-6. **Threshold sweep 4-panel** (Şek 5.5) — Acc/Sens/Spec/%Tier2 vs threshold
-7. **Reliability diagram** (Şek 5.6) — Before/after temperature scaling
-8. **Conformal kapsama histogramı** (Şek 5.7) — Empirical vs target coverage
-9. **Veri kümeleri arası transfer** (Şek 5.9) — NIH vs CheXpert AUC ± CI
-10. **DeLong significance heatmap** (Şek 5.10) — Pairwise p-values, A1-A15
-11. **Karar eğrisi analizi** (Şek 5.11) — Net benefit
-12. **Karbon ayak izi karşılaştırması** (Şek 5.12) — Always-Tier2 vs Tiered kWh
+1. **System overview** (Fig 1.1) — Single-page diagram of tiered flow, color-coded
+2. **Routing decision flowchart** (Fig 3.1) — Confidence -> tier decision tree
+3. **Stable Diffusion sample grid** (Fig 3.3) — 3x3 grid, severity x location
+4. **FID quality curve** (Fig 3.4) — FID over generation iterations
+5. **Tier1 vs Tier2 GradCAM comparison** (Fig 5.4) — Disagreement cases
+6. **Threshold sweep 4-panel** (Fig 5.5) — Acc/Sens/Spec/%Tier2 vs threshold
+7. **Reliability diagram** (Fig 5.6) — Before/after temperature scaling
+8. **Conformal coverage histogram** (Fig 5.7) — Empirical vs target coverage
+9. **Cross-dataset transfer** (Fig 5.9) — NIH vs CheXpert AUC ± CI
+10. **DeLong significance heatmap** (Fig 5.10) — Pairwise p-values, A1-A15
+11. **Decision curve analysis** (Fig 5.11) — Net benefit
+12. **Carbon footprint comparison** (Fig 5.12) — Always-Tier2 vs Tiered kWh
 
 ### 10.4 Tezdeki Tablolar
 
-1. Tbl 4.1: Veri kümesi istatistikleri (NIH train/val/test/cal, CheXpert test)
+1. Tbl 4.1: Dataset statistics (NIH train/val/test/cal, CheXpert test)
 2. Tbl 4.2: Hiperparametre grid
 3. Tbl 5.1: **Ana ablation tablosu** (A1-A15, AUC + CI + p-value)
-4. Tbl 5.2: Alt grup başına AUC (yaş, cinsiyet, görünüm)
+4. Tbl 5.2: Per-subgroup AUC (age, gender, view)
 5. Tbl 5.3: Kalibrasyon metrikleri (ECE, Brier, slope, intercept)
 6. Tbl 5.4: Gecikme + bellek + karbon (Tier1, Tier2-Eff, Tier2-Ark, Tiered)
-7. Tbl 5.5: Veri kümeleri arası (NIH-trained on CheXpert)
-8. Tbl 5.6: Yayınlanmış baseline'larla karşılaştırma
+7. Tbl 5.5: Cross-dataset (NIH-trained on CheXpert)
+8. Tbl 5.6: Comparison with published baselines
 
 ### 10.5 Reproducibility Eki
 
@@ -1443,29 +1402,29 @@ Tez ekinde:
 
 ---
 
-## 11. 10 Haftalık Roadmap
+## 11. 10-Week Roadmap
 
-### Hafta 1: Mimari Refactor Temeli
+### Week 1: Architecture Refactor Foundation
 - [ ] Repo branch: `refactor/layered-architecture`
-- [ ] Klasör yapısını oluştur (`core/`, `application/`, `infrastructure/`, `web/`, `tests/`)
-- [ ] `core/interfaces/` ABC'leri yaz (5 ABC)
+- [ ] Create the folder structure (`core/`, `application/`, `infrastructure/`, `web/`, `tests/`)
+- [ ] Write the `core/interfaces/` ABCs (5 ABCs)
 - [ ] `pyproject.toml`, ruff, mypy, pre-commit, import-linter setup
-- [ ] **`check-comment-language` pre-commit hook'u kur (Madde 1.4)**
+- [ ] **Set up the `check-comment-language` pre-commit hook (Section 1.4)**
 - [ ] CI baseline: GitHub Actions lint job
 - [ ] `core/models/factory.py` + `Tier1MobileNet` refactor
-- [ ] src/ shim'leri kur
-- [ ] Smoke test: Notebook hâlâ çalışıyor mu?
+- [ ] Set up the src/ shims
+- [ ] Smoke test: does the notebook still run?
 
-### Hafta 2: Models + Routing + Augmentation
+### Week 2: Models + Routing + Augmentation
 - [ ] `Tier2EfficientNet`'i `BaseClassifier`'a port et
 - [ ] `Tier2ArkPlus` skeleton + Swin-Base fallback
 - [ ] Ark+ checkpoint indirme scripti
 - [ ] `core/routing/static_router.py` + `dynamic_router.py`
-- [ ] `core/augmentation/` üçlüsü (classical/diffusion/mixup)
-- [ ] Type hints + docstring %100 (core/ için)
+- [ ] `core/augmentation/` trio (classical/diffusion/mixup)
+- [ ] Type hints + docstring 100% (for core/)
 - [ ] Unit tests: factory + routing (>=15 test)
 
-### Hafta 3: Trainer + Observers + Resume
+### Week 3: Trainer + Observers + Resume
 - [ ] `infrastructure/training/trainer.py` — AMP, gradient accumulation, clip, EMA, warmup
 - [ ] Observers (MLflow, Checkpoint, EarlyStop, LRLogger, Carbon)
 - [ ] `CheckpointManager` (full resume support)
@@ -1473,7 +1432,7 @@ Tez ekinde:
 - [ ] Unit + integration tests
 - [ ] **Milestone:** Old training pipeline replaced with new trainer, MLflow run shows no regression
 
-### Hafta 4: Ark+ Eğitimi + Ablation Genişletme
+### Week 4: Ark+ Training + Ablation Expansion
 - [ ] Ark+ checkpoint download or Swin-Base fallback
 - [ ] Tier2 ArkPlus full training (~24-48 hours, with GPU)
 - [ ] A11, A12, A13 ablation runs
@@ -1481,7 +1440,7 @@ Tez ekinde:
 - [ ] EfficientNet vs Ark+ paired comparison (bootstrap CI)
 - [ ] **Milestone:** Ark+ trained, A13 results in MLflow
 
-### Hafta 5: Sentetik Veri + CheXpert
+### Week 5: Synthetic Data + CheXpert
 - [ ] SD pipeline ported to `SyntheticDataService`
 - [ ] Conditional generation prompts (severity x location)
 - [ ] FID quality gate integration
@@ -1492,7 +1451,7 @@ Tez ekinde:
 - [ ] A8, A9, A14 ablation
 - [ ] **Milestone:** All A1-A15 results in MLflow
 
-### Hafta 6: Evaluation Derinleştirme
+### Week 6: Deepening Evaluation
 - [ ] `scripts/statistical_tests.py` (DeLong + bootstrap + McNemar + permutation)
 - [ ] Reliability diagram (calibration metric)
 - [ ] Decision curve analysis notebook
@@ -1500,9 +1459,9 @@ Tez ekinde:
 - [ ] Error analysis notebook (failure taxonomy)
 - [ ] Tier disagreement notebook (T1 vs T2 conflict examples)
 - [ ] Carbon tracking (codecarbon rerun)
-- [ ] **Milestone:** All thesis Bölüm 5 tables + 70% of figures ready
+- [ ] **Milestone:** All thesis Chapter 5 tables + 70% of figures ready
 
-### Hafta 7: FastAPI Backend
+### Week 7: FastAPI Backend
 - [ ] `web/backend/app.py` + all routes
 - [ ] Pydantic schemas (request/response)
 - [ ] Dependency injection (`deps.py`)
@@ -1513,7 +1472,7 @@ Tez ekinde:
 - [ ] Integration tests (TestClient + WebSocket testclient)
 - [ ] **Milestone:** `curl localhost:8000/api/v1/predict` works end-to-end
 
-### Hafta 8: React Frontend (Kritik Sayfalar)
+### Week 8: React Frontend (Critical Pages)
 - [ ] Vite + React 18 + TS + Tailwind + Zustand + React Query setup
 - [ ] `locale/tr.ts` Turkish UI strings
 - [ ] Inference page (UploadZone -> ResultCard -> GradCAM)
@@ -1523,7 +1482,7 @@ Tez ekinde:
 - [ ] PDF report export (Turkish disclaimer)
 - [ ] **Milestone:** Inference + Dashboard pages fully functional
 
-### Hafta 9: Frontend Tamamlama + Docker + Deploy
+### Week 9: Frontend Completion + Docker + Deploy
 - [ ] History page (table + filter + export)
 - [ ] Ablation page (A1-A15 visualization)
 - [ ] About page (architecture SVG + system status)
@@ -1533,17 +1492,17 @@ Tez ekinde:
 - [ ] HuggingFace Spaces deploy (Gradio + optional FastAPI)
 - [ ] **Milestone:** `docker-compose up` brings up full stack, public URL
 
-### Hafta 10: Tez Yazımı + Polishing
-- [ ] LaTeX bölümler 1-4 draft (Türkçe)
+### Week 10: Thesis Writing + Polishing
+- [ ] LaTeX chapters 1-4 draft
 - [ ] Generate all figures via `generate_report_figures.py`
 - [ ] ONNX export + INT8 + benchmark
 - [ ] Latency/memory/carbon table finalize
-- [ ] LaTeX bölümler 5-7
+- [ ] LaTeX chapters 5-7
 - [ ] Proofread + supervisor review
-- [ ] Defense presentation (Türkçe slides + demo video)
+- [ ] Defense presentation (slides + demo video)
 - [ ] **Milestone:** Thesis submitted + defense ready
 
-### Buffer (Hafta 11, opsiyonel)
+### Buffer (Week 11, optional)
 - Stretch goals: learned router, EMA/SWA, monitoring stack, EN i18n
 
 ---
@@ -1552,34 +1511,34 @@ Tez ekinde:
 
 ### 12.1 Risk Register
 
-| # | Risk | Olasılık | Etki | Mitigasyon |
+| # | Risk | Likelihood | Impact | Mitigation |
 |---|------|----------|------|------------|
-| R1 | Ark+ checkpoint indirilemiyor / lisans engeli | Orta | Yüksek | Swin-Base ImageNet fallback; thesis notes "with publicly available alternative" |
-| R2 | GPU yok / yetersiz, Tier2 eğitim çok uzun | Orta | Yüksek | Colab Pro/Pro+, Kaggle GPU, RunPod spot; mixed precision + smaller batch |
-| R3 | CheXpert download Türkiye/EU'dan engelli | Düşük | Orta | HuggingFace mirror, manual academic email |
-| R4 | Stable Diffusion FID düşük kalır, sentetik veri yarardan çok zarar | Orta | Orta | A8 ablation tests this; FID gate + manual review |
-| R5 | Layered refactor mevcut weights'i bozar | Düşük | Yüksek | Shim layer + state_dict key mapping tests |
-| R6 | Tez teslim deadline'ı kayar (10 hafta yetmez) | Orta | Yüksek | Stretch goals (EMA/SWA, monitoring) dropped; web minimal version (Inference+Dashboard) suffices |
-| R7 | Jüri "tiered system yeni değil" diyebilir | Düşük | Orta | Related work references 2024-2026 medical AI tiered papers; emphasize conformal + Ark+ + SD trio as core contribution |
-| R8 | Conformal coverage empirik test edilmemiş (calibration set küçük) | Orta | Orta | Bootstrap CI for coverage estimate, "coverage achieved Y ± Z" report |
-| R9 | Web stack çok zaman alır, ML kısmı zayıf kalır | Yüksek | Yüksek | **Web is stretch.** ML + thesis Bölüm 5 first; web minimal demo in weeks 8-9 |
-| R10 | Memory issues during ablation A11-A15 (ArkPlus + MC + TTA) | Orta | Orta | Gradient checkpointing, smaller batch, swap to ONNX inference |
-| R11 | Code-comment language enforcement breaks legacy notebooks | Düşük | Düşük | Pre-commit hook excludes `notebooks/` and `src/` (legacy); only enforces on new files |
+| R1 | Ark+ checkpoint cannot be downloaded / license barrier | Medium | High | Swin-Base ImageNet fallback; thesis notes "with publicly available alternative" |
+| R2 | No / insufficient GPU, Tier2 training too long | Medium | High | Colab Pro/Pro+, Kaggle GPU, RunPod spot; mixed precision + smaller batch |
+| R3 | CheXpert download blocked from Turkey/EU | Low | Medium | HuggingFace mirror, manual academic email |
+| R4 | Stable Diffusion FID stays low, synthetic data hurts more than helps | Medium | Medium | A8 ablation tests this; FID gate + manual review |
+| R5 | Layered refactor breaks existing weights | Low | High | Shim layer + state_dict key mapping tests |
+| R6 | Thesis deadline slips (10 weeks not enough) | Medium | High | Stretch goals (EMA/SWA, monitoring) dropped; web minimal version (Inference+Dashboard) suffices |
+| R7 | Jury may say "tiered systems are not new" | Low | Medium | Related work references 2024-2026 medical AI tiered papers; emphasize conformal + Ark+ + SD trio as core contribution |
+| R8 | Conformal coverage not empirically tested (small calibration set) | Medium | Medium | Bootstrap CI for coverage estimate, "coverage achieved Y ± Z" report |
+| R9 | Web stack takes too long, the ML part stays weak | High | High | **Web is stretch.** ML + thesis Chapter 5 first; web minimal demo in weeks 8-9 |
+| R10 | Memory issues during ablation A11-A15 (ArkPlus + MC + TTA) | Medium | Medium | Gradient checkpointing, smaller batch, swap to ONNX inference |
+| R11 | Code-comment language enforcement breaks legacy notebooks | Low | Low | Pre-commit hook excludes `notebooks/` and `src/` (legacy); only enforces on new files |
 
 ### 12.2 Decision Log
 
-> Bu bölüm geliştirme sırasında doldurulacak. Her büyük teknik karar tarih + gerekçe ile loglanır.
+> This section is filled in during development. Every major technical decision is logged with a date + rationale.
 
-- [ ] **D1 (2026-05-?):** Ark+ vs Swin-Base seçimi sonuçlandırıldı (...)
+- [ ] **D1 (2026-05-?):** Ark+ vs Swin-Base choice finalized (...)
 - [ ] **D2:** Frontend stack: React + Vite (no Next.js — no SSR needed)
 - [ ] **D3:** Persistence: SQLite (dev) + Postgres (prod opt-in)
 - [ ] **D4:** ...
 
 ---
 
-## 13. Cowork / Yeni Session Promptu
+## 13. Cowork / New Session Prompt
 
-> Aşağıdaki prompt'u yeni bir Cowork oturumuna kopyalarsan, Claude bu plana göre işe başlar. `PLAN.md` dosyasını mutlaka klasöre koy.
+> If you copy the prompt below into a new Cowork session, Claude will start working from this plan. Be sure to place the `PLAN.md` file in the folder.
 
 ```
 # Chest X-Ray Tiered Classification — Continuation Session
@@ -1635,32 +1594,32 @@ explanation, ask first whether I want it.
 
 ---
 
-## 14. Açık Sorular
+## 14. Open Questions
 
 - [ ] Ark+ resmi checkpoint URL'i / dosya boyutu (manual check needed)
-- [ ] CheXpert v1.0 small vs full (boyut + indirme süresi)
-- [ ] GPU bütçesi: Colab Pro mu, lokal mı, cloud mu? (Hafta 4 başlamadan kesinleşmeli)
-- [ ] Tez şablonu üniversiteden geldi mi, yoksa standart LaTeX mı?
+- [ ] CheXpert v1.0 small vs full (size + download time)
+- [ ] GPU budget: Colab Pro, local, or cloud? (must be settled before Week 4)
+- [ ] Did the thesis template come from the university, or is it standard LaTeX?
 - [ ] Demo deploy: HuggingFace Spaces mi, kendi VPS mi?
-- [ ] Multi-label genişleme (ileri çalışma) tezde mi yer alacak yoksa "future work" mı?
+- [ ] Will multi-label extension (further work) appear in the thesis, or as "future work"?
 
 ---
 
-## 15. Definition of Done — Tezin Verilebilmesi İçin Minimum
+## 15. Definition of Done — Minimum to Submit the Thesis
 
-**Kabul edilebilir minimum (10 hafta sınırı dolarsa):**
-- ✅ Mimari refactor tamamlandı, testler geçiyor, eski weights çalışıyor
-- ✅ Ark+ veya Swin-Base ile Tier2 alternatifi eğitildi
-- ✅ A1-A13 ablation tamamlandı (A14-A15 stretch)
-- ✅ DeLong + bootstrap istatistik testleri yapıldı
+**Acceptable minimum (if the 10-week limit is reached):**
+- ✅ Architecture refactor complete, tests passing, old weights work
+- ✅ Tier2 alternative trained with Ark+ or Swin-Base
+- ✅ A1-A13 ablation complete (A14-A15 stretch)
+- ✅ DeLong + bootstrap statistical tests done
 - ✅ Reliability diagram + conformal coverage + 1 fairness analysis
 - ✅ FastAPI minimal backend + React minimal frontend (Inference + Dashboard)
 - ✅ Tek-komut Docker stack
-- ✅ Tez Bölüm 1-5 yazıldı (Türkçe), tüm anahtar figürler basıldı
+- ✅ Thesis Chapters 1-5 written, all key figures rendered
 - ✅ Reproducibility eki (git tag + komutlar)
-- ✅ Dil politikası (Madde 1) %100 uygulanmış, CI'da enforce ediliyor
+- ✅ Language policy (Section 1) 100% applied, enforced in CI
 
-**Stretch (kalite öncelikli):**
+**Stretch (quality-first):**
 - 🌟 A14-A15 ablation, CheXpert cross-dataset
 - 🌟 Decision curve + subgroup + error analysis notebooks fully done
 - 🌟 ONNX + INT8 + benchmark + carbon
@@ -1672,7 +1631,7 @@ explanation, ask first whether I want it.
 
 ---
 
-## 16. EK A: Yeni Bağımlılıklar (`requirements.txt` Ekleri)
+## 16. Appendix A: New Dependencies (`requirements.txt` additions)
 
 ```
 # New runtime
@@ -1720,7 +1679,7 @@ optuna>=3.6          # hyperparam sweep
 
 ---
 
-## 17. EK B: pyproject.toml Şablonu (Anahtar Bölümler)
+## 17. Appendix B: pyproject.toml Template (Key Sections)
 
 ```toml
 [tool.ruff]
@@ -1759,7 +1718,7 @@ forbidden_modules = ["web"]
 
 ---
 
-## 18. EK C: Dil Politikası Pre-commit Hook Skeleton
+## 18. Appendix C: Language-Policy Pre-commit Hook Skeleton
 
 `scripts/check_comment_language.py`:
 ```python
@@ -1823,7 +1782,7 @@ if __name__ == "__main__":
     sys.exit(main(sys.argv))
 ```
 
-`.pre-commit-config.yaml` ek bloğu:
+`.pre-commit-config.yaml` additional block:
 ```yaml
 - repo: local
   hooks:
@@ -1837,4 +1796,4 @@ if __name__ == "__main__":
 ---
 
 **Belge Sonu.**
-Soru/değişiklik için `Decision Log` bölümüne ekle, `git commit -m "plan: ..."`.
+For questions/changes, append to the `Decision Log` section and `git commit -m "plan: ..."`.
