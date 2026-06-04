@@ -53,7 +53,12 @@ from ablation_spec import TIER1_WEIGHTS, AblationSpec, get_spec
 
 from config.settings import get_settings
 from core.augmentation.classical import ClassicalAugmentation
-from core.evaluation.metrics import compute_all_metrics, expected_calibration_error
+from core.evaluation.metrics import (
+    brier_score,
+    calibration_slope_intercept,
+    compute_all_metrics,
+    expected_calibration_error,
+)
 from core.models.factory import ModelFactory
 from core.uncertainty.conformal import ConformalPredictor
 from infrastructure.data.dataset import NIHChestXrayDataset
@@ -407,6 +412,10 @@ def evaluate_one(ablation_id: str, cfg: EvalConfig) -> None:
     y_probs = outcome.pop("y_probs")
     metrics = compute_all_metrics(y_true, y_probs, threshold=0.5)
     metrics["ece"] = expected_calibration_error(y_true, y_probs)
+    metrics["brier"] = brier_score(y_true, y_probs)
+    cal_slope, cal_intercept = calibration_slope_intercept(y_true, y_probs)
+    metrics["calibration_slope"] = cal_slope
+    metrics["calibration_intercept"] = cal_intercept
 
     print(f"\n--- {spec.ablation_id} results ---")
     for key, value in metrics.items():

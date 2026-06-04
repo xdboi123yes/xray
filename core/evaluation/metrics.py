@@ -97,6 +97,81 @@ def expected_calibration_error(y_true: Any, y_probs: Any, n_bins: int = 15) -> f
     return float(ece)
 
 
+def brier_score(y_true: Any, y_probs: Any) -> float:
+    """Compute the Brier score for binary predictions.
+
+    The Brier score is the mean squared error between the predicted
+    positive-class probability and the binary outcome; lower is better, with a
+    perfectly accurate and confident classifier scoring 0.
+
+    Args:
+        y_true: Ground-truth binary labels (0 or 1).
+        y_probs: Predicted probabilities for the positive class.
+
+    Returns:
+        The Brier score as a float in [0, 1], or NaN when the input is empty.
+    """
+    y_true_arr = np.asarray(y_true, dtype=float)
+    y_probs_arr = np.asarray(y_probs, dtype=float)
+    if y_true_arr.size == 0:
+        return float("nan")
+    return float(np.mean((y_probs_arr - y_true_arr) ** 2))
+
+
+def calibration_slope_intercept(
+    y_true: Any,
+    y_probs: Any,
+    max_iter: int = 100,
+    tol: float = 1e-8,
+) -> tuple[float, float]:
+    """Estimate the calibration slope and intercept (calibration-in-the-large).
+
+    Fits the logistic recalibration model
+    ``logit(P(y=1)) = intercept + slope * logit(p_hat)`` by Newton-Raphson
+    (iteratively reweighted least squares). A perfectly calibrated model yields
+    a slope of 1 and an intercept of 0. A slope below 1 indicates
+    over-confident predictions (probabilities too extreme); a non-zero
+    intercept indicates a systematic over- or under-estimation of risk.
+
+    Args:
+        y_true: Ground-truth binary labels (0 or 1).
+        y_probs: Predicted probabilities for the positive class.
+        max_iter: Maximum number of Newton-Raphson iterations.
+        tol: Convergence tolerance on the parameter update.
+
+    Returns:
+        A ``(slope, intercept)`` tuple, or ``(nan, nan)`` when the input is
+        empty, single-class, or the fit fails to converge.
+    """
+    y = np.asarray(y_true, dtype=float)
+    p = np.asarray(y_probs, dtype=float)
+    if y.size == 0 or np.unique(y).size < 2:
+        return float("nan"), float("nan")
+
+    eps = 1e-12
+    p = np.clip(p, eps, 1.0 - eps)
+    logits = np.log(p / (1.0 - p))
+    design = np.column_stack([np.ones_like(logits), logits])  # [intercept, slope]
+    beta = np.zeros(2)
+
+    for _ in range(max_iter):
+        eta = design @ beta
+        mu = 1.0 / (1.0 + np.exp(-eta))
+        weights = np.clip(mu * (1.0 - mu), eps, None)
+        gradient = design.T @ (y - mu)
+        hessian = design.T @ (design * weights[:, None])
+        try:
+            delta = np.linalg.solve(hessian, gradient)
+        except np.linalg.LinAlgError:
+            return float("nan"), float("nan")
+        beta += delta
+        if float(np.max(np.abs(delta))) < tol:
+            break
+
+    intercept, slope = float(beta[0]), float(beta[1])
+    return slope, intercept
+
+
 def find_optimal_threshold(y_true: Any, y_probs: Any) -> float:
     """Finds the optimal decision threshold that maximizes the F1 score.
 
