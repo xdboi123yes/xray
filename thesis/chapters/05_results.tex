@@ -21,4 +21,22 @@ The Conformal Prediction component was calibrated on the validation split for a 
 
 \section{Ablation Studies}
 % author: expand the narrative; references the table generated above.
-The ablation experiments A1--A15 (Table \ref{tab:ablation_main}) isolate the contribution of each component of the system. Adding Monte Carlo Dropout (A5) and Test-Time Augmentation (A6) to the dynamic tiered cascade progressively reduces the expected calibration error (from 0.074 in A4 to 0.050 in A6) while preserving AUC, and replacing the Tier-2 backbone with Ark+ Swin (A13, A15) yields the strongest AUC overall. The cross-dataset experiment (A14) evaluates the proposed system zero-shot on the CheXpert cohort and is discussed in Chapter \ref{ch:discussion}.
+The ablation experiments A1--A15 (Table \ref{tab:ablation_main}) isolate the contribution of each component of the system. Adding Monte Carlo Dropout (A5) and Test-Time Augmentation (A6) to the dynamic tiered cascade progressively reduces the expected calibration error (from 0.074 in A4 to 0.050 in A6) while preserving AUC, and replacing the Tier-2 backbone with Ark+ Swin (A13, A15) yields the strongest AUC overall. Figure \ref{fig:ablation_overview} visualizes the discrimination and calibration of every configuration side by side.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{figures/ablation_overview.png}
+\caption{Discrimination (AUC-ROC, left) and calibration (ECE, right) for every ablation configuration. The best-performing configuration (A15) is highlighted.}
+\label{fig:ablation_overview}
+\end{figure}
+
+\section{Cross-Dataset Generalization}
+% author: expand the narrative; figure is generated from the A13/A14 results.
+To assess out-of-domain robustness, the proposed system (A13) was evaluated zero-shot on the external CheXpert cohort (A14), without any fine-tuning. Figure \ref{fig:cross_dataset} compares the two. The system retains most of its in-domain performance under domain shift --- AUC falls only from 0.923 to 0.885 --- which is examined further in Chapter \ref{ch:discussion}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/cross_dataset_generalization.png}
+\caption{Cross-dataset generalization of the proposed tiered system: in-domain NIH (A13) versus zero-shot CheXpert (A14).}
+\label{fig:cross_dataset}
+\end{figure}
