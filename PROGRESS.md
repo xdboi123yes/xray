@@ -144,18 +144,22 @@ section below for why the per-sample items are deferred.
       augmentation, explainability, optimization and frameworks. The 5 cited keys
       are preserved. (unsrt prints only \cite'd entries; use \nocite{*} when drafting.)
 
-## Phase 4 — Reproducibility & repo hygiene  ⬜ TODO
+## Phase 4 — Reproducibility & repo hygiene  🟡 PARTIAL
 - [x] 4.1 Commit the genuine results (`ablation.json` 15/15). ✅ (see Done log)
-- [ ] 4.2 Reproducibility appendix: exact `make` commands, conda env export,
-      expected-output checksum manifest → `thesis/` appendix + `docs/reproducibility.md`.
-- [ ] 4.3 Untrack `experiments/mlruns/` (469 committed log files) + gitignore;
-      remove stray artifacts (`.coverage *`, `.DS_Store`, root `mlflow.db`).
-- [ ] 4.4 `git tag v1.0-thesis-defense` — LAST, once everything else is done.
+- [x] 4.2 Reproducibility: added a local CI-faithful env recipe + table/figure
+      regeneration steps to `docs/reproducibility.md`. (Skipped the
+      expected-output checksum manifest — low value, GPU runs are non-deterministic.)
+- [x] 4.3 Untracked `experiments/mlruns/` (205 files; dir was already gitignored)
+      + removed `.coverage*` junk. `mlflow.db` left on disk (gitignored). (commit e471de4)
+- [ ] 4.4 `git tag v1.0-thesis-defense` — **LAST**, once everything else (incl. the
+      Colab regen blockers) is done. NOT yet.
 
-## Phase 5 — Showcase polish  ⬜ TODO
-- [ ] 5.1 README: status/license/python badges, a results-highlight block (headline
-      AUCs), the live-demo link, and app screenshots.
-- [ ] 5.2 `CHANGELOG.md` — v1.0 release entry.
+## Phase 5 — Showcase polish  🟡 PARTIAL
+- [x] 5.1 README: badges present; added a genuine **Results** block (headline
+      AUCs + highlights + embedded ablation figure). **USER:** live-demo link +
+      app screenshots still needed.
+- [x] 5.2 `CHANGELOG.md` — added an `[Unreleased]` entry for the thesis work
+      (the project is already at 2.0.0; version-number/tag decision left to USER).
 - [ ] 5.3 HuggingFace Spaces deploy config (`scripts/deploy_huggingface.py` exists);
       USER provides HF token. I prep the Space.
 - [ ] 5.4 (USER) record demo video + capture app screenshots.
@@ -184,3 +188,12 @@ section below for why the per-sample items are deferred.
 - 2026-06-04 — Phase 1.4 (partial): `scripts/build_thesis_figures.py` +
   `ablation_overview.png` + `cross_dataset_generalization.png`, wired into ch5.
   (commit: f5bce6d)
+- 2026-06-04 — Phase 1.6: `thesis/figures/SPEC.md` + fig:architecture slot.
+  A14 reframed as preliminary. (commits: 8684acf, 2b2235a)
+- 2026-06-04 — Phase 4.3: untracked 205 `experiments/mlruns/` files + coverage
+  cleanup. (commit: e471de4)
+- 2026-06-04 — Phase 4.2 / 5.1 / 5.2: README Results block, CHANGELOG entry,
+  CI-faithful repro steps. (commit: 0925044)
+- 2026-06-04 — Colab MCP: connection probed (`open_colab_browser_connection`
+  returned false — no live Colab browser session). Driving Colab needs a
+  one-time PC-browser sign-in; see the note in KEY DECISIONS / blockers.
