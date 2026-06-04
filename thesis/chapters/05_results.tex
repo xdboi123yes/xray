@@ -1,33 +1,24 @@
 \chapter{Results}
 \label{ch:results}
 
-This chapter quantitatively presents the performance improvements that the proposed tiered system achieves over single-stage models.
-
-% NOTE: the numbers in the table below are placeholders. Replace this block with
-% \input{tables/ablation_main.tex} (generated from the real ablation.json).
+This chapter quantitatively presents the performance improvements that the proposed tiered system achieves over single-stage models. All tables in this chapter are generated directly from the genuine evaluation artifacts by \texttt{scripts/build\_thesis\_tables.py}.
 
 \section{Classification Performance}
-The proposed tiered model exhibited higher accuracy and sensitivity than standard single-stage models on the NIH Chest X-Ray test set. Performance under various confidence thresholds ($\tau$) is listed in Table \ref{tab:tiered_performance}.
+% author: expand the narrative; the numbers below are generated from ablation.json.
+Table \ref{tab:ablation_main} reports the area under the ROC curve (AUC), accuracy and expected calibration error (ECE) for all fifteen evaluated configurations (A1--A15) on the NIH Chest X-Ray test set. Tier~1 is the lightweight MobileNetV2 model throughout, while Tier~2 is either EfficientNet-B4 or the Ark+ Swin backbone. The highest AUC is obtained by the proposed tiered configuration with the Ark+ Swin Tier-2 backbone trained with Mixup/CutMix regularization (A15, AUC 0.924), closely followed by the same configuration without that regularization (A13, AUC 0.923). The lightweight Tier-1-only baseline (A1) remains competitive (AUC 0.918) at a fraction of the computational cost.
 
-\begin{table}[htbp]
-\centering
-\caption{Tiered Model Performance Results}
-\label{tab:tiered_performance}
-\begin{tabular}{ccccc}
-\toprule
-\textbf{Threshold ($\tau$)} & \textbf{Routing Rate (\%)} & \textbf{Accuracy} & \textbf{F1 Score} & \textbf{AUC} \\
-\midrule
-0.0 (Tier 1 only) & 0.0 & 0.824 & 0.812 & 0.875 \\
-0.3 & 15.2 & 0.856 & 0.849 & 0.902 \\
-0.5 & 34.8 & 0.892 & 0.887 & 0.931 \\
-0.7 & 62.4 & 0.915 & 0.912 & 0.954 \\
-1.0 (Tier 2 only) & 100.0 & 0.932 & 0.929 & 0.968 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\input{tables/ablation_main.tex}
+
+\section{Tier-2 Backbone Comparison}
+% author: expand the narrative; the numbers below are generated from statistical_comparison.csv.
+Table \ref{tab:tier2_backbone_comparison} compares the two candidate Tier-2 backbones head-to-head with paired bootstrap 95\% confidence intervals and per-metric significance tests. The Ark+ Swin backbone achieves a higher AUC ($\Delta = +0.006$) and markedly higher sensitivity ($\Delta = +0.063$, bootstrap $p = 0.001$), whereas EfficientNet-B4 attains higher specificity and overall accuracy ($\Delta = -0.027$, McNemar $p < 0.001$). The AUC difference is not statistically significant (DeLong $p = 0.203$), indicating that the two backbones are comparable in overall ranking performance while differing in their sensitivity/specificity trade-off.
+
+\input{tables/tier2_backbone_comparison.tex}
 
 \section{Confidence Calibration and Coverage Guarantee}
-From the Conformal Prediction analysis, at the chosen error rate $\alpha = 0.1$ the empirical coverage was observed to be 90.2\%. This demonstrates that the theoretical coverage guarantee holds empirically.
+% author: expand the narrative; coverage/set-size values are genuine (target 1-alpha = 0.95).
+The Conformal Prediction component was calibrated on the validation split for a target coverage of $1 - \alpha = 0.95$ ($\alpha = 0.05$). On the NIH test set, the proposed Ark+ configuration (A15) attained an empirical coverage of 97.3\% with an average prediction-set size of 1.84 out of two classes, while the EfficientNet configuration (A7) over-covered at 100.0\% with an average set size of 2.00. Both configurations satisfy the coverage guarantee. The larger-than-singleton set sizes show that, for ambiguous cases, the predictor abstains by returning both labels rather than a single over-confident class --- the intended safe behaviour for a clinical screening setting.
 
 \section{Ablation Studies}
-Ablation experiments labelled A1--A15 were carried out to observe the effect of the different components of the developed system. The results reveal the importance of the uncertainty analysis and the tiered structure.
+% author: expand the narrative; references the table generated above.
+The ablation experiments A1--A15 (Table \ref{tab:ablation_main}) isolate the contribution of each component of the system. Adding Monte Carlo Dropout (A5) and Test-Time Augmentation (A6) to the dynamic tiered cascade progressively reduces the expected calibration error (from 0.074 in A4 to 0.050 in A6) while preserving AUC, and replacing the Tier-2 backbone with Ark+ Swin (A13, A15) yields the strongest AUC overall. The cross-dataset experiment (A14) evaluates the proposed system zero-shot on the CheXpert cohort and is discussed in Chapter \ref{ch:discussion}.
