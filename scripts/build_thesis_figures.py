@@ -103,12 +103,13 @@ def build_cross_dataset_figure() -> Path:
     bars1 = ax.bar([i - width / 2 for i in x], nih_vals, width, label="NIH (in-domain, A13)", color=ACCENT)
     bars2 = ax.bar(
         [i + width / 2 for i in x], chex_vals, width,
-        label="CheXpert (zero-shot, A14, preliminary)", color=MUTED,
+        label="CheXpert (zero-shot, A14)", color=MUTED,
     )
 
-    ax.set_ylim(0, 1.0)
+    ax.set_ylim(0, 1.1)
     ax.set_ylabel("Score")
-    ax.set_title("Cross-dataset generalization of the proposed tiered system", fontweight="bold")
+    ax.set_title("Cross-dataset generalization of the proposed tiered system",
+                 fontweight="bold", pad=12)
     ax.set_xticks(list(x))
     ax.set_xticklabels(labels)
     ax.legend(frameon=False)
@@ -118,15 +119,17 @@ def build_cross_dataset_figure() -> Path:
                     ha="center", va="bottom", fontsize=8)
     fig.text(
         0.5,
-        0.005,
-        "CheXpert (A14) is a preliminary zero-shot evaluation on a small subset, "
-        "to be expanded to a larger cohort.",
+        0.01,
+        "A14 is the full CheXpert validation frontal cohort (202 images, ~3.5% prevalence), "
+        "evaluated zero-shot at a fixed 0.5 threshold.\nThe collapse in specificity and "
+        "accuracy reflects the prevalence/threshold shift; AUC is the threshold-free metric.",
         ha="center",
+        va="bottom",
         fontsize=8,
         color="#475569",
     )
 
-    fig.tight_layout(rect=(0, 0.03, 1, 1))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     out = FIGURES_DIR / "cross_dataset_generalization.png"
     fig.savefig(out, dpi=200)
     plt.close(fig)

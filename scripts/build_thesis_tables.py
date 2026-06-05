@@ -86,9 +86,10 @@ def build_ablation_table() -> str:
         r"\centering",
         r"\caption{Ablation study over the tiered system (A1--A15). All "
         r"configurations are evaluated on the NIH Chest X-Ray test set except "
-        r"A14, which is a preliminary zero-shot evaluation on a small CheXpert "
-        r"subset (to be expanded). Tier~1 is MobileNetV2 throughout. The best AUC "
-        r"is shown in bold. ECE is reported where calibration was evaluated.}",
+        r"A14, which is a zero-shot evaluation on the CheXpert validation frontal "
+        r"cohort (lower prevalence; see Section~\ref{sec:crossdataset}). Tier~1 is "
+        r"MobileNetV2 throughout. The best AUC is shown in bold. ECE is reported "
+        r"where calibration was evaluated.}",
         r"\label{tab:ablation_main}",
         r"\resizebox{\textwidth}{!}{%",
         r"\begin{tabular}{llllllrrr}",

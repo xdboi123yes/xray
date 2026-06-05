@@ -79,21 +79,16 @@ EfficientNet-vs-Ark+ rows of `statistical_comparison.csv` are trusted.
    (`scripts/evaluate_tiered.py`, same models as `ablation.json`) so the CSV's
    Tier-1/tiered columns match A1/A13. Then 1.5 + reliability diagram + the
    tiered/MobileNet stat tests become valid.
-2. **A14 CheXpert eval is a small preliminary probe.** The current A14 result was
-   computed on only **33 images** (7 pneumothorax / 26 normal — exact from the
-   metric denominators 6/7, 21/26), far smaller than the NIH evaluation. USER will
-   **re-run A14 on a larger CheXpert cohort** later (the result is genuine but
-   under-powered at N=33). The thesis now frames A14 as *preliminary* everywhere
-   (ch4/ch5 prose, the cross-dataset figure footnote, the ablation-table caption).
-   **CODE FIX DONE (2026-06-05):** `chexpert_dataset.py` now uses the screening
-   framing (positive = Pneumothorax==1, negative = every other frontal incl.
-   other-pathology/blank/uncertain), so A14 covers the full CheXpert validation
-   cohort (~200 frontals) instead of ~33. The MLflow file-store crash that was
-   blocking A14 is also fixed.
-   → **REMAINING (USER):** on Colab, `git pull`, force `eval_A14_chexpert`, Run all
-   (A14 now ~200 images, no crash), then sync `outputs/results/A14_*.json` back to
-   the repo and re-run `build_thesis_figures.py`. After that, drop the
-   "preliminary" wording (ch4/ch5, figure footnote, table caption).
+2. **A14 CheXpert eval — ✅ RESOLVED (2026-06-05).** User re-ran on the full
+   CheXpert validation frontal cohort (**202 images**, ~3.5% prevalence) and
+   synced `ablation.json`. The genuine result: AUC **0.796**, accuracy 0.342,
+   sensitivity 1.000, specificity 0.318 — the model over-predicts positive under
+   the prevalence/threshold shift (a real, honest domain-shift finding, NOT a
+   bug; AUC is the meaningful threshold-free number). Thesis updated everywhere:
+   "preliminary" wording DROPPED, replaced with the honest prevalence/threshold
+   interpretation (ch4/ch5/ch6/ch7 + figure footnote + table caption), and the
+   cross-dataset figure regenerated. The `chexpert_dataset.py` screening-framing
+   fix and the MLflow file-store crash fix that enabled this are committed.
 
 ## Phase 0 — Make everything English  ✅ DONE
 - [x] 0.1 `notebooks/xray_colab_produce_all.ipynb` — translate Turkish markdown
@@ -189,6 +184,10 @@ section below for why the per-sample items are deferred.
   the author still owns the title-page advisor name and any university front-matter).
 
 ## Done log (append with commit SHAs)
+- 2026-06-05 — A14 re-run synced (full 202-img CheXpert cohort, AUC 0.796);
+  thesis updated to the honest prevalence/threshold framing, figure/table
+  regenerated. Set title-page author (Alperen Yörük) + advisor
+  (Asist. univ. drd. Daniela-Maria Cristea). Compiles to 34 pages, verified.
 - 2026-06-05 — **Wrote all 7 thesis chapters (comprehensive) + 3 TikZ diagrams**
   (architecture, routing, SD pipeline); rewrote the abstract; thesis compiles to
   34 pages via tectonic, visually verified (diagrams, tables, math, citations all

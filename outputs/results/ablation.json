@@ -218,8 +218,8 @@
     "run_id": "",
     "provenance": "evaluation_json",
     "metrics": {
-      "auc_roc": 0.8846153846153846,
-      "accuracy": 0.8181818181818182,
+      "auc_roc": 0.7956043956043956,
+      "accuracy": 0.3415841584158416,
       "ece": null
     }
   },

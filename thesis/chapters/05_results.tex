@@ -42,7 +42,8 @@ Figure~\ref{fig:ablation_overview} visualises the discrimination and calibration
 \end{figure}
 
 \section{Cross-Dataset Generalization}
-To assess out-of-domain robustness, the proposed system (A13) was evaluated zero-shot on an external CheXpert subset (A14), without any fine-tuning. Figure~\ref{fig:cross_dataset} compares the two. On this preliminary subset the system retains most of its in-domain performance under domain shift, with the AUC falling only from $0.923$ to $0.885$ and sensitivity from $0.889$ to $0.857$; a larger-scale CheXpert evaluation is planned to tighten these estimates. The cross-dataset behaviour is examined further in Chapter~\ref{ch:discussion}.
+\label{sec:crossdataset}
+To assess out-of-domain robustness, the proposed system (A13) was evaluated zero-shot on the full CheXpert validation frontal cohort (A14: $202$ images, $\approx 3.5\%$ pneumothorax prevalence), without any fine-tuning. Figure~\ref{fig:cross_dataset} compares the two. The threshold-free discrimination degrades only moderately under domain shift, with the AUC falling from $0.923$ to $0.796$. The operating-point metrics, however, change dramatically: at the fixed $0.5$ decision threshold the model over-predicts the positive class on CheXpert, reaching a sensitivity of $1.000$ but a specificity of only $0.318$ and an accuracy of $0.342$. This behaviour is a direct consequence of the large prevalence shift between the two cohorts --- from $16.7\%$ on NIH to roughly $3.5\%$ on CheXpert --- interacting with a decision threshold and a probability calibration that were both set in-domain. The lesson, that ranking ability transfers far better than a fixed operating point and that per-site threshold recalibration is necessary before deployment, is examined further in Chapter~\ref{ch:discussion}.
 
 \begin{figure}[htbp]
 \centering
