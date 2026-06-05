@@ -194,6 +194,10 @@ section below for why the per-sample items are deferred.
   cleanup. (commit: e471de4)
 - 2026-06-04 — Phase 4.2 / 5.1 / 5.2: README Results block, CHANGELOG entry,
   CI-faithful repro steps. (commit: 0925044)
+- 2026-06-05 — Fixed A14/A13 Colab crash: `evaluate_chexpert.py` +
+  `evaluate_tiered.py` `setup_mlflow_local` now sets `MLFLOW_ALLOW_FILE_STORE=true`
+  and is best-effort (newer MLflow hard-errors on the file store); the eval always
+  writes its result JSON even if MLflow is unavailable.
 - 2026-06-04 — Colab MCP: connection probed (`open_colab_browser_connection`
   returned false — no live Colab browser session). Driving Colab needs a
   one-time PC-browser sign-in; see the note in KEY DECISIONS / blockers.

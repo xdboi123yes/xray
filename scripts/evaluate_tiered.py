@@ -20,12 +20,29 @@ from core.uncertainty.conformal import ConformalPredictor
 from infrastructure.data.dataset import NIHChestXrayDataset
 
 
-def setup_mlflow_local(experiment_name="chest_xray_tiered", tracking_uri="experiments/mlruns"):
-    os.makedirs(tracking_uri, exist_ok=True)
-    absolute_uri = f"file://{os.path.abspath(tracking_uri)}"
-    mlflow.set_tracking_uri(absolute_uri)
-    mlflow.set_experiment(experiment_name)
-    print(f"MLflow initialized. Tracking URI: {absolute_uri}, Experiment: {experiment_name}")
+def setup_mlflow_local(
+    experiment_name: str = "chest_xray_tiered", tracking_uri: str = "experiments/mlruns"
+) -> bool:
+    """Configure a local MLflow tracking store (best-effort).
+
+    Newer MLflow versions reject the filesystem tracking backend unless
+    ``MLFLOW_ALLOW_FILE_STORE`` is set, so we opt in explicitly. Any failure is
+    non-fatal: the evaluation still writes its result JSON without MLflow.
+
+    Returns:
+        True if MLflow tracking was initialized, False otherwise.
+    """
+    try:
+        os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+        os.makedirs(tracking_uri, exist_ok=True)
+        absolute_uri = f"file://{os.path.abspath(tracking_uri)}"
+        mlflow.set_tracking_uri(absolute_uri)
+        mlflow.set_experiment(experiment_name)
+        print(f"MLflow initialized. Tracking URI: {absolute_uri}, Experiment: {experiment_name}")
+        return True
+    except Exception as exc:
+        print(f"Warning: MLflow tracking unavailable ({exc}); continuing without MLflow logging.")
+        return False
 
 def str2bool(v: str) -> bool:
     if isinstance(v, bool):
@@ -59,8 +76,13 @@ def main() -> None:
 
     settings = get_settings()
     
-    setup_mlflow_local()
-    mlflow.start_run(run_name=args.run_name)
+    mlflow_on = setup_mlflow_local()
+    if mlflow_on:
+        try:
+            mlflow.start_run(run_name=args.run_name)
+        except Exception as exc:
+            print(f"Warning: could not start MLflow run ({exc}); continuing without MLflow logging.")
+            mlflow_on = False
     
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -154,7 +176,8 @@ def main() -> None:
     
     if not os.path.exists(test_csv):
         print("Error: Test set not found. Please run preprocessing first.")
-        mlflow.end_run()
+        if mlflow_on:
+            mlflow.end_run()
         return
         
     test_dataset = NIHChestXrayDataset(
@@ -201,16 +224,16 @@ def main() -> None:
     for k, v in metrics.items():
         print(f"{k}: {v:.4f}")
         
-    mlflow.log_params({
-        "dynamic_threshold": args.dynamic_threshold,
-        "base_threshold": static_threshold
-    })
-    
-    mlflow.log_metrics({
-        "percent_tier2": percent_tier2,
-        "avg_inference_time_ms": avg_inference_time,
-        **metrics
-    })
+    if mlflow_on:
+        mlflow.log_params({
+            "dynamic_threshold": args.dynamic_threshold,
+            "base_threshold": static_threshold
+        })
+        mlflow.log_metrics({
+            "percent_tier2": percent_tier2,
+            "avg_inference_time_ms": avg_inference_time,
+            **metrics
+        })
 
     # Persist headline metrics to a JSON marker. This lets the ablation runner
     # detect that this evaluation is already complete (skip-existing) and keeps
@@ -235,7 +258,8 @@ def main() -> None:
     except Exception as dump_err:
         print(f"Warning: could not write results marker: {dump_err}")
 
-    mlflow.end_run()
+    if mlflow_on:
+        mlflow.end_run()
 
 if __name__ == '__main__':
     main()

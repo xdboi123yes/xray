@@ -28,12 +28,29 @@ from core.uncertainty.conformal import ConformalPredictor
 from infrastructure.data.chexpert_repository import CheXpertRepository
 
 
-def setup_mlflow_local(experiment_name="chest_xray_tiered", tracking_uri="experiments/mlruns"):
-    os.makedirs(tracking_uri, exist_ok=True)
-    absolute_uri = f"file://{os.path.abspath(tracking_uri)}"
-    mlflow.set_tracking_uri(absolute_uri)
-    mlflow.set_experiment(experiment_name)
-    print(f"MLflow initialized. Tracking URI: {absolute_uri}, Experiment: {experiment_name}")
+def setup_mlflow_local(
+    experiment_name: str = "chest_xray_tiered", tracking_uri: str = "experiments/mlruns"
+) -> bool:
+    """Configure a local MLflow tracking store (best-effort).
+
+    Newer MLflow versions reject the filesystem tracking backend unless
+    ``MLFLOW_ALLOW_FILE_STORE`` is set, so we opt in explicitly. Any failure is
+    non-fatal: the evaluation still writes its result JSON without MLflow.
+
+    Returns:
+        True if MLflow tracking was initialized, False otherwise.
+    """
+    try:
+        os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+        os.makedirs(tracking_uri, exist_ok=True)
+        absolute_uri = f"file://{os.path.abspath(tracking_uri)}"
+        mlflow.set_tracking_uri(absolute_uri)
+        mlflow.set_experiment(experiment_name)
+        print(f"MLflow initialized. Tracking URI: {absolute_uri}, Experiment: {experiment_name}")
+        return True
+    except Exception as exc:
+        print(f"Warning: MLflow tracking unavailable ({exc}); continuing without MLflow logging.")
+        return False
 
 
 def load_model_weights(model, weights_path, device):
@@ -64,8 +81,13 @@ def main() -> None:
 
     settings = get_settings()
 
-    setup_mlflow_local()
-    mlflow.start_run(run_name=args.run_name)
+    mlflow_on = setup_mlflow_local()
+    if mlflow_on:
+        try:
+            mlflow.start_run(run_name=args.run_name)
+        except Exception as exc:
+            print(f"Warning: could not start MLflow run ({exc}); continuing without MLflow logging.")
+            mlflow_on = False
 
     device = torch.device(
         "cuda"
@@ -149,7 +171,8 @@ def main() -> None:
             f"[evaluate_chexpert] Error: CheXpert metadata splits not found at '{chexpert_csv}'."
             f" Please run 'python scripts/download_chexpert_meta.py' first."
         )
-        mlflow.end_run()
+        if mlflow_on:
+            mlflow.end_run()
         return
 
     image_size = settings.data.image_size
@@ -161,7 +184,8 @@ def main() -> None:
 
     if len(test_dataset) == 0:
         print("[evaluate_chexpert] Warning: CheXpert test dataset split is empty.")
-        mlflow.end_run()
+        if mlflow_on:
+            mlflow.end_run()
         return
 
     # DataLoader (batch size 1 for sequential tiered routing simulation)
@@ -203,17 +227,17 @@ def main() -> None:
     for k, v in metrics.items():
         print(f"{k}: {v:.4f}")
 
-    mlflow.log_params(
-        {
-            "evaluation_dataset": "CheXpert",
-            "tier2_backbone": args.tier2_backbone,
-            "base_threshold": static_threshold,
-        }
-    )
-
-    mlflow.log_metrics(
-        {"percent_tier2": percent_tier2, "avg_inference_time_ms": avg_inference_time, **metrics}
-    )
+    if mlflow_on:
+        mlflow.log_params(
+            {
+                "evaluation_dataset": "CheXpert",
+                "tier2_backbone": args.tier2_backbone,
+                "base_threshold": static_threshold,
+            }
+        )
+        mlflow.log_metrics(
+            {"percent_tier2": percent_tier2, "avg_inference_time_ms": avg_inference_time, **metrics}
+        )
 
     # Persist headline metrics to a JSON marker. This lets the ablation runner
     # detect that this zero-shot evaluation is already complete (skip-existing) and
@@ -238,7 +262,8 @@ def main() -> None:
     except Exception as dump_err:
         print(f"Warning: could not write results marker: {dump_err}")
 
-    mlflow.end_run()
+    if mlflow_on:
+        mlflow.end_run()
 
 
 if __name__ == "__main__":
