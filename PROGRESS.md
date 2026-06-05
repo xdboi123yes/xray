@@ -29,9 +29,11 @@ ablations (A1–A15) are genuinely evaluated** (`outputs/results/ablation.json` 
    (`i18n/index.ts` `fallbackLng:'en'`). The EN locale was audited and is already
    100% English — the only "Turkish" in EN is the switch-button label `"Türkçe"`,
    which is correct. **=> No frontend language change needed.**
-3. **The 7 thesis chapters' PROSE is the USER's job** (written last, in English).
-   I produce the English scaffold (main.tex, abstract, per-chapter section
-   skeletons, all figures/tables slotted in) so the user only writes prose.
+3. ~~**The 7 thesis chapters' PROSE is the USER's job**~~ **REVERSED 2026-06-05:**
+   the user delegated chapter-writing to me. All 7 chapters are now written
+   (comprehensive, grounded in the genuine metrics), the 3 diagrams are done in
+   TikZ, and the thesis compiles to 34 pages (verified via `tectonic` + visual
+   PDF check). The 7 chapters' prose is therefore DONE, not pending.
 4. **Do NOT delete PLAN.md.** It is the design/decision record (valuable thesis
    supplementary material). It gets translated to English and may move to `docs/`.
 
@@ -132,8 +134,9 @@ section below for why the per-sample items are deferred.
 - [ ] 1.5 **BLOCKED** — the 4 analysis notebooks all read the stale
       `tiered_predictions.csv` (16 refs). Regenerate per-sample predictions first
       (see BLOCKERS), then re-run headless and save figures to `thesis/figures/`.
-- [ ] 1.6 (USER) hand-drawn diagrams: system overview, routing flowchart, SD
-      pipeline. I write the spec in `thesis/figures/SPEC.md` (TODO next).
+- [x] 1.6 Diagrams DONE (TikZ, not hand-drawn): `figures/architecture.tex`,
+      `figures/routing_flowchart.tex`, `figures/sd_pipeline.tex`, wired into ch3,
+      compile-verified and visually checked. `SPEC.md` kept as the design record.
 
 ## Phase 2 — Calibration metrics (Table 5.3)  ✅ DONE
 - [x] 2.1 Added `brier_score` + `calibration_slope_intercept` (Newton/IRLS, pure
@@ -167,18 +170,31 @@ section below for why the per-sample items are deferred.
       (the project is already at 2.0.0; version-number/tag decision left to USER).
 - [ ] 5.3 HuggingFace Spaces deploy config (`scripts/deploy_huggingface.py` exists);
       USER provides HF token. I prep the Space.
-- [ ] 5.4 (USER) record demo video + capture app screenshots.
+- [x] 5.4 Demo video — **DROPPED** per user (2026-06-05: "I don't want to do a
+      demo video, i don't think it's necessary"). App screenshots still optional (USER).
 
 ---
 
-## What the USER does (not me)
-- Write the 7 thesis chapters' PROSE (English) into the scaffolds I provide.
-- Hand-drawn diagrams (system overview, routing flowchart, SD pipeline) — to my spec.
-- Provide HF token (deploy); record demo video; capture screenshots.
-- Run the final LaTeX compile (`latexmk`) on their machine; reopen the Colab
-  notebook after pulls (a running .ipynb won't refresh from git).
+## What the USER does (not me)  — almost nothing left
+- ~~Write the 7 thesis chapters' prose~~ — **DONE by me** (2026-06-05, user delegated).
+- ~~Hand-drawn diagrams~~ — **DONE by me** in TikZ.
+- ~~Demo video~~ — **DROPPED** by user.
+- OPTIONAL: provide HF token (HF Spaces deploy, Phase 5.3); capture app screenshots
+  for the README; `git tag v1.0-thesis-defense` when ready (Phase 4.4).
+- OPTIONAL refinement: sync the larger A14 (~200-image CheXpert) and the
+  regenerated per-sample predictions from Colab into the repo, then re-run
+  `build_thesis_figures.py` and drop the "preliminary" A14 wording. The thesis is
+  complete and self-consistent without this; it would only sharpen A14.
+- Final compile: `tectonic main.tex` or `latexmk` (compiles cleanly to 34 pages;
+  the author still owns the title-page advisor name and any university front-matter).
 
 ## Done log (append with commit SHAs)
+- 2026-06-05 — **Wrote all 7 thesis chapters (comprehensive) + 3 TikZ diagrams**
+  (architecture, routing, SD pipeline); rewrote the abstract; thesis compiles to
+  34 pages via tectonic, visually verified (diagrams, tables, math, citations all
+  render; 0 undefined refs/citations). Demo video dropped. (commit: see below)
+- 2026-06-05 — A14 expanded to full CheXpert cohort + MLflow file-store crash fix.
+  (commits: faab5b2, 2e2e7f9)
 - 2026-06-03 — Created this tracker; committed genuine 15/15 `ablation.json`. (commit: TBD)
 - 2026-06-03 — Phase 0 English-only conversion complete. (commit: d12fa68)
 - 2026-06-04 — Phase 3.1: bibliography 5→45 entries. (commit: d45fd1f)

@@ -1,0 +1,25 @@
+% System architecture diagram (TikZ). Styles defined in main.tex preamble.
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}
+  \node[io] (input) at (0,0) {Chest\\radiograph};
+  \node[proc, right=0.7cm of input] (pre) {Preprocessing\\[1pt]{\scriptsize CLAHE, $224{\times}224$,}\\[-1pt]{\scriptsize ImageNet norm.}};
+  \node[light, right=0.7cm of pre] (t1) {\textbf{Tier 1}\\MobileNetV2\\[1pt]{\scriptsize $\rightarrow (p_1,\ \text{conf.})$}};
+  \node[decision, right=0.9cm of t1] (dec) {conf.\\$\geq \tau$?};
+  \node[io, right=3cm of dec] (out) {\textbf{Output}\\[1pt]{\scriptsize prediction,}\\[-1pt]{\scriptsize uncertainty,}\\[-1pt]{\scriptsize conformal set}};
+  \node[heavyblk, below=1.7cm of dec] (t2) {\textbf{Tier 2}\\EfficientNet-B4 / Ark+ Swin\\[1pt]{\scriptsize MC-Dropout ($T{=}20$), TTA ($\times 10$)}};
+  \node[proc, right=1.2cm of t2] (cp) {Conformal\\prediction\\[1pt]{\scriptsize set, cov.\ $0.95$}};
+
+  \draw[flow] (input) -- (pre);
+  \draw[flow] (pre) -- (t1);
+  \draw[flow] (t1) -- (dec);
+  \draw[flow] (dec) -- node[flowlab, above, pos=0.4]{accept ($\approx$74\%)} (out);
+  \draw[flow] (dec) -- node[flowlab, right]{escalate ($\approx$26\%)} (t2);
+  \draw[flow] (t2) -- (cp);
+  \draw[flow] (cp) -- (cp |- out) -- (out);
+\end{tikzpicture}%
+}
+\caption{Overview of the tiered classification and confidence-based routing system. A lightweight Tier~1 screening model (MobileNetV2) resolves confident cases directly; only low-confidence images are escalated to the heavier Tier~2 backbone, which is run with Monte Carlo Dropout and test-time augmentation and wrapped in a conformal predictor.}
+\label{fig:architecture}
+\end{figure}

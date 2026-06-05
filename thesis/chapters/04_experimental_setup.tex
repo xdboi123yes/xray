@@ -1,26 +1,40 @@
 \chapter{Experimental Setup}
 \label{ch:experimental_setup}
 
-This chapter describes the datasets, the hardware/software infrastructure, and the training parameters used in the experimental evaluation of this thesis.
+This chapter describes the datasets and their preprocessing, the hardware and software infrastructure, the training configuration, the evaluation metrics, and the design of the ablation study used to evaluate the proposed system.
 
 \section{Datasets}
-\subsection{NIH Chest X-Ray 14}
-The NIH ChestX-Ray14 dataset \cite{wang2017chestxray} was used for pneumothorax detection. The radiographs were preprocessed with CLAHE (Contrast Limited Adaptive Histogram Equalization) \cite{zuiderveld1994contrast} and normalized to the ImageNet statistics. The dataset was partitioned into train, validation, calibration and test splits; the split sizes and class balance are reported in Table \ref{tab:dataset_stats}. The task is markedly class-imbalanced, with pneumothorax present in roughly 16.7\% of the images across every split.
+\subsection{NIH ChestX-Ray14}
+The NIH ChestX-Ray14 dataset \cite{wang2017chestxray} was used for the pneumothorax-detection task. From the full multi-label collection, the binary problem of pneumothorax versus no finding was extracted. The dataset was partitioned at the patient level into training, validation, calibration, and test splits; the split sizes and class balance are reported in Table~\ref{tab:dataset_stats}. The calibration split is held out exclusively for fitting the conformal predictor and the temperature scaler, so that neither the model nor the conformal threshold is tuned on the test set. The task is markedly class-imbalanced, with pneumothorax present in roughly $16.7\%$ of the images across every split, which is representative of the true prevalence and which makes the area under the ROC curve and sensitivity more informative than raw accuracy.
 
 \input{tables/dataset_stats.tex}
 
 \subsection{CheXpert}
-The Stanford CheXpert dataset \cite{irvin2019chexpert} was used to test the generalizability of the developed tiered system and to measure its zero-shot cross-dataset performance, evaluating the proposed system without any fine-tuning on CheXpert. The corresponding result is reported as configuration A14 in Chapter \ref{ch:results}.
-% author: the current A14 result is a PRELIMINARY zero-shot probe on a small
-% CheXpert subset. It is to be re-run on a larger cohort (comparable in scale to
-% the NIH evaluation); regenerate the tables/figures afterwards.
-The A14 evaluation reported in this thesis is a preliminary zero-shot probe on a small CheXpert subset and is intended to be expanded to a larger cohort.
+The Stanford CheXpert dataset \cite{irvin2019chexpert} was used to test the generalizability of the developed tiered system and to measure its zero-shot cross-dataset performance, evaluating the proposed system on CheXpert frontal radiographs without any fine-tuning. The corresponding result is reported as configuration A14 in Chapter~\ref{ch:results}. The A14 evaluation reported here is a preliminary zero-shot probe and is intended to be expanded; it nonetheless provides a first, honest estimate of the domain-shift penalty.
+
+\section{Preprocessing}
+All radiographs were preprocessed identically. Each image was contrast-enhanced with Contrast Limited Adaptive Histogram Equalization (CLAHE) \cite{zuiderveld1994contrast}, which improves the local visibility of the subtle pleural-line signs of pneumothorax, resized to $224 \times 224$ pixels, and normalized to the ImageNet channel statistics so that the ImageNet- and Ark-pretrained backbones receive inputs in their expected range. At training time, label-preserving augmentations (small affine transforms and brightness changes) were applied; at evaluation time the same augmentation pipeline, with randomness disabled, was used to ensure that the reported numbers reflect the deterministic preprocessing.
 
 \section{Hardware and Software Infrastructure}
-% author: confirm the exact training hardware you used before final submission.
-Model training and evaluation were carried out on NVIDIA GPUs provided by Google Colab (Tesla T4 and A100), with local development on Apple Silicon (MPS). The software stack used PyTorch 2.x, FastAPI 0.110.0, and React 18.3.1, running on Python 3.10. Experiments were tracked with MLflow.
+Model training and evaluation were carried out on NVIDIA GPUs provided by Google Colab (Tesla T4 and A100), with local development on Apple Silicon using the Metal Performance Shaders (MPS) backend. The software stack used PyTorch~2.x for modelling, FastAPI~0.110.0 for the inference service, and React~18.3.1 for the front end, all running on Python~3.10. Experiments were tracked with MLflow, and the entire pipeline is guarded by a continuous-integration workflow that enforces linting, static type checking, import contracts, and a test-coverage floor.
 
-\section{Training Parameters}
-The training and inference hyperparameters are summarized in Table \ref{tab:hyperparameters}. The same training configuration is shared by both tiers; the tiers differ only in their backbone architecture (the lightweight MobileNetV2 for Tier 1, and EfficientNet-B4 or Ark+ Swin for Tier 2).
+\section{Training Configuration}
+The training and inference hyperparameters are summarized in Table~\ref{tab:hyperparameters}. The same training configuration is shared by both tiers; the tiers differ only in their backbone architecture (the lightweight MobileNetV2 for Tier~1, and EfficientNet-B4 or Ark+ Swin for Tier~2). Optimization used AdamW \cite{loshchilov2019decoupled} with decoupled weight decay, a higher learning rate on the freshly initialised classifier head than on the pretrained backbone, and early stopping on the validation metric. All runs used a fixed random seed to support reproducibility.
 
 \input{tables/hyperparameters.tex}
+
+\section{Evaluation Metrics}
+\label{sec:metrics}
+Discrimination is reported primarily by the area under the receiver-operating-characteristic curve (AUC-ROC), which is threshold-independent and robust to class imbalance. At the operating threshold, accuracy, sensitivity (recall), specificity, precision, the $F_1$ score, and the Matthews correlation coefficient (MCC) are reported. With true/false positives and negatives denoted $\mathit{TP}, \mathit{FP}, \mathit{TN}, \mathit{FN}$, sensitivity is $\mathit{TP}/(\mathit{TP}+\mathit{FN})$ and specificity is $\mathit{TN}/(\mathit{TN}+\mathit{FP})$.
+
+Calibration is summarized by the Expected Calibration Error (ECE), which partitions predictions into $M$ equal-width confidence bins $B_m$ and accumulates the gap between bin accuracy and bin confidence,
+\begin{equation}
+    \mathrm{ECE} = \sum_{m=1}^{M} \frac{|B_m|}{N}\,\big|\, \mathrm{acc}(B_m) - \mathrm{conf}(B_m) \,\big|,
+\end{equation}
+with $M=15$ bins. Two further calibration metrics are computed: the Brier score, the mean squared error between the predicted positive-class probability and the binary outcome, and the calibration slope and intercept obtained by fitting the logistic recalibration model $\mathrm{logit}(\Pr[y=1]) = \beta_0 + \beta_1\,\mathrm{logit}(\hat{p})$, for which a perfectly calibrated model yields slope $\beta_1 = 1$ and intercept $\beta_0 = 0$.
+
+For the conformal component, two quantities are reported: the empirical coverage, i.e.\ the fraction of test prediction sets that contain the true label, which should meet or exceed the target $1-\alpha = 0.95$, and the average prediction-set size, which measures how often the system abstains by returning more than one label.
+
+\section{Ablation Study Design}
+\label{sec:ablation_design}
+To isolate the contribution of each component, fifteen configurations (A1--A15) were defined and evaluated. They are grouped as follows. Configurations A1 and A2 are the single-stage baselines (MobileNetV2 alone and EfficientNet-B4 alone). A3 and A4 introduce the tiered cascade with, respectively, a static and a dynamic escalation threshold. A5--A7 add the uncertainty stack incrementally to the dynamic cascade: Monte Carlo Dropout (A5), then test-time augmentation (A6), then conformal prediction (A7). A8 and A9 probe the data pipeline by removing the synthetic augmentation and then all augmentation. A10 forces every image to Tier~2 (no routing), isolating the value of the router itself. A11 and A12 evaluate the Ark+ Swin backbone standalone, without and with the uncertainty stack. A13 is the proposed full system (tiered MobileNetV2 $\rightarrow$ Ark+ with dynamic routing, Monte Carlo Dropout, test-time augmentation, and conformal prediction). A14 is the zero-shot CheXpert evaluation of A13. A15 augments A13's Tier-2 training with mixup and CutMix regularisation \cite{zhang2018mixup, yun2019cutmix}. Every configuration is expressed declaratively and evaluated by a single unified evaluator on the same NIH test split (except A14, which uses CheXpert), so that the resulting numbers are directly comparable. The complete results are reported in Table~\ref{tab:ablation_main} of the next chapter.

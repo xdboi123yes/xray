@@ -1,0 +1,22 @@
+% Stable-Diffusion synthetic augmentation pipeline (TikZ). Styles in main.tex preamble.
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}
+  \node[io] (real) at (0,0) {Real minority-class\\images\\[1pt]{\scriptsize (pneumothorax-positive,}\\[-1pt]{\scriptsize $\approx$16.7\% prevalence)}};
+  \node[heavyblk, right=0.9cm of real] (sd) {Stable Diffusion\\{\scriptsize latent diffusion,}\\[-1pt]{\scriptsize 50 steps, guidance 7.5}};
+  \node[decision, right=0.9cm of sd] (fid) {FID\\$\leq 50$?};
+  \node[proc, above=1.0cm of fid] (reject) {Reject};
+  \node[light, right=1.4cm of fid] (aug) {Augmented\\training set\\[1pt]{\scriptsize real $+$ accepted}\\[-1pt]{\scriptsize synthetic images}};
+  \node[heavyblk, right=0.9cm of aug] (train) {Tier-2\\training};
+
+  \draw[flow] (real) -- (sd);
+  \draw[flow] (sd) -- (fid);
+  \draw[flow] (fid) -- node[flowlab, right]{no} (reject);
+  \draw[flow] (fid) -- node[flowlab, above]{yes} (aug);
+  \draw[flow] (aug) -- (train);
+\end{tikzpicture}%
+}
+\caption{Stable-Diffusion synthetic augmentation pipeline for the minority (pneumothorax) class. Generated images are admitted to the Tier-2 training set only when their Fr\'echet Inception Distance to the real distribution is below the quality threshold. Ablations A8 (no synthetic data) and A9 (no augmentation at all) quantify the contribution of this pipeline.}
+\label{fig:sd_pipeline}
+\end{figure}

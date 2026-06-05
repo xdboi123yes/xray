@@ -6,10 +6,39 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{booktabs}
+\usepackage{array}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds}
 \usepackage{cite}
 \usepackage{hyperref}
 \usepackage{geometry}
 \geometry{left=3cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+
+% --- Shared palette + TikZ styles for the system diagrams ---
+\definecolor{accent}{HTML}{0D9488}      % teal (lightweight / Tier 1)
+\definecolor{accentlt}{HTML}{CCFBF1}
+\definecolor{heavy}{HTML}{4338CA}       % indigo (heavy / Tier 2)
+\definecolor{heavylt}{HTML}{E0E7FF}
+\definecolor{alert}{HTML}{EA580C}       % orange (decision / escalation)
+\definecolor{alertlt}{HTML}{FFEDD5}
+\definecolor{muted}{HTML}{475569}
+\definecolor{mutedlt}{HTML}{F1F5F9}
+\tikzset{
+  io/.style={rectangle, rounded corners=2pt, draw=muted, fill=mutedlt, thick,
+             align=center, font=\small, inner sep=5pt, minimum height=0.9cm},
+  light/.style={rectangle, rounded corners=3pt, draw=accent, fill=accentlt, very thick,
+                align=center, font=\small, inner sep=5pt, minimum height=1cm},
+  heavyblk/.style={rectangle, rounded corners=3pt, draw=heavy, fill=heavylt, very thick,
+                   align=center, font=\small, inner sep=6pt, minimum height=1.2cm},
+  decision/.style={diamond, aspect=2.2, draw=alert, fill=alertlt, very thick,
+                   align=center, font=\small, inner sep=1pt},
+  proc/.style={rectangle, rounded corners=3pt, draw=muted, fill=white, thick,
+               align=center, font=\small, inner sep=5pt, minimum height=0.9cm},
+  flow/.style={-{Stealth[length=2.4mm,width=1.8mm]}, thick},
+  flowlab/.style={font=\footnotesize\itshape, fill=white, inner sep=1.5pt},
+}
 
 \title{Tiered Classification and Confidence-Based Routing for Chest Radiographs}
 \author{Alperen}
@@ -42,7 +71,7 @@
 
 % --- ABSTRACT ---
 \chapter*{Abstract}
-In this study, a tiered artificial-intelligence classification system is proposed to distinguish pneumothorax from normal lung findings in chest radiographs. The proposed model presents a dynamic decision mechanism that routes low-confidence predictions to the next tier, using a MobileNetV2 (Tier 1) and an EfficientNet-B4 / Ark+ (Tier 2) architecture. Monte Carlo Dropout and Test-Time Augmentation are integrated for uncertainty analysis, and Conformal Prediction is used to provide statistical coverage guarantees for the predictions. Experimental results show that the proposed method improves accuracy while keeping the diagnostic error rate low and reducing the average computational cost.
+This thesis proposes a tiered classification and confidence-based routing system to distinguish pneumothorax from normal findings in chest radiographs, addressing two structural weaknesses of conventional single-stage classifiers: their uniform computational cost and their inability to report calibrated uncertainty or to abstain. A lightweight MobileNetV2 screening stage (Tier~1) resolves confident cases directly and escalates only low-confidence images to a heavier EfficientNet-B4 or Ark+ Swin stage (Tier~2). The escalation threshold adapts online to the stream of recent confidences, Monte Carlo Dropout and test-time augmentation estimate predictive uncertainty, temperature scaling calibrates the probabilities, and conformal prediction equips every decision with a finite-sample coverage guarantee. A Stable-Diffusion pipeline augments the under-represented pneumothorax class. The method was evaluated with a genuine fifteen-configuration ablation study on the NIH ChestX-Ray14 dataset and a zero-shot cross-dataset evaluation on CheXpert. The lightweight tier resolves roughly three quarters of all cases on its own; the uncertainty stack reduces the Expected Calibration Error from $0.074$ to $0.050$ without harming discrimination; and the full system, with an Ark+ Swin backbone and mixup/CutMix regularisation, attains the best overall balance, with an area under the ROC curve of $0.924$ and a conformal predictor that meets its $95\%$ coverage target. The system is delivered as a complete, reproducible application with a continuous-integration pipeline that keeps every reported number regenerable from the evaluation artifacts.
 
 \vspace{1cm}
 \noindent \textbf{Keywords:} Chest Radiography, Pneumothorax Classification, Tiered Classification, Conformal Prediction, Monte Carlo Dropout.
