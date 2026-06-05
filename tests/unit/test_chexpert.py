@@ -45,6 +45,28 @@ def test_chexpert_dataset_label_mapping(tmp_path: Any) -> None:
     assert dataset.data_frame.iloc[1]["Label"] == 0
 
 
+def test_chexpert_dataset_keeps_all_frontals_as_screening_negatives(tmp_path: Any) -> None:
+    """Pneumothorax-screening framing: keep every frontal, positive only when PTX==1.
+
+    Other-pathology, confirmed-normal, blank (NaN) and uncertain (-1) pneumothorax
+    labels must all be retained as negatives, not dropped.
+    """
+    dummy_csv = os.path.join(tmp_path, "chexpert_full.csv")
+    df = pd.DataFrame(
+        {
+            "Path": ["p1.png", "p2.png", "p3.png", "p4.png", "p5.png"],
+            "Pneumothorax": [1.0, 0.0, 0.0, float("nan"), -1.0],
+            "No Finding": [0.0, 1.0, 0.0, 0.0, 0.0],
+        }
+    )
+    df.to_csv(dummy_csv, index=False)
+
+    dataset = CheXpertDataset(csv_file=dummy_csv)
+    # All five frontals are retained (the old logic kept only rows 1 and 2).
+    assert len(dataset) == 5
+    assert dataset.data_frame["Label"].tolist() == [1, 0, 0, 0, 0]
+
+
 def test_chexpert_dataset_getitem_mock(tmp_path: Any, monkeypatch: Any) -> None:
     """Missing images fail loudly in a real run; only XRAY_ALLOW_MOCK=1 permits a placeholder.
 

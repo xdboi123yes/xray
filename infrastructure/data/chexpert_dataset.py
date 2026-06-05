@@ -49,21 +49,17 @@ class CheXpertDataset(Dataset[Any]):  # type: ignore[misc]
 
         self.data_frame = pd.read_csv(csv_file)
 
-        # Map CheXpert multi-label columns to binary targets
-        # Pneumothorax = 1.0 -> Class 1 (Positive)
-        # No Finding = 1.0 -> Class 0 (Negative)
-        # Handle cases where columns might be absent or have NaN / uncertain (-1) values
+        # Map CheXpert labels to a binary pneumothorax-screening target.
+        # Positive (1): Pneumothorax == 1.0.
+        # Negative (0): every other confirmed frontal -- other pathologies,
+        #   confirmed-normal images, and uncertain (-1) / blank (NaN) labels all
+        #   count as "no pneumothorax". This keeps the full validation cohort
+        #   instead of only pneumothorax-positives plus confirmed-normals, giving
+        #   a larger, more representative zero-shot test set.
         if "Label" not in self.data_frame.columns:
-            # Enforce clean binary splits
             p_col = "Pneumothorax"
-            nf_col = "No Finding"
 
-            if p_col in self.data_frame.columns and nf_col in self.data_frame.columns:
-                # Filter for clean positive or clean negative instances
-                mask = (self.data_frame[p_col] == 1.0) | (self.data_frame[nf_col] == 1.0)
-                self.data_frame = self.data_frame[mask].copy()
-
-                # Generate target labels
+            if p_col in self.data_frame.columns:
                 self.data_frame["Label"] = self.data_frame[p_col].apply(
                     lambda x: 1 if x == 1.0 else 0
                 )

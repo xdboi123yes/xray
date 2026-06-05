@@ -83,10 +83,15 @@ EfficientNet-vs-Ark+ rows of `statistical_comparison.csv` are trusted.
    **re-run A14 on a larger CheXpert cohort** later (the result is genuine but
    under-powered at N=33). The thesis now frames A14 as *preliminary* everywhere
    (ch4/ch5 prose, the cross-dataset figure footnote, the ablation-table caption).
-   → **FIX (USER, later):** build a larger CheXpert subset (extend
-   `scripts/download_chexpert_meta.py`), re-run A14, then re-run
-   `build_thesis_tables.py` + `build_thesis_figures.py` (numbers update
-   automatically; no prose edits needed beyond removing the "preliminary" wording).
+   **CODE FIX DONE (2026-06-05):** `chexpert_dataset.py` now uses the screening
+   framing (positive = Pneumothorax==1, negative = every other frontal incl.
+   other-pathology/blank/uncertain), so A14 covers the full CheXpert validation
+   cohort (~200 frontals) instead of ~33. The MLflow file-store crash that was
+   blocking A14 is also fixed.
+   → **REMAINING (USER):** on Colab, `git pull`, force `eval_A14_chexpert`, Run all
+   (A14 now ~200 images, no crash), then sync `outputs/results/A14_*.json` back to
+   the repo and re-run `build_thesis_figures.py`. After that, drop the
+   "preliminary" wording (ch4/ch5, figure footnote, table caption).
 
 ## Phase 0 — Make everything English  ✅ DONE
 - [x] 0.1 `notebooks/xray_colab_produce_all.ipynb` — translate Turkish markdown
