@@ -20,8 +20,10 @@
   \draw[flow] (d2) -- node[flowlab, above]{yes} (flag);
   \draw[flow] (d2) -- node[flowlab, right]{no} (cp);
   \draw[flow] (cp) -- (end);
-  \draw[flow] (accept.south) |- (end.east);
-  \draw[flow] (flag.south) |- (end.east);
+  % Merge the two "yes" branches into the final node along right-hand rails that
+  % clear the right-column boxes (the accept line must not pass through the flag box).
+  \draw[flow] (accept.east) -- ++(1.6,0) |- (end.east);
+  \draw[flow] (flag.east) -- ++(0.7,0) |- (end.east);
 \end{tikzpicture}
 \caption{Confidence-based routing and escalation logic. The escalation threshold is adapted online from a sliding window of recent confidences; escalated cases are resolved by the Tier-2 backbone under Monte Carlo Dropout and test-time augmentation, and high-variance predictions are flagged for human review.}
 \label{fig:routing}
