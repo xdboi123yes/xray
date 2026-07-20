@@ -36,7 +36,7 @@ class DicomImageLoader:
             scaled = np.zeros_like(pixel_array)
 
         # Convert to 8-bit unsigned integer
-        scaled_uint8 = np.uint8(scaled)
+        scaled_uint8 = scaled.astype(np.uint8)
 
         # Standardize grayscale array into RGB representation
         return Image.fromarray(scaled_uint8).convert("RGB")
