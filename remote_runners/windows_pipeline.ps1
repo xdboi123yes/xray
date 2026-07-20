@@ -179,17 +179,25 @@ function Show-ControlPanel {
     $launch = {
         param([bool]$OnlyPreflight)
         $kaggleTarget = Join-Path $env:USERPROFILE ".kaggle\kaggle.json"
-        if (-not (Test-Path $kaggleTarget)) {
-            Add-Type -AssemblyName System.Windows.Forms
-            $picker = New-Object System.Windows.Forms.OpenFileDialog
-            $picker.Title = "Select your Kaggle API kaggle.json"
-            $picker.Filter = "Kaggle credentials (kaggle.json)|kaggle.json|JSON files (*.json)|*.json"
-            if ($picker.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
-                [System.Windows.MessageBox]::Show("Kaggle credentials are required to download NIH and CheXpert data.", "Credentials required") | Out-Null
-                return
+        if (-not (Test-Path $kaggleTarget) -and (-not $env:KAGGLE_USERNAME -or -not $env:KAGGLE_KEY)) {
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            $user = [Microsoft.VisualBasic.Interaction]::InputBox("Enter your Kaggle Username (leaves NO file on disk, RAM only):", "Kaggle API Authentication", $env:KAGGLE_USERNAME)
+            if ([string]::IsNullOrWhiteSpace($user)) {
+                Add-Type -AssemblyName System.Windows.Forms
+                $picker = New-Object System.Windows.Forms.OpenFileDialog
+                $picker.Title = "Or select your Kaggle API kaggle.json file"
+                $picker.Filter = "Kaggle credentials (kaggle.json)|kaggle.json|JSON files (*.json)|*.json"
+                if ($picker.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                    New-Item -ItemType Directory -Force -Path (Split-Path $kaggleTarget) | Out-Null
+                    Copy-Item $picker.FileName $kaggleTarget -Force
+                }
+            } else {
+                $key = [Microsoft.VisualBasic.Interaction]::InputBox("Enter your Kaggle API Key:", "Kaggle API Key", $env:KAGGLE_KEY)
+                if (-not [string]::IsNullOrWhiteSpace($key)) {
+                    $env:KAGGLE_USERNAME = $user.Trim()
+                    $env:KAGGLE_KEY = $key.Trim()
+                }
             }
-            New-Item -ItemType Directory -Force -Path (Split-Path $kaggleTarget) | Out-Null
-            Copy-Item $picker.FileName $kaggleTarget -Force
         }
         Remove-Item $stdout, $stderr -Force -ErrorAction SilentlyContinue
         $argLine = "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -Worker -RepoUrl `"$RepoUrl`" -Branch `"$Branch`" -Workspace `"$Workspace`""
