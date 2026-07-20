@@ -101,8 +101,10 @@ def main() -> None:
             tier2_path = fallback_path
     
     if not os.path.exists(tier1_path) or not os.path.exists(tier2_path):
-        print(f"Warning: Trained model weights not found at {tier1_path} or {tier2_path}.")
-        print("Evaluation requires both models to be trained. Continuing with untrained weights for testing purposes.")
+        raise FileNotFoundError(
+            f"Evaluation requires trained weights at {tier1_path} and {tier2_path}; "
+            "refusing to report metrics from randomly initialised models."
+        )
         
     if os.path.exists(tier1_path):
         load_model_weights(tier1, tier1_path, device)
@@ -128,12 +130,12 @@ def main() -> None:
         except Exception as e:
             print(f"Warning: could not load conformal calibration {cp_path} ({e}); recalibrating.")
     if need_calibration:
-        # Calibrate conformal predictor on validation set
-        print("No usable conformal calibration found. Calibrating on validation set...")
-        val_csv = 'data/processed/val.csv'
-        if os.path.exists(val_csv):
+        # Calibrate only on the dedicated patient-disjoint calibration split.
+        print("No usable conformal calibration found. Calibrating on calibration split...")
+        calibration_csv = 'data/processed/calibration.csv'
+        if os.path.exists(calibration_csv):
             cal_dataset = NIHChestXrayDataset(
-                csv_file=val_csv,
+                csv_file=calibration_csv,
                 transform=ClassicalAugmentation(image_size=settings.data.image_size, is_training=False)._pipeline
             )
             cal_loader = DataLoader(cal_dataset, batch_size=32, shuffle=False)
@@ -263,4 +265,3 @@ def main() -> None:
 
 if __name__ == '__main__':
     main()
-

@@ -31,6 +31,12 @@ class TrainingConfigDTO(BaseModel):
     use_synthetic: bool = Field(
         True, description="True to inject synthetic image sets into Pneumothorax classes."
     )
+    use_classical_augmentation: bool = Field(
+        True, description="Apply the classical training augmentation pipeline."
+    )
+    use_mixup_cutmix: bool = Field(
+        False, description="Apply batch-level Mixup/CutMix regularization during training."
+    )
     num_workers: int = Field(
         0,
         ge=0,

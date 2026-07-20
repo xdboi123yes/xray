@@ -37,6 +37,9 @@ def main() -> None:
         action="store_true",
         help="Disable MC dropout and TTA (inference-only compatibility flag).",
     )
+    parser.add_argument("--no-synthetic", action="store_true")
+    parser.add_argument("--no-classical-augmentation", action="store_true")
+    parser.add_argument("--mixup-cutmix", action="store_true")
     args = parser.parse_args()
 
     # DTO mapping for Tier 2 backbone network
@@ -49,7 +52,9 @@ def main() -> None:
         epochs=50,
         early_stopping_patience=7,
         seed=42,
-        use_synthetic=True,
+        use_synthetic=not args.no_synthetic,
+        use_classical_augmentation=not args.no_classical_augmentation,
+        use_mixup_cutmix=args.mixup_cutmix,
     )
 
     # Delegate model configuration and training execution to application layer

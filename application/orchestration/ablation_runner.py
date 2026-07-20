@@ -41,6 +41,7 @@ class AblationRunner:
                     "A8_NoSynthetic",
                     "--backbone",
                     "efficientnet_b4",
+                    "--no-synthetic",
                 ],
                 "overrides": {
                     "data.synthetic_augmentation": False,
@@ -55,6 +56,8 @@ class AblationRunner:
                     "A9_NoAugmentation",
                     "--backbone",
                     "efficientnet_b4",
+                    "--no-synthetic",
+                    "--no-classical-augmentation",
                 ],
                 "overrides": {
                     "data.synthetic_augmentation": False,
@@ -123,6 +126,7 @@ class AblationRunner:
                     "A15_Mixup_Cutmix",
                     "--backbone",
                     "ark_plus",
+                    "--mixup-cutmix",
                 ],
                 "overrides": {},
             },

@@ -80,7 +80,8 @@ class TrainingService:
         from core.augmentation.classical import ClassicalAugmentation
 
         train_transform = ClassicalAugmentation(
-            image_size=self.settings.data.image_size, is_training=True
+            image_size=self.settings.data.image_size,
+            is_training=config_dto.use_classical_augmentation,
         )._pipeline
         val_transform = ClassicalAugmentation(
             image_size=self.settings.data.image_size, is_training=False
@@ -160,6 +161,12 @@ class TrainingService:
         }
 
         # 6. Instantiate PyTorch Trainer Engine
+        batch_augmentation = None
+        if config_dto.use_mixup_cutmix:
+            from core.augmentation.mixup_cutmix import MixupCutmixAugmentation
+
+            batch_augmentation = MixupCutmixAugmentation()
+
         trainer = Trainer(
             model=model,
             optimizer=optimizer,
@@ -167,6 +174,7 @@ class TrainingService:
             device=device,
             config=run_config,
             scheduler=scheduler,
+            batch_augmentation=batch_augmentation,
         )
 
         # 7. Wire Infrastructure Observers

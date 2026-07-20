@@ -1,6 +1,6 @@
-"""Data Preprocessing Script.
+"""Data preprocessing with mutually exclusive patient-level splits.
 
-Splits NIH ChestX-ray14 data into train/val/test sets.
+Splits NIH ChestX-ray14 data into train/validation/calibration/test sets.
 Filters for Pneumothorax and No Finding classes.
 Caps No Finding at 5:1 ratio relative to Pneumothorax.
 Saves image_dir.txt for downstream use.
@@ -31,7 +31,7 @@ def split_data(
     seed: int,
     max_ratio: int = 5,
 ) -> None:
-    """Split NIH data into train/val/test with class balancing.
+    """Split NIH data by patient into train/validation/calibration/test sets.
 
     Args:
         csv_path: Path to Data_Entry_2017.csv.
@@ -98,29 +98,60 @@ def split_data(
         f"No Finding: {(df_filtered['Label']==0).sum()}"
     )
 
-    # Stratified split: train vs (val + test)
-    val_test_ratio = val_split + test_split
-    train_df, val_test_df = train_test_split(
-        df_filtered,
-        test_size=val_test_ratio,
-        random_state=seed,
-        stratify=df_filtered["Label"],
+    # NIH image names begin with the eight-digit patient identifier. Splitting
+    # rows directly leaks patients with multiple radiographs across partitions.
+    df_filtered["Patient ID"] = df_filtered["Image Index"].str.split("_").str[0]
+    patient_labels = (
+        df_filtered.groupby("Patient ID", as_index=False)["Label"]
+        .max()
+        .rename(columns={"Label": "Patient Label"})
     )
 
-    # val vs test
+    # Stratify patients, then map every image from one patient to one partition.
+    val_test_ratio = val_split + test_split
+    train_patients, val_test_patients = train_test_split(
+        patient_labels,
+        test_size=val_test_ratio,
+        random_state=seed,
+        stratify=patient_labels["Patient Label"],
+    )
+
+    # Separate test patients from the development patients.
     test_ratio_of_val_test = test_split / val_test_ratio
-    val_df, test_df = train_test_split(
-        val_test_df,
+    development_patients, test_patients = train_test_split(
+        val_test_patients,
         test_size=test_ratio_of_val_test,
         random_state=seed,
-        stratify=val_test_df["Label"],
+        stratify=val_test_patients["Patient Label"],
     )
+
+    # Reserve 30% of development patients for calibration. This matches the
+    # previous intended calibration size without overlapping validation.
+    val_patients, calibration_patients = train_test_split(
+        development_patients,
+        test_size=0.30,
+        random_state=seed,
+        stratify=development_patients["Patient Label"],
+    )
+
+    def images_for(patients: pd.DataFrame) -> pd.DataFrame:
+        return df_filtered[df_filtered["Patient ID"].isin(patients["Patient ID"])]
+
+    train_df = images_for(train_patients)
+    val_df = images_for(val_patients)
+    calibration_df = images_for(calibration_patients)
+    test_df = images_for(test_patients)
 
     # Save CSVs with required columns
     os.makedirs(output_dir, exist_ok=True)
     cols_to_save = ["Image Index", "Finding Labels", "Label"]
 
-    for name, split_df in [("train", train_df), ("val", val_df), ("test", test_df)]:
+    for name, split_df in [
+        ("train", train_df),
+        ("val", val_df),
+        ("calibration", calibration_df),
+        ("test", test_df),
+    ]:
         out_path = os.path.join(output_dir, f"{name}.csv")
         split_df[cols_to_save].to_csv(out_path, index=False)
         n_p = (split_df["Label"] == 1).sum()

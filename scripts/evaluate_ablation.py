@@ -64,7 +64,7 @@ from core.uncertainty.conformal import ConformalPredictor
 from infrastructure.data.dataset import NIHChestXrayDataset
 
 TEST_CSV = "data/processed/test.csv"
-VAL_CSV = "data/processed/val.csv"
+CALIBRATION_CSV = "data/processed/calibration.csv"
 RESULTS_DIR = "outputs/results"
 CLASSES = ["No Finding", "Pneumothorax"]
 
@@ -252,15 +252,15 @@ def evaluate_single(
 def calibrate_conformal(
     spec: AblationSpec, tier2: torch.nn.Module, device: torch.device, image_size: int, cfg: EvalConfig
 ) -> ConformalPredictor | None:
-    """Calibrate a per-ablation conformal predictor on the validation split."""
+    """Calibrate a per-ablation conformal predictor on the calibration split."""
     settings = get_settings()
     cp = ConformalPredictor(alpha=1.0 - settings.evaluation.conformal_coverage)
-    if not os.path.exists(VAL_CSV):
-        print(f"[{spec.ablation_id}] {VAL_CSV} missing - skipping conformal coverage.")
+    if not os.path.exists(CALIBRATION_CSV):
+        print(f"[{spec.ablation_id}] {CALIBRATION_CSV} missing - skipping conformal coverage.")
         return None
     transform = ClassicalAugmentation(image_size=image_size, is_training=False)._pipeline
     cal_loader = DataLoader(
-        NIHChestXrayDataset(csv_file=VAL_CSV, transform=transform),
+        NIHChestXrayDataset(csv_file=CALIBRATION_CSV, transform=transform),
         batch_size=max(cfg.batch_size, 64),
         num_workers=cfg.num_workers,
     )

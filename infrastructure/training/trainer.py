@@ -33,6 +33,7 @@ class Trainer:
         use_amp: bool = True,
         accumulate_grad_batches: int = 1,
         gradient_clip_val: float | None = 1.0,
+        batch_augmentation: Any = None,
     ) -> None:
         """Initialize the Trainer.
 
@@ -56,6 +57,7 @@ class Trainer:
         self.use_amp = use_amp and (device.type == "cuda")
         self.accumulate_grad_batches = accumulate_grad_batches
         self.gradient_clip_val = gradient_clip_val
+        self.batch_augmentation = batch_augmentation
 
         # Setup PyTorch AMP scaler if GPU supports it
         self.scaler = torch.cuda.amp.GradScaler(enabled=self.use_amp)
@@ -190,11 +192,19 @@ class Trainer:
             # Safe unpack: loader might yield (images, labels) or (images, labels, metadata)
             images = batch[0].to(self.device)
             labels = batch[1].to(self.device)
+            labels_a, labels_b, mix_lam = labels, labels, 1.0
+            if self.batch_augmentation is not None:
+                images, labels_a, labels_b, mix_lam = self.batch_augmentation.apply_batch(
+                    images, labels
+                )
 
             # Auto-cast context for float16 mixed precision
             with torch.cuda.amp.autocast(enabled=self.use_amp):
                 outputs = self.model(images)
-                loss = self.criterion(outputs, labels)
+                loss = (
+                    mix_lam * self.criterion(outputs, labels_a)
+                    + (1.0 - mix_lam) * self.criterion(outputs, labels_b)
+                )
                 # Scale loss according to gradient accumulation steps
                 loss = loss / self.accumulate_grad_batches
 
