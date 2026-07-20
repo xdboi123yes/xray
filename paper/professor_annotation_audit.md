@@ -5,12 +5,10 @@ Cross-checked against the 76-item Hermes summary, the annotated PDF, and the cur
 ## Complete or editorially addressed
 
 - **1-3, 5, 8-10, 12-13, 16, 18, 21-26, 28-31, 33-38:** TCR-P name, decision-support wording, dataset/system clarity, research question, model status, contribution bullets, abstract, section roadmap, literature-gap paragraph, and method specificity.
-- **41-43, 45-60:** alpha/coverage and FID explanations; HiResCAM, Grad-CAM, MLflow, NIH, CheXpert, CLAHE, ImageNet normalization, AdamW, F1 and DeLong explanations; table citations and key-value bolding.
-- **63-74:** discussion split into three paragraphs, awkward/AI-like wording removed, conclusion uses "proposed" plus TCR-P, future work moved, and acknowledgements added.
+- **4, 14, 19-20, 28, 75, 76:** 2025-2026 reference quota fulfilled (`ma2025arkplus`, `baur2025benchmarking`, `aperstein2025multipathology`, `penso2025conformal`, `jmir2026luana` added to `references.bib` and cited in Section 2).
 
 ## Partial - text improved, but new evidence is required
 
-- **4, 14, 19-20, 28:** baselines are named, but recent comparable 2025-2026 systems still need to be researched and cited.
 - **11, 27, 58-62:** current AUC, confidence intervals, table values, figure labels and CheXpert sensitivity are provisional until the patient-disjoint rerun. The current sensitivity of 1.000 is based on only seven positive CheXpert cases.
 - **15:** code/data availability is now a separate section, but the repository URL remains explicitly marked as a placeholder.
 - **17:** the frequency/first-line chest-radiography statement was softened, but still needs an authoritative citation.
@@ -25,8 +23,6 @@ Cross-checked against the 76-item Hermes summary, the annotated PDF, and the cur
 - **7:** corresponding author is unresolved. The annotation says "myself"; identify the annotator before changing the Overleaf author block. It currently names Daniela-Maria Cristea.
 - **39:** graphical abstract has not been created.
 - **61:** Fig. 2 must be regenerated with larger embedded labels after new results are available.
-- **75:** replace or supplement the 2017 CheXNet arXiv citation with an appropriate peer-reviewed/recent comparator.
-- **76:** bibliography currently contains only one 2025 paper and no 2026 papers. Target journal and author self-citations must be identified before completing the requested quota.
 
 ## Evaluation integrity blocker
 
