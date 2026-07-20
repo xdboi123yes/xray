@@ -4,25 +4,22 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
-import platform
 import shutil
 import signal
 import subprocess
 import sys
 import threading
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Sequence
 
 from rich.console import Console, Group
 from rich.live import Live
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
 from rich.text import Text
 

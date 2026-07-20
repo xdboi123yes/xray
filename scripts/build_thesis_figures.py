@@ -61,7 +61,7 @@ def build_ablation_overview() -> None:
     names = [r["name"] for r in rows]
     aucs = [r["metrics"]["auc_roc"] for r in rows]
     eces = [r["metrics"].get("ece") for r in rows]
-    labels = [f"{i}  {n}" for i, n in zip(ids, names)]
+    labels = [f"{i}  {n}" for i, n in zip(ids, names, strict=False)]
     best = max(range(len(aucs)), key=lambda k: aucs[k])
 
     y = range(len(rows))

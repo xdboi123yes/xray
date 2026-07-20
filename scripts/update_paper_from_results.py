@@ -7,8 +7,6 @@ import json
 import re
 from pathlib import Path
 
-import pandas as pd
-
 ROOT = Path(__file__).resolve().parents[1]
 PAPER = ROOT / "paper" / "manuscript.tex"
 RESULTS = ROOT / "outputs" / "results"
@@ -74,7 +72,8 @@ def main() -> None:
         info = splits["splits"][key]
         n, pos = int(info["rows"]), int(info["positives"])
         neg = n - pos
-        total_rows += n; total_pos += pos
+        total_rows += n
+        total_pos += pos
         split_lines.append(f"{label} & {n:,} & {pos:,} & {neg:,} & {100*pos/n:.1f}\\%\\\\")
     split_lines.append(r"\midrule")
     split_lines.append(f"Total & {total_rows:,} & {total_pos:,} & {total_rows-total_pos:,} & {100*total_pos/total_rows:.1f}\\%\\\\")

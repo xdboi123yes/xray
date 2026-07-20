@@ -10,6 +10,9 @@ nav:
   - Architecture: architecture.md
   - Ablation Studies (A1-A15): ablations.md
   - Reproducibility: reproducibility.md
+  - Patient-Disjoint Rerun Checklist: patient_disjoint_rerun_todo.md
+  - Windows AnyDesk Runner: windows_anydesk_runner.md
+  - University Linux Runner: university_remote_runner.md
 markdown_extensions:
   - admonition
   - tables
