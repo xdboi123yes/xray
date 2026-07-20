@@ -6,6 +6,8 @@ Cross-checked against the 76-item Hermes summary, the annotated PDF, and the cur
 
 - **1-3, 5, 8-10, 12-13, 16, 18, 21-26, 28-31, 33-38:** TCR-P name, decision-support wording, dataset/system clarity, research question, model status, contribution bullets, abstract, section roadmap, literature-gap paragraph, and method specificity.
 - **4, 14, 19-20, 28, 75, 76:** 2025-2026 reference quota fulfilled (`ma2025arkplus`, `baur2025benchmarking`, `aperstein2025multipathology`, `penso2025conformal`, `jmir2026luana` added to `references.bib` and cited in Section 2).
+- **39:** Graphical Abstract generated and saved as `paper/graphical_abstract.png` (TCR-P workflow diagram).
+- **61:** Figure 2 (`ablation_overview.png`) generator updated to export high-resolution (300 DPI) plots with enlarged, highly legible embedded labels (10-13pt).
 
 ## Partial - text improved, but new evidence is required
 
@@ -21,8 +23,6 @@ Cross-checked against the 76-item Hermes summary, the annotated PDF, and the cur
 
 - **6:** final length can only be judged after references, new results and any graphical abstract are added.
 - **7:** corresponding author is unresolved. The annotation says "myself"; identify the annotator before changing the Overleaf author block. It currently names Daniela-Maria Cristea.
-- **39:** graphical abstract has not been created.
-- **61:** Fig. 2 must be regenerated with larger embedded labels after new results are available.
 
 ## Evaluation integrity blocker
 
