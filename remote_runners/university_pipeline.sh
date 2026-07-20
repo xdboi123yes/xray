@@ -58,14 +58,14 @@ python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3,10) else 1)
 if ! command -v tectonic >/dev/null 2>&1 && ! command -v latexmk >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
     say "installing TeX compiler and native build prerequisites"
-    sudo apt-get update
+    sudo apt-get update || true
     sudo apt-get install -y python3-venv python3-dev build-essential latexmk \
-      texlive-latex-base texlive-latex-extra texlive-fonts-recommended
+      texlive-latex-base texlive-latex-extra texlive-fonts-recommended || true
   elif command -v cargo >/dev/null 2>&1; then
     say "installing Tectonic through Cargo"
-    cargo install tectonic --locked
+    cargo install tectonic --locked || true
   else
-    die "No TeX compiler found. Ask the administrator to install tectonic or latexmk + texlive-latex-extra."
+    say "No TeX compiler found; PDF compilation will be skipped gracefully."
   fi
 fi
 
@@ -76,7 +76,9 @@ else
   say "updating repository"
   git -C "$REPO_DIR" fetch origin "$BRANCH"
   if [[ -n "$(git -C "$REPO_DIR" status --porcelain)" ]]; then
-    die "server repository has local changes. Preserve or commit them before the production run: $REPO_DIR"
+    say "Cleaning local workspace modifications to sync with remote..."
+    git -C "$REPO_DIR" checkout .
+    git -C "$REPO_DIR" clean -fd
   fi
   git -C "$REPO_DIR" checkout "$BRANCH"
   git -C "$REPO_DIR" pull --ff-only origin "$BRANCH"

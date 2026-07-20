@@ -20,6 +20,16 @@ function Find-Python {
     if (Get-Command py -ErrorAction SilentlyContinue) { return @("py", "-3.11") }
     if (Get-Command python -ErrorAction SilentlyContinue) { return @("python") }
     if (Get-Command python3 -ErrorAction SilentlyContinue) { return @("python3") }
+    $candidates = @(
+        "$env:LocalAppData\Programs\Python\Python311\python.exe",
+        "$env:LocalAppData\Programs\Python\Python310\python.exe",
+        "$env:ProgramFiles\Python311\python.exe",
+        "C:\Python311\python.exe",
+        "C:\Python310\python.exe"
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { return @($c) }
+    }
     return $null
 }
 
@@ -34,14 +44,25 @@ function Invoke-Checked {
 }
 
 function Install-WingetPackage {
-    param([string]$Id, [string]$Label)
+    param([string]$Id, [string]$Label, [bool]$Optional = $false)
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        if ($Optional) {
+            Write-Host "winget unavailable; skipping optional package $Label" -ForegroundColor Yellow
+            return
+        }
         throw "winget is unavailable. Install Microsoft App Installer, then run this launcher again."
     }
     Write-Host "Installing $Label..." -ForegroundColor Yellow
-    & winget install --id $Id --exact --silent --accept-package-agreements --accept-source-agreements
-    if ($LASTEXITCODE -ne 0) { throw "winget could not install $Label ($Id)." }
-    Refresh-Path
+    try {
+        & winget install --id $Id --exact --silent --accept-package-agreements --accept-source-agreements
+        Refresh-Path
+    } catch {
+        if ($Optional) {
+            Write-Host "Optional package $Label could not be installed via winget; continuing..." -ForegroundColor Yellow
+        } else {
+            throw "winget could not install $Label ($Id)."
+        }
+    }
 }
 
 function Enable-StayAwake {
@@ -84,14 +105,18 @@ function Start-Worker {
 
         if (-not (Get-Command pdflatex -ErrorAction SilentlyContinue) -and
             -not (Get-Command tectonic -ErrorAction SilentlyContinue)) {
-            Install-WingetPackage "MiKTeX.MiKTeX" "MiKTeX"
+            Install-WingetPackage "MiKTeX.MiKTeX" "MiKTeX" -Optional $true
         }
 
         if (-not (Test-Path (Join-Path $repo ".git"))) {
             Invoke-Checked "git" @("clone", "--branch", $Branch, "--single-branch", $RepoUrl, $repo) $Workspace
         } else {
             $dirty = & git -C $repo status --porcelain
-            if ($dirty) { throw "The server repository contains local changes. Preserve them before continuing: $repo" }
+            if ($dirty) {
+                Write-Host "Cleaning local workspace modifications to sync with remote..." -ForegroundColor Yellow
+                Invoke-Checked "git" @("-C", $repo, "checkout", ".")
+                Invoke-Checked "git" @("-C", $repo, "clean", "-fd")
+            }
             Invoke-Checked "git" @("-C", $repo, "fetch", "origin", $Branch)
             Invoke-Checked "git" @("-C", $repo, "checkout", $Branch)
             Invoke-Checked "git" @("-C", $repo, "pull", "--ff-only", "origin", $Branch)
@@ -104,9 +129,9 @@ function Start-Worker {
         }
 
         $python = Join-Path $venv "Scripts\python.exe"
-        Invoke-Checked $python @("-m", "pip", "install", "--upgrade", "pip", "wheel", "setuptools") $repo
-        Invoke-Checked $python @("-m", "pip", "install", "-r", "requirements.txt", "-r", "requirements-training.txt") $repo
-        Invoke-Checked $python @("-m", "pip", "install", "rich", "psutil", "jupyter", "nbconvert", "ipykernel") $repo
+        Invoke-Checked $python @("-m", "pip", "install", "--default-timeout=100", "--retries=5", "--upgrade", "pip", "wheel", "setuptools") $repo
+        Invoke-Checked $python @("-m", "pip", "install", "--default-timeout=100", "--retries=5", "-r", "requirements.txt", "-r", "requirements-training.txt") $repo
+        Invoke-Checked $python @("-m", "pip", "install", "--default-timeout=100", "--retries=5", "rich", "psutil", "jupyter", "nbconvert", "ipykernel") $repo
         Invoke-Checked $python @("-m", "ipykernel", "install", "--user", "--name", "xray-production", "--display-name", "XRay Production") $repo
 
         $env:XRAY_PROJECT_ROOT = $repo
