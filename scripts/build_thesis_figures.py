@@ -69,9 +69,9 @@ def build_ablation_overview() -> None:
 
     auc_colors = [HIGHLIGHT if k == best else ACCENT for k in range(len(rows))]
     ax_auc.barh(list(y), aucs, color=auc_colors)
-    ax_auc.set_xlim(0.85, 0.93)
+    ax_auc.set_xlim(0.84, 0.94)
     ax_auc.set_xlabel("AUC-ROC", fontsize=12, fontweight="bold")
-    ax_auc.set_title("Discrimination (AUC-ROC)", fontsize=13, fontweight="bold", pad=10)
+    ax_auc.set_title("Discrimination (AUC-ROC)", fontsize=13, fontweight="bold", pad=12)
     ax_auc.set_yticks(list(y))
     ax_auc.set_yticklabels(labels, fontsize=10, fontweight="medium")
     ax_auc.tick_params(axis='x', labelsize=10)
@@ -81,12 +81,13 @@ def build_ablation_overview() -> None:
 
     ece_vals = [(e if e is not None else 0.0) for e in eces]
     ax_ece.barh(list(y), ece_vals, color=MUTED)
+    ax_ece.set_xlim(0, 0.115)
     ax_ece.set_xlabel("Expected Calibration Error", fontsize=12, fontweight="bold")
-    ax_ece.set_title("Calibration (ECE, lower is better)", fontsize=13, fontweight="bold", pad=10)
+    ax_ece.set_title("Calibration (ECE, lower is better)", fontsize=13, fontweight="bold", pad=12)
     ax_ece.tick_params(axis='x', labelsize=10)
     for k, e in enumerate(eces):
         text = "n/a" if e is None else f"{e:.3f}"
-        ax_ece.text(0.001, k, text, va="center", fontsize=9.5, fontweight="bold")
+        ax_ece.text(max(e, 0.001) + 0.002 if e is not None else 0.002, k, text, va="center", fontsize=9.5, fontweight="bold")
 
     fig.suptitle("Ablation study overview (A1-A15)", fontsize=15, fontweight="bold", y=0.98)
     fig.text(
@@ -97,7 +98,7 @@ def build_ablation_overview() -> None:
         fontsize=10,
         color="#334155",
     )
-    fig.tight_layout(rect=(0, 0.03, 1, 0.96))
+    fig.tight_layout(rect=(0, 0.03, 1, 0.95))
     save_figure(fig, "ablation_overview.png")
     plt.close(fig)
 
@@ -121,7 +122,7 @@ def build_cross_dataset_figure() -> None:
         label="CheXpert (zero-shot, A14)", color=MUTED,
     )
 
-    ax.set_ylim(0, 1.15)
+    ax.set_ylim(0, 1.20)
     ax.set_ylabel("Score", fontsize=12, fontweight="bold")
     ax.set_title("Cross-dataset generalization of the proposed tiered system",
                  fontsize=14, fontweight="bold", pad=12)
