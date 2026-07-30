@@ -22,7 +22,7 @@ Cross-checked against the 76-item Hermes summary, the annotated PDF, and the cur
 ## Open decisions or new work
 
 - **6:** final length can only be judged after references, new results and any graphical abstract are added.
-- **7:** corresponding author is unresolved. The annotation says "myself"; identify the annotator before changing the Overleaf author block. It currently names Daniela-Maria Cristea.
+- **7:** Corresponding author set to Prof. László Barna Iantovics (`barna.iantovics@umfst.ro`) with correct Macron/Acute Hungarian spelling (`L\'aszl\'o Barna \sur{Iantovics}`).
 
 ## Evaluation integrity blocker
 
