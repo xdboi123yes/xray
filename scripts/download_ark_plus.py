@@ -100,12 +100,25 @@ def _download(url: str, dest: Path, timeout: float = 600.0) -> bool:
 
 
 def try_ark_official() -> bool:
-    """Try every Ark+ candidate URL in turn. Return True on first success."""
+    """Try local environment variable path, custom URL, or candidate URLs in turn. Return True on first success."""
+    import os
+    import shutil
+
+    env_path = os.environ.get("ARK_CHECKPOINT_PATH")
+    if env_path and Path(env_path).exists():
+        log.info("ark_custom_path_detected", path=env_path)
+        if Path(env_path).resolve() != ARK_OUTPUT_PATH.resolve():
+            shutil.copy2(env_path, ARK_OUTPUT_PATH)
+        return True
+
     if ARK_OUTPUT_PATH.exists():
         log.info("ark_already_downloaded", path=str(ARK_OUTPUT_PATH))
         return True
 
-    for url in ARK_URL_CANDIDATES:
+    custom_url = os.environ.get("ARK_CHECKPOINT_URL")
+    candidates = ([custom_url] if custom_url else []) + ARK_URL_CANDIDATES
+
+    for url in candidates:
         status = _probe(url)
         if status == 200 and _download(url, ARK_OUTPUT_PATH):
             return True

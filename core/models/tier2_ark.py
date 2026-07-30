@@ -79,17 +79,19 @@ class Tier2ArkPlus(BaseClassifier):
         backbone = timm.create_model(model_name, pretrained=pretrained, num_classes=0)
 
         if pretrained:
-            if ark_path and Path(ark_path).exists():
+            import os
+            target_path = ark_path or os.environ.get("ARK_CHECKPOINT_PATH") or "outputs/models/ark_plus_swin_base.pth"
+            if target_path and Path(target_path).exists():
                 try:
-                    state = torch.load(ark_path, map_location="cpu")
+                    state = torch.load(target_path, map_location="cpu")
                     # If weights are wrapped in a dict
                     if isinstance(state, dict) and "state_dict" in state:
                         state = state["state_dict"]
                     backbone.load_state_dict(state, strict=False)
-                    log.info(f"[Tier2ArkPlus] Loaded Ark+ weights from {ark_path}")
+                    log.info(f"[Tier2ArkPlus] Loaded Ark+ weights from {target_path}")
                 except Exception as e:
                     log.error(
-                        f"[Tier2ArkPlus] Error loading Ark+ weights: {e}. "
+                        f"[Tier2ArkPlus] Error loading Ark+ weights from {target_path}: {e}. "
                         "Falling back to ImageNet Swin."
                     )
             else:
