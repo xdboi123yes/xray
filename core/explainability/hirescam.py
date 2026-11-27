@@ -107,7 +107,7 @@ def suppress_background(
     gray = rgb_img.mean(axis=2) if rgb_img.ndim == 3 else rgb_img
     mask = (gray > threshold).astype(np.float32)
     if blur_ksize > 1:
-        mask = cv2.GaussianBlur(mask, (blur_ksize, blur_ksize), 0)
+        mask = np.asarray(cv2.GaussianBlur(mask, (blur_ksize, blur_ksize), 0), dtype=np.float32)
     masked = cam * mask
     peak = float(masked.max())
     if peak > 1e-8:

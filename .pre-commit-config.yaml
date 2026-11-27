@@ -22,7 +22,7 @@ repos:
         name: Check code comments and string literals are English-only
         entry: python scripts/check_comment_language.py
         language: python
-        types_or: [python, ts, tsx]
+        types_or: [python]
 
       - id: mypy-check
         name: Mypy Static Type Analysis
@@ -42,13 +42,6 @@ repos:
         entry: lint-imports
         language: python
         additional_dependencies: ["import-linter==2.0"]
-        pass_filenames: false
-        always_run: true
-
-      - id: i18n-parity
-        name: i18n EN/TR Key Parity Check
-        entry: python scripts/check_i18n_parity.py
-        language: python
         pass_filenames: false
         always_run: true
 

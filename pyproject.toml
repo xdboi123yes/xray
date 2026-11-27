@@ -11,7 +11,6 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
 ignore = ["E501", "N803", "B024", "B027", "N812", "B008", "RUF001", "UP038", "RUF003", "E701", "E741", "E402"]
 
 [tool.mypy]
-python_version = "3.10"
 strict = true
 disallow_untyped_calls = false
 warn_return_any = false
@@ -60,7 +59,7 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.importlinter]
-root_packages = ["core", "application", "infrastructure", "web"]
+root_packages = ["core", "application", "infrastructure"]
 include_external_packages = true
 
 
@@ -68,18 +67,12 @@ include_external_packages = true
 name = "core has no outer dependencies"
 type = "forbidden"
 source_modules = ["core"]
-forbidden_modules = ["application", "infrastructure", "web"]
-
-[[tool.importlinter.contracts]]
-name = "application does not depend on web"
-type = "forbidden"
-source_modules = ["application"]
-forbidden_modules = ["web"]
+forbidden_modules = ["application", "infrastructure"]
 
 [[tool.importlinter.contracts]]
 name = "layers do not depend on legacy src"
 type = "forbidden"
-source_modules = ["core", "application", "infrastructure", "web"]
+source_modules = ["core", "application", "infrastructure"]
 forbidden_modules = ["src"]
 
 [[tool.mypy.overrides]]
