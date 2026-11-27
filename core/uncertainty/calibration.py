@@ -18,7 +18,7 @@ import torch.optim as optim
 log = structlog.get_logger(__name__)
 
 
-def compute_ece(probs: Any, labels: Any, n_bins: int = 10) -> float:
+def compute_ece(probs: Any, labels: Any, n_bins: int = 15) -> float:
     """Computes the Expected Calibration Error (ECE) for binary classification.
 
     Args:
@@ -126,7 +126,7 @@ class ModelWithTemperature(nn.Module):
 
 
 def plot_reliability_diagram(
-    probs: Any, labels: Any, n_bins: int = 10, save_path: str | None = None
+    probs: Any, labels: Any, n_bins: int = 15, save_path: str | None = None
 ) -> None:
     """Plots a calibration reliability diagram.
 

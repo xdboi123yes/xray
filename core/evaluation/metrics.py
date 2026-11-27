@@ -118,6 +118,84 @@ def brier_score(y_true: Any, y_probs: Any) -> float:
     return float(np.mean((y_probs_arr - y_true_arr) ** 2))
 
 
+def negative_log_likelihood(y_true: Any, y_probs: Any, eps: float = 1e-12) -> float:
+    """Compute binary negative log-likelihood (log loss) for positive-class probabilities."""
+    y = np.asarray(y_true, dtype=float)
+    p = np.clip(np.asarray(y_probs, dtype=float), eps, 1.0 - eps)
+    if y.size == 0:
+        return float("nan")
+    return float(-np.mean(y * np.log(p) + (1.0 - y) * np.log(1.0 - p)))
+
+
+def classwise_ece(y_true: Any, y_probs: Any, n_bins: int = 15) -> dict[str, float]:
+    """Compute class-wise ECE (equal-width bins) for binary classification.
+
+    Evaluates calibration separately for class 0 (Normal, predicted probability
+    ``1 - p``) and class 1 (Pneumothorax, predicted probability ``p``), plus their
+    mean (class-wise ECE).
+    """
+    y = np.asarray(y_true, dtype=float)
+    p = np.asarray(y_probs, dtype=float)
+    n = y.size
+    if n == 0:
+        return {"ece_class0": float("nan"), "ece_class1": float("nan"), "classwise_ece": float("nan")}
+
+    bin_edges = np.linspace(0.0, 1.0, n_bins + 1)
+
+    def _one_class_ece(target_indicator: np.ndarray[Any, Any], class_prob: np.ndarray[Any, Any]) -> float:
+        ece_val = 0.0
+        for idx, (low, high) in enumerate(pairwise(bin_edges)):
+            in_bin = (class_prob >= low) & (class_prob <= high) if idx == 0 else (class_prob > low) & (class_prob <= high)
+            cnt = int(in_bin.sum())
+            if cnt == 0:
+                continue
+            freq = float(target_indicator[in_bin].mean())
+            conf = float(class_prob[in_bin].mean())
+            ece_val += (cnt / n) * abs(freq - conf)
+        return float(ece_val)
+
+    ece0 = _one_class_ece((y == 0).astype(float), 1.0 - p)
+    ece1 = _one_class_ece((y == 1).astype(float), p)
+    return {
+        "ece_class0": ece0,
+        "ece_class1": ece1,
+        "classwise_ece": 0.5 * (ece0 + ece1),
+    }
+
+
+def reliability_bin_stats(y_true: Any, y_probs: Any, n_bins: int = 15) -> list[dict[str, float | int]]:
+    """Return per-bin statistics across ``n_bins`` equal-width intervals on [0, 1]."""
+    y = np.asarray(y_true, dtype=float)
+    p = np.asarray(y_probs, dtype=float)
+    bin_edges = np.linspace(0.0, 1.0, n_bins + 1)
+    rows: list[dict[str, float | int]] = []
+    for idx, (low, high) in enumerate(pairwise(bin_edges)):
+        in_bin = (p >= low) & (p <= high) if idx == 0 else (p > low) & (p <= high)
+        cnt = int(in_bin.sum())
+        rows.append(
+            {
+                "bin_index": idx,
+                "bin_lower": float(low),
+                "bin_upper": float(high),
+                "count": cnt,
+                "mean_prob": float(p[in_bin].mean()) if cnt > 0 else float("nan"),
+                "empirical_pos_rate": float(y[in_bin].mean()) if cnt > 0 else float("nan"),
+            }
+        )
+    return rows
+
+
+def wilson_ci(successes: int, total: int, z: float = 1.959963984540054) -> tuple[float, float]:
+    """Compute the two-sided Wilson score confidence interval for a binomial proportion."""
+    if total <= 0:
+        return float("nan"), float("nan")
+    p_hat = successes / total
+    denom = 1.0 + (z * z) / total
+    center = (p_hat + (z * z) / (2.0 * total)) / denom
+    half = (z * np.sqrt((p_hat * (1.0 - p_hat) + (z * z) / (4.0 * total)) / total)) / denom
+    return float(max(0.0, center - half)), float(min(1.0, center + half))
+
+
 def calibration_slope_intercept(
     y_true: Any,
     y_probs: Any,

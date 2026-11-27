@@ -46,13 +46,21 @@ class DynamicThresholdRouter(BaseRouter):
     def update(self, confidence: float) -> None:
         """Update the rolling statistics and dynamically shift the threshold.
 
-        Saves recent confidence. If window capacity is reached, calculates the
-        rolling mean. If mean < 0.65 (hard stream), lowers threshold to route more
-        cases to Tier 2. If mean > 0.85 (easy stream), raises threshold to keep
-        throughput fast.
+        Saves recent Tier-1 confidence. Once the sliding window exceeds capacity
+        ``W``, maintains the last ``W`` confidences and computes their rolling
+        mean ``mean_conf``. Because an image is resolved by Tier 1 when
+        ``confidence >= current_threshold`` and escalated otherwise, the deadband
+        controller stabilizes the escalation rate under stream drift:
+        - If ``mean_conf < 0.65`` (hard stream, high escalation): lowers
+          ``current_threshold`` by ``delta`` (floor ``0.50``) to prevent Tier-2
+          overload.
+        - If ``mean_conf > 0.85`` (easy stream, low escalation): raises
+          ``current_threshold`` by ``delta`` (ceiling ``0.95``) so borderline
+          cases still receive Tier-2 review.
+        - If ``0.65 <= mean_conf <= 0.85``: holds ``current_threshold`` unchanged.
 
         Args:
-            confidence: The latest confidence score to record.
+            confidence: The latest Tier-1 confidence score to record.
         """
         self._recent_confidences.append(confidence)
 
@@ -61,12 +69,12 @@ class DynamicThresholdRouter(BaseRouter):
 
             mean_conf = sum(self._recent_confidences) / self._window_size
 
-            # Adaptive adjustment logic
+            # Deadband rate-stabilization controller bounded to [0.50, 0.95]
             if mean_conf < 0.65:
-                # Many hard cases: route more aggressively to Tier 2 by lowering threshold
+                # Hard stream: lower threshold toward 0.50 to prevent Tier-2 saturation
                 self._current_threshold = max(0.5, self._current_threshold - self._threshold_delta)
             elif mean_conf > 0.85:
-                # Many easy cases: keep throughput high by raising threshold
+                # Easy stream: raise threshold toward 0.95 to maintain conservative escalation
                 self._current_threshold = min(0.95, self._current_threshold + self._threshold_delta)
 
     @property

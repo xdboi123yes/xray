@@ -56,13 +56,17 @@ from core.augmentation.classical import ClassicalAugmentation
 from core.evaluation.metrics import (
     brier_score,
     calibration_slope_intercept,
+    classwise_ece,
     compute_all_metrics,
     expected_calibration_error,
+    negative_log_likelihood,
 )
 from core.models.factory import ModelFactory
+from core.uncertainty.calibration import ModelWithTemperature
 from core.uncertainty.conformal import ConformalPredictor
 from infrastructure.data.dataset import NIHChestXrayDataset
 
+VAL_CSV = "data/processed/val.csv"
 TEST_CSV = "data/processed/test.csv"
 CALIBRATION_CSV = "data/processed/calibration.csv"
 RESULTS_DIR = "outputs/results"
@@ -150,12 +154,68 @@ def _forward_ctx(cfg: EvalConfig, device: torch.device) -> contextlib.AbstractCo
 
 
 def predict_probs_plain(
-    model: torch.nn.Module, images: torch.Tensor, cfg: EvalConfig, device: torch.device
+    model: torch.nn.Module,
+    images: torch.Tensor,
+    cfg: EvalConfig,
+    device: torch.device,
+    temperature: float = 1.0,
 ) -> torch.Tensor:
     """Return batched softmax probabilities [B, 2] with a single forward."""
     with torch.no_grad(), _forward_ctx(cfg, device):
         logits = model(images.to(device))
-    return torch.softmax(logits.float(), dim=1).cpu()
+    return torch.softmax(logits.float() / max(temperature, 1e-6), dim=1).cpu()
+
+
+def predict_probs_uncertain_decomposed(
+    model: torch.nn.Module,
+    images: torch.Tensor,
+    mc_passes: int,
+    tta_passes: int,
+    cfg: EvalConfig,
+    device: torch.device,
+    temperature: float = 1.0,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Return mean probabilities [B, 2] plus Law-of-Total-Variance decomposition.
+
+    Decomposes total variance across K TTA views and T MC passes into:
+      epistemic_var = E_k[Var_t(p | a_k)]   (within-view MC-Dropout variance)
+      tta_var       = Var_k[E_t(p | a_k)]   (between-view TTA sensitivity)
+      total_var     = epistemic_var + tta_var
+    """
+    batch = images.shape[0]
+    if mc_passes > 1:
+        _enable_mc_dropout(model)
+    reps_per_forward = max(1, cfg.micro_batch // batch)
+    temp = max(temperature, 1e-6)
+
+    views = [images] + [_TTA_TRANSFORM(images) for _ in range(max(0, tta_passes - 1))]
+    per_view_tensors: list[torch.Tensor] = []
+    with torch.no_grad():
+        for view in views:
+            view_dev = view.to(device)
+            view_chunks: list[torch.Tensor] = []
+            done = 0
+            while done < mc_passes:
+                k = min(reps_per_forward, mc_passes - done)
+                chunk = view_dev.repeat(k, 1, 1, 1)
+                with _forward_ctx(cfg, device):
+                    logits = model(chunk)
+                probs = torch.softmax(logits.float() / temp, dim=1).reshape(k, batch, 2).cpu()
+                view_chunks.append(probs)
+                done += k
+            per_view_tensors.append(torch.cat(view_chunks, dim=0))  # [T, B, 2]
+    model.eval()
+
+    # Shape: [K, T, B, 2]
+    stacked = torch.stack(per_view_tensors, dim=0)
+    view_means = stacked.mean(dim=1)  # [K, B, 2]
+    view_vars = stacked.var(dim=1, unbiased=False)  # [K, B, 2]
+
+    mean_probs = view_means.mean(dim=0)  # [B, 2]
+    epistemic_var = view_vars.mean(dim=0)  # [B, 2]
+    tta_var = view_means.var(dim=0, unbiased=False)  # [B, 2]
+    total_var = epistemic_var + tta_var
+    return mean_probs, total_var, epistemic_var, tta_var
 
 
 def predict_probs_uncertain(
@@ -165,36 +225,13 @@ def predict_probs_uncertain(
     tta_passes: int,
     cfg: EvalConfig,
     device: torch.device,
+    temperature: float = 1.0,
 ) -> torch.Tensor:
-    """Return MC-dropout + TTA mean probabilities [B, 2] using batched forwards.
-
-    Each TTA view is tiled ``mc_passes`` times into one forward (independent
-    dropout masks => independent MC samples), streamed in micro-batches of at
-    most ``cfg.micro_batch`` images so VRAM stays bounded regardless of T/n.
-    """
-    batch = images.shape[0]
-    if mc_passes > 1:
-        _enable_mc_dropout(model)
-    reps_per_forward = max(1, cfg.micro_batch // batch)
-
-    views = [images] + [_TTA_TRANSFORM(images) for _ in range(max(0, tta_passes - 1))]
-    sample_probs: list[torch.Tensor] = []
-    with torch.no_grad():
-        for view in views:
-            view_dev = view.to(device)
-            done = 0
-            while done < mc_passes:
-                k = min(reps_per_forward, mc_passes - done)
-                chunk = view_dev.repeat(k, 1, 1, 1)
-                with _forward_ctx(cfg, device):
-                    logits = model(chunk)
-                probs = torch.softmax(logits.float(), dim=1).reshape(k, batch, 2).cpu()
-                sample_probs.append(probs)
-                done += k
-    model.eval()
-
-    stacked = torch.cat(sample_probs, dim=0)  # [n_views * mc_passes, B, 2]
-    return stacked.mean(dim=0)
+    """Return MC-dropout + TTA mean probabilities [B, 2] using batched forwards."""
+    mean_probs, _, _, _ = predict_probs_uncertain_decomposed(
+        model, images, mc_passes, tta_passes, cfg, device, temperature=temperature
+    )
+    return mean_probs
 
 
 def _resolve_passes(spec: AblationSpec, cfg: EvalConfig) -> tuple[int, int]:
@@ -202,6 +239,24 @@ def _resolve_passes(spec: AblationSpec, cfg: EvalConfig) -> tuple[int, int]:
     mc = cfg.mc_passes if cfg.mc_passes is not None else spec.mc_passes
     tta = cfg.tta_passes if cfg.tta_passes is not None else spec.tta_passes
     return mc, tta
+
+
+def fit_temperature_on_val(
+    model: torch.nn.Module, device: torch.device, image_size: int, cfg: EvalConfig
+) -> float:
+    """Fit post-hoc temperature scalar strictly on the validation split (val.csv)."""
+    if not os.path.exists(VAL_CSV):
+        return 1.0
+    transform = ClassicalAugmentation(image_size=image_size, is_training=False)._pipeline
+    val_loader = DataLoader(
+        NIHChestXrayDataset(csv_file=VAL_CSV, transform=transform),
+        batch_size=max(cfg.batch_size, 64),
+        num_workers=cfg.num_workers,
+    )
+    wrapper = ModelWithTemperature(model)
+    wrapper.set_temperature(val_loader, device)
+    temp = float(wrapper.temperature.item())
+    return temp if temp > 0.05 else 1.0
 
 
 def evaluate_single(
@@ -227,11 +282,17 @@ def evaluate_single(
 
     y_true: list[int] = []
     y_probs: list[float] = []
+    epistemic_vars: list[float] = []
+    tta_vars: list[float] = []
     seen = 0
     start = time.time()
     for images, labels, _ in tqdm(loader, desc=f"{spec.ablation_id} {spec.mode}"):
         if use_uncertainty:
-            mean_probs = predict_probs_uncertain(model, images, mc_passes, tta_passes, cfg, device)
+            mean_probs, _, epi_var, tta_var = predict_probs_uncertain_decomposed(
+                model, images, mc_passes, tta_passes, cfg, device
+            )
+            epistemic_vars.extend(epi_var[:, 1].tolist())
+            tta_vars.extend(tta_var[:, 1].tolist())
         else:
             mean_probs = predict_probs_plain(model, images, cfg, device)
         y_probs.extend(mean_probs[:, 1].tolist())
@@ -241,18 +302,32 @@ def evaluate_single(
             break
     elapsed_ms = (time.time() - start) * 1000.0
 
-    return {
+    result: dict[str, object] = {
         "weights_used": weights_used,
         "avg_inference_time_ms": elapsed_ms / max(1, len(y_true)),
         "y_true": y_true,
         "y_probs": y_probs,
     }
+    if epistemic_vars:
+        result["mean_epistemic_var"] = float(sum(epistemic_vars) / len(epistemic_vars))
+        result["mean_tta_var"] = float(sum(tta_vars) / len(tta_vars))
+    return result
 
 
 def calibrate_conformal(
-    spec: AblationSpec, tier2: torch.nn.Module, device: torch.device, image_size: int, cfg: EvalConfig
+    spec: AblationSpec,
+    tier2: torch.nn.Module,
+    device: torch.device,
+    image_size: int,
+    cfg: EvalConfig,
+    temperature: float = 1.0,
 ) -> ConformalPredictor | None:
-    """Calibrate a per-ablation conformal predictor on the calibration split."""
+    """Calibrate split-conformal q_hat strictly on the disjoint calibration split.
+
+    Applies ``temperature`` (fitted on the separate validation split) to Tier-2 logits
+    before computing nonconformity scores so validation and conformal calibration data
+    remain completely disjoint (Reviewer 2 Comment 5).
+    """
     settings = get_settings()
     cp = ConformalPredictor(alpha=1.0 - settings.evaluation.conformal_coverage)
     if not os.path.exists(CALIBRATION_CSV):
@@ -264,8 +339,21 @@ def calibrate_conformal(
         batch_size=max(cfg.batch_size, 64),
         num_workers=cfg.num_workers,
     )
-    print(f"[{spec.ablation_id}] Calibrating conformal predictor on the validation split...")
-    cp.calibrate(tier2, cal_loader, device)
+    print(
+        f"[{spec.ablation_id}] Calibrating conformal predictor strictly on disjoint "
+        f"{CALIBRATION_CSV} (temperature={temperature:.3f} from val split)..."
+    )
+
+    class _ScaledModel(torch.nn.Module):
+        def __init__(self, inner: torch.nn.Module, temp: float) -> None:
+            super().__init__()
+            self.inner = inner
+            self.temp = max(temp, 1e-6)
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return self.inner(x) / self.temp
+
+    cp.calibrate(_ScaledModel(tier2, temperature).to(device), cal_loader, device)
     return cp
 
 
@@ -306,7 +394,13 @@ def evaluate_tiered(
     tier1.eval()
     tier2.eval()
 
-    cp = calibrate_conformal(spec, tier2, device, image_size, cfg) if spec.conformal else None
+    # Fit post-hoc temperature strictly on val.csv before disjoint conformal calibration
+    temperature = fit_temperature_on_val(tier2, device, image_size, cfg) if spec.conformal else 1.0
+    cp = (
+        calibrate_conformal(spec, tier2, device, image_size, cfg, temperature=temperature)
+        if spec.conformal
+        else None
+    )
 
     static_threshold = settings.model.confidence_threshold
     threshold_path = "outputs/models/tier1_mobilenet_threshold.json"
@@ -347,7 +441,15 @@ def evaluate_tiered(
     # Pass 2: Tier 2 deep model (MC + TTA) on the escalated subset only.
     final_prob1 = list(t1_prob1)
     conformal_hits = 0
+    conformal_hits_c0 = 0
+    conformal_n_c0 = 0
+    conformal_hits_c1 = 0
+    conformal_n_c1 = 0
+    conformal_empty_fallbacks = 0
     conformal_set_sizes: list[int] = []
+    epistemic_vars: list[float] = []
+    tta_vars: list[float] = []
+    flagged_count = 0
     if escalated_idx:
         t2_loader = DataLoader(
             Subset(dataset, escalated_idx),
@@ -356,28 +458,66 @@ def evaluate_tiered(
         )
         pos = 0
         for images, _, _ in tqdm(t2_loader, desc=f"{spec.ablation_id} tier2"):
-            mean_probs = predict_probs_uncertain(tier2, images, mc_passes, tta_passes, cfg, device)
+            mean_probs, total_var, epi_var, tta_var = predict_probs_uncertain_decomposed(
+                tier2, images, mc_passes, tta_passes, cfg, device, temperature=temperature
+            )
             for b in range(mean_probs.shape[0]):
                 global_idx = escalated_idx[pos]
                 pos += 1
                 final_prob1[global_idx] = float(mean_probs[b, 1])
+                epistemic_vars.append(float(epi_var[b, 1]))
+                tta_vars.append(float(tta_var[b, 1]))
+                pred_cls = int(mean_probs[b].argmax().item())
+                pred_var = float(total_var[b, pred_cls])
+                pred_set: list[str] | None = None
                 if cp is not None and cp.q_hat is not None:
+                    raw_threshold = 1.0 - cp.q_hat
+                    if float(mean_probs[b].max().item()) < raw_threshold:
+                        conformal_empty_fallbacks += 1
                     pred_set = cp.predict_set(mean_probs[b : b + 1])
                     conformal_set_sizes.append(len(pred_set))
-                    if CLASSES[y_true[global_idx]] in pred_set:
+                    true_lbl = y_true[global_idx]
+                    hit = CLASSES[true_lbl] in pred_set
+                    if hit:
                         conformal_hits += 1
+                    if true_lbl == 0:
+                        conformal_n_c0 += 1
+                        if hit:
+                            conformal_hits_c0 += 1
+                    else:
+                        conformal_n_c1 += 1
+                        if hit:
+                            conformal_hits_c1 += 1
+                if (pred_var > 0.1) or (pred_set is not None and len(pred_set) > 1):
+                    flagged_count += 1
 
     elapsed_ms = (time.time() - start) * 1000.0
     extra: dict[str, object] = {
         "weights_used": weights_used,
+        "temperature_val_fitted": temperature,
         "percent_tier2": (len(escalated_idx) / total) * 100 if total else 0.0,
         "avg_inference_time_ms": elapsed_ms / max(1, total),
+        "flagged_for_review_rate": (flagged_count / total) if total else 0.0,
         "y_true": y_true,
         "y_probs": final_prob1,
     }
+    if epistemic_vars:
+        extra["mean_epistemic_var"] = float(sum(epistemic_vars) / len(epistemic_vars))
+        extra["mean_tta_var"] = float(sum(tta_vars) / len(tta_vars))
     if conformal_set_sizes:
-        extra["conformal_empirical_coverage"] = conformal_hits / len(conformal_set_sizes)
-        extra["conformal_avg_set_size"] = sum(conformal_set_sizes) / len(conformal_set_sizes)
+        n_cp = len(conformal_set_sizes)
+        extra["conformal_q_hat"] = cp.q_hat if cp is not None else None
+        extra["conformal_empirical_coverage"] = conformal_hits / n_cp
+        extra["conformal_avg_set_size"] = sum(conformal_set_sizes) / n_cp
+        extra["conformal_singleton_rate"] = sum(1 for s in conformal_set_sizes if s == 1) / n_cp
+        extra["conformal_two_class_rate"] = sum(1 for s in conformal_set_sizes if s == 2) / n_cp
+        extra["conformal_empty_fallback_rate"] = conformal_empty_fallbacks / n_cp
+        extra["conformal_coverage_class0"] = (
+            conformal_hits_c0 / conformal_n_c0 if conformal_n_c0 else float("nan")
+        )
+        extra["conformal_coverage_class1"] = (
+            conformal_hits_c1 / conformal_n_c1 if conformal_n_c1 else float("nan")
+        )
     return extra
 
 
@@ -411,8 +551,10 @@ def evaluate_one(ablation_id: str, cfg: EvalConfig) -> None:
     y_true = outcome.pop("y_true")
     y_probs = outcome.pop("y_probs")
     metrics = compute_all_metrics(y_true, y_probs, threshold=0.5)
-    metrics["ece"] = expected_calibration_error(y_true, y_probs)
+    metrics["ece"] = expected_calibration_error(y_true, y_probs, n_bins=settings.evaluation.ece_bins)
+    metrics.update(classwise_ece(y_true, y_probs, n_bins=settings.evaluation.ece_bins))
     metrics["brier"] = brier_score(y_true, y_probs)
+    metrics["nll"] = negative_log_likelihood(y_true, y_probs)
     cal_slope, cal_intercept = calibration_slope_intercept(y_true, y_probs)
     metrics["calibration_slope"] = cal_slope
     metrics["calibration_intercept"] = cal_intercept

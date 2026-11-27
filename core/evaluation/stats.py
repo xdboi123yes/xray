@@ -116,10 +116,14 @@ def bootstrap_ci(
     n_iterations: int = 1000,
     alpha: float = 0.05,
     seed: int = 42,
+    patient_ids: np.ndarray[Any, Any] | list[str] | None = None,
 ) -> dict[str, Any]:
     """Computes bootstrap confidence intervals for classification metrics.
 
-    If y_probs2 is provided, also computes confidence interval for the difference
+    When ``patient_ids`` is supplied, performs patient-clustered bootstrap resampling
+    by sampling unique patients with replacement and including all radiographs of each
+    sampled patient (preventing optimistic CIs when patients have multiple exams).
+    If ``y_probs2`` is provided, also computes the paired difference CI
     (delta = model2 - model1) and includes the analytic DeLong p-value for AUC.
 
     Args:
@@ -130,11 +134,13 @@ def bootstrap_ci(
         n_iterations: Number of bootstrap resamples.
         alpha: Significance level (e.g. 0.05 for 95% CI).
         seed: Random seed for reproducibility.
+        patient_ids: Optional array of patient identifiers aligned with ``y_true`` for
+            patient-level clustered bootstrap resampling.
 
     Returns:
         A dictionary containing empirical estimates, confidence intervals, delta, and p-value if applicable.
     """
-    np.random.seed(seed)
+    rng = np.random.default_rng(seed)
     y_true = np.asarray(y_true)
     y_probs1 = np.asarray(y_probs1)
     n_samples = len(y_true)
@@ -155,8 +161,22 @@ def bootstrap_ci(
         val2_base = None
         delta_base = None
 
+    # Pre-group sample indices by patient ID when patient-clustered resampling is requested
+    patient_groups: list[np.ndarray[Any, Any]] | None = None
+    if patient_ids is not None:
+        pids_arr = np.asarray(patient_ids)
+        if len(pids_arr) != n_samples:
+            raise ValueError("patient_ids must have the same length as y_true.")
+        _, inverse = np.unique(pids_arr, return_inverse=True)
+        n_patients = int(inverse.max()) + 1 if n_samples > 0 else 0
+        patient_groups = [np.flatnonzero(inverse == idx) for idx in range(n_patients)]
+
     for _ in range(n_iterations):
-        indices = np.random.choice(n_samples, size=n_samples, replace=True)
+        if patient_groups is not None:
+            sampled_patients = rng.integers(0, len(patient_groups), size=len(patient_groups))
+            indices = np.concatenate([patient_groups[p] for p in sampled_patients])
+        else:
+            indices = rng.integers(0, n_samples, size=n_samples)
         boot_true = y_true[indices]
         boot_probs1 = y_probs1[indices]
 
@@ -189,6 +209,7 @@ def bootstrap_ci(
     results: dict[str, Any] = {
         "model1_metric": val1_base,
         "model1_ci": ci1,
+        "resampling_unit": "patient" if patient_groups is not None else "image",
     }
 
     if has_two:
@@ -226,6 +247,34 @@ def bootstrap_ci(
                 results["p_value_delong"] = float("nan")
 
     return results
+
+
+def holm_bonferroni(p_values: list[float]) -> list[float]:
+    """Adjust raw p-values using the Holm-Bonferroni step-down procedure."""
+    m = len(p_values)
+    if m == 0:
+        return []
+    indexed = sorted(enumerate(p_values), key=lambda kv: (float("inf") if np.isnan(kv[1]) else kv[1]))
+    adjusted = [float("nan")] * m
+    running_max = 0.0
+    valid_count = sum(1 for _, p in indexed if not np.isnan(p))
+    rank = 0
+    for orig_idx, p in indexed:
+        if np.isnan(p):
+            adjusted[orig_idx] = float("nan")
+            continue
+        adj = min(1.0, p * (valid_count - rank))
+        running_max = max(running_max, adj)
+        adjusted[orig_idx] = running_max
+        rank += 1
+    return adjusted
+
+
+def cohens_h(p1: float, p2: float) -> float:
+    """Compute Cohen's h effect size for two proportions (model2 vs model1)."""
+    c1 = float(np.clip(p1, 0.0, 1.0))
+    c2 = float(np.clip(p2, 0.0, 1.0))
+    return float(2.0 * np.arcsin(np.sqrt(c2)) - 2.0 * np.arcsin(np.sqrt(c1)))
 
 
 def mcnemar_test(

@@ -29,7 +29,7 @@ augmentation:
 
 evaluation:
   conformal_coverage: 0.95
-  ece_bins: 10
+  ece_bins: 15
   calibration_temperature: 1.0
 
 paths:

@@ -76,12 +76,12 @@ class TieredSystem(nn.Module):  # type: ignore[misc]
 
             mean_conf = sum(self.recent_confidences) / self.window_size
 
-            # Adaptive shift logic
+            # Deadband rate-stabilization controller bounded to [0.50, 0.95]
             if mean_conf < 0.65:
-                # Lower threshold to escalate more ambiguous cases to Tier 2
+                # Hard stream: lower threshold toward 0.50 to prevent Tier-2 saturation
                 self.current_threshold = max(0.5, self.current_threshold - self.threshold_delta)
             elif mean_conf > 0.85:
-                # Raise threshold to optimize execution speed for high-confidence runs
+                # Easy stream: raise threshold toward 0.95 to preserve conservative escalation
                 self.current_threshold = min(0.95, self.current_threshold + self.threshold_delta)
 
     def route(

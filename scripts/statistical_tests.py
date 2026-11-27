@@ -28,7 +28,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.evaluation.stats import (
     bootstrap_ci,
+    cohens_h,
     delong_test,
+    holm_bonferroni,
     mcnemar_test,
     permutation_test,
 )
@@ -45,11 +47,12 @@ def generate_tiered_simulation(n_samples: int = 500) -> dict[str, np.ndarray]:
         n_samples: Number of evaluation samples.
 
     Returns:
-        A dictionary containing y_true, t1_mobilenet, t2_effnet, t2_arkplus, and
-        tiered_system predictions.
+        A dictionary containing y_true, patient_ids, t1_mobilenet, t2_effnet,
+        t2_arkplus, and tiered_system predictions.
     """
     np.random.seed(42)
     y_true = (np.random.rand(n_samples) < 0.35).astype(int)
+    patient_ids = np.array([f"{i // 2:08d}" for i in range(n_samples)])
 
     # Tier 1 (MobileNetV2): moderate performance, higher noise
     t1 = y_true * 0.42 + (1 - y_true) * 0.32 + np.random.normal(0, 0.26, n_samples)
@@ -68,11 +71,17 @@ def generate_tiered_simulation(n_samples: int = 500) -> dict[str, np.ndarray]:
 
     return {
         "y_true": y_true,
+        "patient_ids": patient_ids,
         "t1_mobilenet": t1,
         "t2_effnet": t2_eff,
         "t2_arkplus": t2_ark,
         "tiered_system": tiered,
     }
+
+
+def _extract_patient_ids(image_ids: pd.Series) -> np.ndarray:
+    """Derive 8-digit NIH patient identifiers from image filenames."""
+    return image_ids.astype(str).str.split("/").str[-1].str.split("_").str[0].to_numpy()
 
 
 def load_real_predictions(
@@ -90,9 +99,8 @@ def load_real_predictions(
         eff_csv: Path to the EfficientNet per-image predictions CSV (optional).
 
     Returns:
-        Dict with y_true, t1_mobilenet, t2_arkplus, tiered_system arrays, plus a
-        nested ``cmp_eff_ark`` dict (y_true/eff/ark) when the EfficientNet CSV
-        is present and shares images with the Ark+ export.
+        Dict with y_true, patient_ids, t1_mobilenet, t2_arkplus, tiered_system arrays,
+        plus a nested ``cmp_eff_ark`` dict when the EfficientNet CSV is present.
 
     Raises:
         FileNotFoundError: If the Ark+ predictions CSV does not exist.
@@ -103,6 +111,9 @@ def load_real_predictions(
     ark = pd.read_csv(ark_csv)
     data: dict[str, np.ndarray | dict[str, np.ndarray]] = {
         "y_true": ark["y_true"].to_numpy().astype(int),
+        "patient_ids": _extract_patient_ids(ark["image_id"])
+        if "image_id" in ark.columns
+        else np.arange(len(ark)).astype(str),
         "t1_mobilenet": ark["tier1_prob"].to_numpy(dtype=float),
         "t2_arkplus": ark["tier2_prob"].to_numpy(dtype=float),
         "tiered_system": ark["tiered_prob"].to_numpy(dtype=float),
@@ -117,6 +128,7 @@ def load_real_predictions(
         if len(merged) > 0:
             data["cmp_eff_ark"] = {
                 "y_true": merged["y_true"].to_numpy().astype(int),
+                "patient_ids": _extract_patient_ids(merged["image_id"]),
                 "eff": merged["eff"].to_numpy(dtype=float),
                 "ark": merged["ark"].to_numpy(dtype=float),
             }
@@ -134,17 +146,24 @@ def run_comparison(
     y_probs2: np.ndarray,
     model1_name: str,
     model2_name: str,
-    n_iterations: int = 1000,
+    n_iterations: int = 2000,
     seed: int = 42,
+    patient_ids: np.ndarray | None = None,
 ) -> dict:
-    """Runs a complete suite of comparative statistical tests between two models."""
+    """Runs a complete suite of comparative statistical tests between two models.
+
+    Uses patient-clustered bootstrap resampling when ``patient_ids`` is supplied,
+    computes primary raw p-values (DeLong for AUC, McNemar for accuracy, patient-clustered
+    bootstrap for sensitivity/specificity/F1), applies Holm-Bonferroni correction across
+    the five compared metrics, and reports Cohen's h effect sizes for proportion metrics.
+    """
     print(f"\nComparing {model1_name} vs {model2_name}...")
 
     y_true = np.asarray(y_true)
     y_probs1 = np.asarray(y_probs1, dtype=float)
     y_probs2 = np.asarray(y_probs2, dtype=float)
 
-    # 1. Bootstrap CI for key metrics
+    # 1. Patient-clustered bootstrap CI for key metrics
     metrics = ["auc", "accuracy", "sensitivity", "specificity", "f1"]
     bootstrap_results = {}
     for metric in metrics:
@@ -155,10 +174,10 @@ def run_comparison(
             metric=metric,
             n_iterations=n_iterations,
             seed=seed,
+            patient_ids=patient_ids,
         )
 
     # 2. DeLong test for the AUC difference (correlated ROC curves).
-    # delong_test returns the two-tailed p-value as a float.
     delong_p = delong_test(y_true, y_probs1, y_probs2)
 
     # 3. McNemar's Test for accuracy difference
@@ -182,67 +201,103 @@ def run_comparison(
         seed=seed,
     )
 
+    # 5. Primary p-values + Holm-Bonferroni multiplicity correction + effect sizes
+    primary_p_raw: list[float] = []
+    primary_test_names: list[str] = []
+    effect_sizes: dict[str, float] = {}
+    for metric in metrics:
+        res = bootstrap_results[metric]
+        if metric == "auc":
+            primary_p_raw.append(delong_p)
+            primary_test_names.append("DeLong")
+            effect_sizes[metric] = float(res["delta"])
+        elif metric == "accuracy":
+            primary_p_raw.append(float(mcnemar["p_value"]))
+            primary_test_names.append("McNemar")
+            effect_sizes[metric] = cohens_h(res["model1_metric"], res["model2_metric"])
+        else:
+            primary_p_raw.append(float(res["p_value_bootstrap"]))
+            primary_test_names.append("Patient-Bootstrap" if patient_ids is not None else "Bootstrap")
+            effect_sizes[metric] = cohens_h(res["model1_metric"], res["model2_metric"])
+
+    primary_p_holm = holm_bonferroni(primary_p_raw)
+    holm_by_metric = dict(zip(metrics, primary_p_holm, strict=False))
+    raw_by_metric = dict(zip(metrics, primary_p_raw, strict=False))
+    test_by_metric = dict(zip(metrics, primary_test_names, strict=False))
+
     # Display clean textual results
-    print("-" * 70)
-    print(f"{'Metric':<15} | {model1_name:<20} | {model2_name:<20} | {'Delta':<10}")
-    print("-" * 70)
+    unit = "patient-clustered" if patient_ids is not None else "image-level"
+    print(f"Resampling unit: {unit} ({n_iterations} iterations)")
+    print("-" * 92)
+    print(
+        f"{'Metric':<12} | {model1_name:<21} | {model2_name:<21} | "
+        f"{'Delta (95% CI)':<22} | {'p_raw / p_holm'}"
+    )
+    print("-" * 92)
     for metric in metrics:
         res = bootstrap_results[metric]
         print(
-            f"{metric.upper():<15} | "
-            f"{res['model1_metric']:.4f} ({res['model1_ci'][0]:.3f}-{res['model1_ci'][1]:.3f}) | "
-            f"{res['model2_metric']:.4f} ({res['model2_ci'][0]:.3f}-{res['model2_ci'][1]:.3f}) | "
-            f"{res['delta']:.4f} ({res['delta_ci'][0]:.3f}-{res['delta_ci'][1]:.3f})"
+            f"{metric.upper():<12} | "
+            f"{res['model1_metric']:.3f} ({res['model1_ci'][0]:.3f}-{res['model1_ci'][1]:.3f}) | "
+            f"{res['model2_metric']:.3f} ({res['model2_ci'][0]:.3f}-{res['model2_ci'][1]:.3f}) | "
+            f"{res['delta']:+.3f} ({res['delta_ci'][0]:+.3f},{res['delta_ci'][1]:+.3f}) | "
+            f"{raw_by_metric[metric]:.4f} / {holm_by_metric[metric]:.4f} ({test_by_metric[metric]})"
         )
-    print("-" * 70)
+    print("-" * 92)
     print(f"DeLong AUC p-value:                {delong_p:.6f}")
     print(f"Bootstrap AUC difference p-value:  {bootstrap_results['auc']['p_value_bootstrap']:.6f}")
     print(f"Permutation AUC difference p-value:{perm_auc['p_value']:.6f}")
     print(f"Permutation F1 difference p-value: {perm_f1['p_value']:.6f}")
     print(f"McNemar paired accuracy p-value:   {mcnemar['p_value']:.6f}")
-    print("Contingency Table (Matched-Pairs Correctness):")
-    print(
-        f"  Both Correct: {mcnemar['contingency_table']['a']} | "
-        f"Only {model1_name} Correct: {mcnemar['contingency_table']['b']}"
-    )
-    print(
-        f"  Only {model2_name} Correct: {mcnemar['contingency_table']['c']} | "
-        f"Both Incorrect: {mcnemar['contingency_table']['d']}"
-    )
-    print("=" * 70)
+    print("=" * 92)
 
-    # Compile result package
     return {
         "model1_name": model1_name,
         "model2_name": model2_name,
+        "resampling_unit": unit,
         "bootstrap": bootstrap_results,
         "delong_p": delong_p,
         "mcnemar": mcnemar,
         "permutation_auc": perm_auc,
         "permutation_f1": perm_f1,
+        "primary_p_raw": raw_by_metric,
+        "primary_p_holm": holm_by_metric,
+        "primary_test": test_by_metric,
+        "effect_sizes": effect_sizes,
     }
 
 
 def _build_comparisons(data: dict, n_iterations: int, seed: int) -> list[dict]:
     """Construct the comparison list defensively from whatever real data exists."""
     comparisons: list[dict] = []
+    pids = data.get("patient_ids")
 
-    # EfficientNet vs Ark+ (paired, real subset) or simulated arrays.
+    # 1. EfficientNet-B4 vs Ark+ Swin (paired Tier-2 comparison)
     if isinstance(data.get("cmp_eff_ark"), dict):
         c = data["cmp_eff_ark"]
         comparisons.append(
             run_comparison(
-                c["y_true"], c["eff"], c["ark"],
-                "EfficientNetB4", "Ark+ Swin",
-                n_iterations=n_iterations, seed=seed,
+                c["y_true"],
+                c["eff"],
+                c["ark"],
+                "EfficientNetB4",
+                "Ark+ Swin",
+                n_iterations=n_iterations,
+                seed=seed,
+                patient_ids=c.get("patient_ids"),
             )
         )
     elif "t2_effnet" in data:
         comparisons.append(
             run_comparison(
-                data["y_true"], data["t2_effnet"], data["t2_arkplus"],
-                "EfficientNetB4", "Ark+ Swin",
-                n_iterations=n_iterations, seed=seed,
+                data["y_true"],
+                data["t2_effnet"],
+                data["t2_arkplus"],
+                "EfficientNetB4",
+                "Ark+ Swin",
+                n_iterations=n_iterations,
+                seed=seed,
+                patient_ids=pids,
             )
         )
     else:
@@ -252,19 +307,31 @@ def _build_comparisons(data: dict, n_iterations: int, seed: int) -> list[dict]:
             "skipping the EfficientNet-vs-Ark+ comparison."
         )
 
+    # 2. Direct baseline comparison: Tier 1 MobileNetV2 (A1) vs Tiered System (A13/A15)
     y_true = data["y_true"]
     comparisons.append(
         run_comparison(
-            y_true, data["t1_mobilenet"], data["tiered_system"],
-            "MobileNetV2 (T1)", "Tiered System",
-            n_iterations=n_iterations, seed=seed,
+            y_true,
+            data["t1_mobilenet"],
+            data["tiered_system"],
+            "MobileNetV2 (T1)",
+            "Tiered System",
+            n_iterations=n_iterations,
+            seed=seed,
+            patient_ids=pids,
         )
     )
+    # 3. Standalone Tier 2 Ark+ vs Tiered System
     comparisons.append(
         run_comparison(
-            y_true, data["t2_arkplus"], data["tiered_system"],
-            "Ark+ Swin (T2)", "Tiered System",
-            n_iterations=n_iterations, seed=seed,
+            y_true,
+            data["t2_arkplus"],
+            data["tiered_system"],
+            "Ark+ Swin (T2)",
+            "Tiered System",
+            n_iterations=n_iterations,
+            seed=seed,
+            patient_ids=pids,
         )
     )
     return comparisons
@@ -281,6 +348,7 @@ def _write_csv(comparisons: list[dict], csv_path: str) -> None:
             rows.append(
                 {
                     "Comparison": f"{m1} vs {m2}",
+                    "Resampling_Unit": comp["resampling_unit"],
                     "Metric": metric.upper(),
                     "Model1_Score": boot["model1_metric"],
                     "Model1_CI_Lower": boot["model1_ci"][0],
@@ -291,6 +359,10 @@ def _write_csv(comparisons: list[dict], csv_path: str) -> None:
                     "Delta": boot["delta"],
                     "Delta_CI_Lower": boot["delta_ci"][0],
                     "Delta_CI_Upper": boot["delta_ci"][1],
+                    "Effect_Size": comp["effect_sizes"][metric],
+                    "Primary_Test": comp["primary_test"][metric],
+                    "p_value_raw": comp["primary_p_raw"][metric],
+                    "p_value_holm": comp["primary_p_holm"][metric],
                     "p_value_bootstrap": boot["p_value_bootstrap"],
                     "p_value_delong": comp["delong_p"] if metric == "auc" else float("nan"),
                     "p_value_mcnemar": comp["mcnemar"]["p_value"]
@@ -298,7 +370,7 @@ def _write_csv(comparisons: list[dict], csv_path: str) -> None:
                     else float("nan"),
                     "p_value_permutation": comp["permutation_auc"]["p_value"]
                     if metric == "auc"
-                    else float("nan"),
+                    else (comp["permutation_f1"]["p_value"] if metric == "f1" else float("nan")),
                 }
             )
     pd.DataFrame(rows).to_csv(csv_path, index=False)
@@ -306,17 +378,24 @@ def _write_csv(comparisons: list[dict], csv_path: str) -> None:
 
 
 def _write_latex(comparisons: list[dict], latex_path: str) -> None:
-    """Write a thesis-ready LaTeX comparison table from real results."""
+    """Write a publication-ready LaTeX comparison table with 95% CIs, Holm p-values, and effect sizes."""
+
+    def _fmt_p(val: float) -> str:
+        return "$<$0.001" if val < 0.001 else f"{val:.3f}"
 
     def latex_row(comp: dict, key: str, label: str) -> str:
         boot = comp["bootstrap"][key]
-        p_str = f"{comp['delong_p']:.4f}" if key == "auc" else "N/A"
+        p_raw = _fmt_p(comp["primary_p_raw"][key])
+        p_holm = _fmt_p(comp["primary_p_holm"][key])
+        test_name = comp["primary_test"][key]
+        es = comp["effect_sizes"][key]
         return (
             f"{label} & "
-            f"{boot['model1_metric']:.3f} ({boot['model1_ci'][0]:.3f}, {boot['model1_ci'][1]:.3f}) & "
-            f"{boot['model2_metric']:.3f} ({boot['model2_ci'][0]:.3f}, {boot['model2_ci'][1]:.3f}) & "
-            f"{boot['delta']:.3f} ({boot['delta_ci'][0]:.3f}, {boot['delta_ci'][1]:.3f}) & "
-            f"{p_str} \\\\"
+            f"{boot['model1_metric']:.3f} ({boot['model1_ci'][0]:.3f}--{boot['model1_ci'][1]:.3f}) & "
+            f"{boot['model2_metric']:.3f} ({boot['model2_ci'][0]:.3f}--{boot['model2_ci'][1]:.3f}) & "
+            f"{boot['delta']:+.3f} ({boot['delta_ci'][0]:+.3f}, {boot['delta_ci'][1]:+.3f}) & "
+            f"{es:+.3f} & "
+            f"{p_raw} / {p_holm} ({test_name}) \\\\"
         )
 
     metric_labels = [
@@ -324,32 +403,36 @@ def _write_latex(comparisons: list[dict], latex_path: str) -> None:
         ("accuracy", "Accuracy"),
         ("sensitivity", "Sensitivity"),
         ("specificity", "Specificity"),
-        ("f1", "F1-Score"),
+        ("f1", "$F_1$-Score"),
     ]
     sections = []
     for comp in comparisons:
         header = (
-            f"\\multicolumn{{5}}{{l}}{{\\textbf{{{comp['model1_name']} vs "
-            f"{comp['model2_name']}}}}} \\\\"
+            f"\\multicolumn{{6}}{{l}}{{\\textbf{{{comp['model1_name']} vs. "
+            f"{comp['model2_name']}}} ({comp['resampling_unit']} bootstrap)}} \\\\"
         )
         body = "\n".join(latex_row(comp, k, lbl) for k, lbl in metric_labels)
-        sections.append(header + "\n" + body + " \\\\ \\hline")
+        sections.append(header + "\n" + body + "\n\\midrule")
     body_tex = "\n".join(sections)
 
     latex_table = (
-        "\\begin{table}[h!]\n"
+        "\\begin{table}[H]\n"
         "\\centering\n"
-        "\\caption{Statistical Comparison of Diagnosis Classifiers and Tiered "
-        "Architectures (Bootstrap 95\\% CI and DeLong test on real test-set predictions)}\n"
+        "\\caption{Paired statistical comparison with patient-clustered 95\\% bootstrap confidence "
+        "intervals, effect sizes ($\\Delta$ for AUC; Cohen's $h$ for proportions), and raw / "
+        "Holm--Bonferroni adjusted $p$-values.}\n"
         "\\label{tab:statistical_comparison_detailed}\n"
-        "\\begin{tabular}{lcccc}\n"
-        "\\hline\n"
-        "\\textbf{Metric} & \\textbf{Model 1} & \\textbf{Model 2} & "
-        "\\textbf{Difference (Model 2 - 1)} & \\textbf{DeLong p-value} \\\\ \\hline\n"
+        "\\begin{tabular}{@{}lccccr@{}}\n"
+        "\\toprule\n"
+        "\\textbf{Metric} & \\textbf{Model 1 (95\\% CI)} & \\textbf{Model 2 (95\\% CI)} & "
+        "\\textbf{$\\Delta$ (95\\% CI)} & \\textbf{Effect} & \\textbf{$p_{\\text{raw}} / p_{\\text{Holm}}$ (Test)} \\\\\n"
+        "\\midrule\n"
         f"{body_tex}\n"
+        "\\bottomrule\n"
         "\\end{tabular}\n"
         "\\end{table}\n"
     )
+    os.makedirs(os.path.dirname(latex_path) if os.path.dirname(latex_path) else ".", exist_ok=True)
     with open(latex_path, "w") as f:
         f.write(latex_table)
     print(f"Saved LaTeX thesis table to: {latex_path}")

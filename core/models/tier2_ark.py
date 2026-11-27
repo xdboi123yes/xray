@@ -145,8 +145,17 @@ class Tier2ArkPlus(BaseClassifier):
         confidences, predictions = torch.max(probs, dim=1)
         return confidences, predictions
 
+    def _enable_dropout_only(self) -> None:
+        """Keep normalization layers in eval mode while enabling Dropout layers for MC sampling."""
+        self.eval()
+        for module in self.modules():
+            if isinstance(module, (nn.Dropout, nn.Dropout2d, nn.Dropout3d)):
+                module.train()
+
     def mc_forward(self, x: torch.Tensor, T: int = 20) -> tuple[torch.Tensor, torch.Tensor]:
         """Perform T forward passes with active dropout to estimate epistemic uncertainty.
+
+        Keeps normalization layers in evaluation mode so running statistics remain fixed.
 
         Args:
             x: Input image tensor.
@@ -156,7 +165,7 @@ class Tier2ArkPlus(BaseClassifier):
             A tuple of (mean_probabilities, variances) tensors.
         """
         was_training = self.training
-        self.train()
+        self._enable_dropout_only()
 
         outputs = []
         with torch.no_grad():
@@ -167,9 +176,11 @@ class Tier2ArkPlus(BaseClassifier):
 
         outputs_tensor = torch.cat(outputs, dim=0)
         mean_probs = outputs_tensor.mean(dim=0)
-        variance = outputs_tensor.var(dim=0)
+        variance = outputs_tensor.var(dim=0, unbiased=False)
 
-        if not was_training:
+        if was_training:
+            self.train()
+        else:
             self.eval()
 
         return mean_probs, variance
@@ -212,10 +223,14 @@ class Tier2ArkPlus(BaseClassifier):
 
         return mean_probs
 
-    def mc_tta_forward(
+    def mc_tta_forward_decomposed(
         self, x: torch.Tensor, T: int = 20, n_augments: int = 10
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Combine Monte Carlo Dropout and Test-Time Augmentation.
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Combine MC Dropout and TTA with Law-of-Total-Variance decomposition.
+
+        For K=n_augments test-time views and T stochastic dropout passes per view:
+            Var_total(p) = E_k[Var_t(p | a_k)] + Var_k[E_t(p | a_k)]
+                         = epistemic_var        + aleatoric_tta_var
 
         Args:
             x: Input image tensor.
@@ -223,7 +238,7 @@ class Tier2ArkPlus(BaseClassifier):
             n_augments: Number of augmented variations.
 
         Returns:
-            A tuple of (mean_probabilities, variances) tensors.
+            Tuple of (mean_probs, total_var, epistemic_var, aleatoric_tta_var).
         """
         import torchvision.transforms as t_aug
 
@@ -235,22 +250,49 @@ class Tier2ArkPlus(BaseClassifier):
         )
 
         was_training = self.training
-        self.train()
+        self._enable_dropout_only()
 
-        outputs = []
+        view_outputs: list[torch.Tensor] = []
         with torch.no_grad():
             for i in range(n_augments):
                 curr_x = x if i == 0 else tta_transforms(x)
+                mc_runs = []
                 for _ in range(T):
                     logits = self.forward(curr_x)
                     probs = torch.softmax(logits, dim=1)
-                    outputs.append(probs.unsqueeze(0))
+                    mc_runs.append(probs.unsqueeze(0))
+                view_outputs.append(torch.cat(mc_runs, dim=0).unsqueeze(0))
 
-        outputs_tensor = torch.cat(outputs, dim=0)
-        mean_probs = outputs_tensor.mean(dim=0)
-        variance = outputs_tensor.var(dim=0)
+        all_probs = torch.cat(view_outputs, dim=0)  # [K, T, B, C]
+        per_view_mean = all_probs.mean(dim=1)  # [K, B, C]
+        per_view_var = all_probs.var(dim=1, unbiased=False)  # [K, B, C]
 
-        if not was_training:
+        mean_probs = per_view_mean.mean(dim=0)
+        epistemic_var = per_view_var.mean(dim=0)
+        aleatoric_tta_var = per_view_mean.var(dim=0, unbiased=False)
+        total_var = epistemic_var + aleatoric_tta_var
+
+        if was_training:
+            self.train()
+        else:
             self.eval()
 
-        return mean_probs, variance
+        return mean_probs, total_var, epistemic_var, aleatoric_tta_var
+
+    def mc_tta_forward(
+        self, x: torch.Tensor, T: int = 20, n_augments: int = 10
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Combine Monte Carlo Dropout and Test-Time Augmentation.
+
+        Args:
+            x: Input image tensor.
+            T: Number of stochastic dropout runs per augmented image.
+            n_augments: Number of augmented variations.
+
+        Returns:
+            A tuple of (mean_probabilities, total_variances) tensors.
+        """
+        mean_probs, total_var, _, _ = self.mc_tta_forward_decomposed(
+            x, T=T, n_augments=n_augments
+        )
+        return mean_probs, total_var
