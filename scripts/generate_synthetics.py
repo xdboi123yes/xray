@@ -73,7 +73,7 @@ def build_parser(settings: Settings | None = None) -> argparse.ArgumentParser:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=50,
+        default=200,
         help="Number of real training pneumothorax seeds per FID-evaluated batch.",
     )
     parser.add_argument(
@@ -97,7 +97,7 @@ def build_parser(settings: Settings | None = None) -> argparse.ArgumentParser:
     parser.add_argument(
         "--strength",
         type=float,
-        default=0.3,
+        default=0.15,
         help="Stable Diffusion img2img denoising strength.",
     )
     parser.add_argument(

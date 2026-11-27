@@ -124,11 +124,11 @@ class SyntheticGenerationConfig:
     real_images_dir: str
     output_dir: str = "data/synthetic"
     seed_scope: Literal["all", "isolated"] = "all"
-    batch_size: int = 50
+    batch_size: int = 200
     num_variations: int = 3
     seed: int = 42
     fid_threshold: float | None = None
-    strength: float = 0.3
+    strength: float = 0.15
     max_seeds: int | None = None
     fid_reference_count: int | None = None
     resume: bool = True
@@ -339,7 +339,6 @@ class DiffusersGeneratorAdapter:
             prompt = f"{prompt}, located in the {location} chest cavity"
 
         init_img = Image.open(init_image_path).convert("RGB").resize((512, 512))
-        image_size = self.settings.data.image_size
         base_seed = self.settings.training.seed if seed is None else int(seed)
 
         pipe = self._load_pipeline()
@@ -359,7 +358,9 @@ class DiffusersGeneratorAdapter:
                 generator=generators,
             ).images
 
-        return [out.resize((image_size, image_size)) for out in outputs]
+        # Preserve native 512x512 resolution in grayscale-consistent RGB so FID
+        # evaluation is free of 224px downscale distortion and color-channel tint.
+        return [out.convert("L").convert("RGB") for out in outputs]
 
 
 class PyTorchFIDAdapter:
