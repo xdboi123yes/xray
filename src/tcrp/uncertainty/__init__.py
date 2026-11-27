@@ -17,9 +17,10 @@ from tcrp.uncertainty.calibration import (
     compute_ece,
     plot_reliability_diagram,
 )
-from tcrp.uncertainty.conformal import ConformalPredictor
+from tcrp.uncertainty.conformal import ConformalEvaluationReport, ConformalPredictor
 
 __all__ = [
+    "ConformalEvaluationReport",
     "ConformalPredictor",
     "ModelWithTemperature",
     "TestTimeAugmenter",

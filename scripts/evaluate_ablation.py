@@ -346,16 +346,7 @@ def calibrate_conformal(
         f"{CALIBRATION_CSV} (temperature={temperature:.3f} from val split)..."
     )
 
-    class _ScaledModel(torch.nn.Module):
-        def __init__(self, inner: torch.nn.Module, temp: float) -> None:
-            super().__init__()
-            self.inner = inner
-            self.temp = max(temp, 1e-6)
-
-        def forward(self, x: torch.Tensor) -> torch.Tensor:
-            return self.inner(x) / self.temp
-
-    cp.calibrate(_ScaledModel(tier2, temperature).to(device), cal_loader, device)
+    cp.calibrate(tier2, cal_loader, device, temperature=temperature)
     return cp
 
 
@@ -442,13 +433,8 @@ def evaluate_tiered(
 
     # Pass 2: Tier 2 deep model (MC + TTA) on the escalated subset only.
     final_prob1 = list(t1_prob1)
-    conformal_hits = 0
-    conformal_hits_c0 = 0
-    conformal_n_c0 = 0
-    conformal_hits_c1 = 0
-    conformal_n_c1 = 0
-    conformal_empty_fallbacks = 0
-    conformal_set_sizes: list[int] = []
+    conformal_probs: list[list[float]] = []
+    conformal_labels: list[int] = []
     epistemic_vars: list[float] = []
     tta_vars: list[float] = []
     flagged_count = 0
@@ -473,23 +459,9 @@ def evaluate_tiered(
                 pred_var = float(total_var[b, pred_cls])
                 pred_set: list[str] | None = None
                 if cp is not None and cp.q_hat is not None:
-                    raw_threshold = 1.0 - cp.q_hat
-                    if float(mean_probs[b].max().item()) < raw_threshold:
-                        conformal_empty_fallbacks += 1
+                    conformal_probs.append([float(mean_probs[b, 0]), float(mean_probs[b, 1])])
+                    conformal_labels.append(y_true[global_idx])
                     pred_set = cp.predict_set(mean_probs[b : b + 1])
-                    conformal_set_sizes.append(len(pred_set))
-                    true_lbl = y_true[global_idx]
-                    hit = CLASSES[true_lbl] in pred_set
-                    if hit:
-                        conformal_hits += 1
-                    if true_lbl == 0:
-                        conformal_n_c0 += 1
-                        if hit:
-                            conformal_hits_c0 += 1
-                    else:
-                        conformal_n_c1 += 1
-                        if hit:
-                            conformal_hits_c1 += 1
                 if (pred_var > 0.1) or (pred_set is not None and len(pred_set) > 1):
                     flagged_count += 1
 
@@ -506,20 +478,18 @@ def evaluate_tiered(
     if epistemic_vars:
         extra["mean_epistemic_var"] = float(sum(epistemic_vars) / len(epistemic_vars))
         extra["mean_tta_var"] = float(sum(tta_vars) / len(tta_vars))
-    if conformal_set_sizes:
-        n_cp = len(conformal_set_sizes)
-        extra["conformal_q_hat"] = cp.q_hat if cp is not None else None
-        extra["conformal_empirical_coverage"] = conformal_hits / n_cp
-        extra["conformal_avg_set_size"] = sum(conformal_set_sizes) / n_cp
-        extra["conformal_singleton_rate"] = sum(1 for s in conformal_set_sizes if s == 1) / n_cp
-        extra["conformal_two_class_rate"] = sum(1 for s in conformal_set_sizes if s == 2) / n_cp
-        extra["conformal_empty_fallback_rate"] = conformal_empty_fallbacks / n_cp
-        extra["conformal_coverage_class0"] = (
-            conformal_hits_c0 / conformal_n_c0 if conformal_n_c0 else float("nan")
+    if cp is not None and cp.q_hat is not None and conformal_probs:
+        cp_report = cp.evaluate_predictions(
+            conformal_probs, conformal_labels, split_name=f"{spec.ablation_id}_test"
         )
-        extra["conformal_coverage_class1"] = (
-            conformal_hits_c1 / conformal_n_c1 if conformal_n_c1 else float("nan")
-        )
+        extra["conformal_q_hat"] = cp_report.q_hat
+        extra["conformal_empirical_coverage"] = cp_report.marginal_coverage
+        extra["conformal_avg_set_size"] = cp_report.avg_set_size
+        extra["conformal_singleton_rate"] = cp_report.singleton_rate
+        extra["conformal_two_class_rate"] = cp_report.two_class_abstention_rate
+        extra["conformal_empty_fallback_rate"] = cp_report.empty_fallback_rate
+        extra["conformal_coverage_class0"] = cp_report.coverage_class0
+        extra["conformal_coverage_class1"] = cp_report.coverage_class1
     return extra
 
 

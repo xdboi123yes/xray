@@ -121,7 +121,7 @@ def calibrate_temperature(
     )
     calibrator = ModelWithTemperature(model)
     calibrator.set_temperature(validation_loader, active_device)
-    return calibrator, float(calibrator.temperature.item())
+    return calibrator, float(calibrator.temperature.clamp(min=1e-3).item())
 
 
 def plot_reliability_diagram(

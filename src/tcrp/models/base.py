@@ -10,6 +10,7 @@ Augmentation, and Law-of-Total-Variance decomposition:
 
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 
 import torch
@@ -87,14 +88,27 @@ class BaseClassifier(nn.Module, ABC):  # type: ignore[misc]
         return mean_probs
 
     def mc_tta_forward_decomposed(
-        self, x: torch.Tensor, T: int = 20, n_augments: int = 10
+        self,
+        x: torch.Tensor,
+        T: int = 20,
+        n_augments: int = 10,
+        temperature: float = 1.0,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Combine MC Dropout and TTA with Law-of-Total-Variance Uncertainty Decomposition.
+
+        Args:
+            x: Input radiograph batch ``[batch_size, 3, H, W]``.
+            T: Number of stochastic Monte Carlo Dropout forward passes per view.
+            n_augments: Number of TTA views (view 0 is unperturbed).
+            temperature: Positive post-hoc temperature scalar ``T_cal`` fitted on the
+                Validation Split.
 
         Returns:
             ``(mean_probs, total_var, epistemic_var, aleatoric_tta_var)`` each shaped
             ``[batch_size, num_classes]``, satisfying ``total_var = epistemic_var + aleatoric_tta_var``.
         """
+        if isinstance(temperature, bool) or not math.isfinite(temperature) or temperature <= 0.0:
+            raise ValueError(f"temperature must be finite and strictly positive, got {temperature}.")
         tta_transforms = _build_tta_transforms()
         was_training = self.training
         self._enable_dropout_only()
@@ -103,9 +117,12 @@ class BaseClassifier(nn.Module, ABC):  # type: ignore[misc]
         with torch.no_grad():
             for i in range(n_augments):
                 curr_x = x if i == 0 else tta_transforms(x)
-                mc_runs = [
-                    torch.softmax(self.forward(curr_x), dim=1).unsqueeze(0) for _ in range(T)
-                ]
+                mc_runs = []
+                for _ in range(T):
+                    logits = self.forward(curr_x)
+                    if temperature != 1.0:
+                        logits = logits / float(temperature)
+                    mc_runs.append(torch.softmax(logits, dim=1).unsqueeze(0))
                 view_outputs.append(torch.cat(mc_runs, dim=0).unsqueeze(0))
 
         all_probs = torch.cat(view_outputs, dim=0)  # [K, T, B, C]
@@ -121,10 +138,14 @@ class BaseClassifier(nn.Module, ABC):  # type: ignore[misc]
         return mean_probs, total_var, epistemic_var, aleatoric_tta_var
 
     def mc_tta_forward(
-        self, x: torch.Tensor, T: int = 20, n_augments: int = 10
+        self,
+        x: torch.Tensor,
+        T: int = 20,
+        n_augments: int = 10,
+        temperature: float = 1.0,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Return ``(mean_probs, total_var)`` from combined MC Dropout + TTA."""
         mean_probs, total_var, _, _ = self.mc_tta_forward_decomposed(
-            x, T=T, n_augments=n_augments
+            x, T=T, n_augments=n_augments, temperature=temperature
         )
         return mean_probs, total_var

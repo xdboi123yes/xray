@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -16,6 +17,7 @@ from tcrp.data.augmentation import ClassicalAugmentation
 from tcrp.data.datasets import NIHChestXrayDataset
 from tcrp.evaluation.metrics import compute_all_metrics
 from tcrp.models import ModelFactory, TieredSystem
+from tcrp.uncertainty.calibration import calibrate_temperature
 from tcrp.uncertainty.conformal import ConformalPredictor
 
 
@@ -113,34 +115,104 @@ def main() -> None:
     tier1.eval()
     tier2.eval()
     
-    # Conformal Predictor
-    cp_path = 'outputs/results/q_hat.pt'
-    cp = ConformalPredictor(alpha=settings.evaluation.conformal_coverage) # coverage parameter maps to conformal_alpha or error toleration 1 - coverage
-    # For compatibility, let's map settings conformal_coverage
-    cp.alpha = 1.0 - settings.evaluation.conformal_coverage
+    # Post-hoc temperature scaling strictly on Validation Split BEFORE disjoint conformal q_hat
+    eval_transform = ClassicalAugmentation(
+        image_size=settings.data.image_size, is_training=False
+    ).pipeline
+    temperature = 1.0
+    temp_path = (
+        "outputs/results/temperature.pt"
+        if args.tier2_backbone == "efficientnet_b4"
+        else f"outputs/results/temperature_{args.tier2_backbone}.pt"
+    )
+    loaded_temp = False
+    if os.path.exists(temp_path):
+        try:
+            temp_state = torch.load(temp_path, map_location="cpu", weights_only=False)
+            if isinstance(temp_state, dict):
+                saved_backbone = temp_state.get("backbone")
+                raw_t = temp_state.get("temperature")
+                if (
+                    saved_backbone in (None, args.tier2_backbone)
+                    and not isinstance(raw_t, bool)
+                    and isinstance(raw_t, (int, float))
+                    and math.isfinite(float(raw_t))
+                    and float(raw_t) > 0.0
+                ):
+                    temperature = float(raw_t)
+                    loaded_temp = True
+                    print(f"Loaded Validation-Split temperature (T_cal={temperature:.4f})")
+        except Exception as exc:
+            print(f"Warning: could not load {temp_path} ({exc}); fitting on Validation Split.")
+
+    val_csv = "data/processed/val.csv"
+    if not loaded_temp and os.path.exists(val_csv):
+        print("Fitting post-hoc temperature scaling strictly on Validation Split (val.csv)...")
+        val_dataset = NIHChestXrayDataset(csv_file=val_csv, transform=eval_transform)
+        val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+        _, fitted_temp = calibrate_temperature(tier2, val_loader, device)
+        temperature = (
+            float(fitted_temp)
+            if (math.isfinite(float(fitted_temp)) and float(fitted_temp) > 0.05)
+            else 1.0
+        )
+        print(f"Fitted Validation-Split temperature (T_cal={temperature:.4f})")
+
+    # Conformal Predictor calibrated strictly on disjoint Calibration Split with temperature scaling.
+    # Scope per backbone so ark_plus runs never overwrite EfficientNet's outputs/results/q_hat.pt.
+    cp_path = (
+        "outputs/results/q_hat.pt"
+        if args.tier2_backbone == "efficientnet_b4"
+        else f"outputs/results/q_hat_{args.tier2_backbone}.pt"
+    )
+    cp = ConformalPredictor(alpha=1.0 - settings.evaluation.conformal_coverage)
 
     need_calibration = True
     if os.path.exists(cp_path):
         try:
-            cp.load(cp_path)
-            need_calibration = cp.q_hat is None
-            if not need_calibration:
-                print(f"Conformal calibration loaded (q_hat={cp.q_hat:.4f})")
+            probe = torch.load(cp_path, map_location="cpu", weights_only=False)
+            saved_backbone = probe.get("backbone") if isinstance(probe, dict) else None
+            if saved_backbone in (None, args.tier2_backbone):
+                cp.load(cp_path)
+                temp_matches = math.isclose(
+                    cp.temperature, temperature, rel_tol=1e-3, abs_tol=1e-4
+                )
+                need_calibration = cp.q_hat is None or not temp_matches
+                if not need_calibration:
+                    print(
+                        f"Conformal calibration loaded (q_hat={cp.q_hat:.4f}, "
+                        f"T_cal={cp.temperature:.4f})"
+                    )
+                elif cp.q_hat is not None:
+                    print(
+                        f"Loaded conformal temperature ({cp.temperature:.4f}) differs from active "
+                        f"Validation-Split T_cal ({temperature:.4f}); recalibrating."
+                    )
         except Exception as e:
             print(f"Warning: could not load conformal calibration {cp_path} ({e}); recalibrating.")
     if need_calibration:
         # Calibrate only on the dedicated patient-disjoint calibration split.
-        print("No usable conformal calibration found. Calibrating on calibration split...")
-        calibration_csv = 'data/processed/calibration.csv'
+        print(
+            "No matching conformal calibration found. Calibrating on disjoint Calibration Split "
+            f"with T_cal={temperature:.4f}..."
+        )
+        calibration_csv = "data/processed/calibration.csv"
         if os.path.exists(calibration_csv):
-            cal_dataset = NIHChestXrayDataset(
-                csv_file=calibration_csv,
-                transform=ClassicalAugmentation(image_size=settings.data.image_size, is_training=False).pipeline
-            )
+            cal_dataset = NIHChestXrayDataset(csv_file=calibration_csv, transform=eval_transform)
             cal_loader = DataLoader(cal_dataset, batch_size=32, shuffle=False)
-            cp.calibrate(tier2, cal_loader, device)
-            os.makedirs('outputs/results', exist_ok=True)
-            cp.save(cp_path)
+            cp.calibrate(tier2, cal_loader, device, temperature=temperature)
+            os.makedirs("outputs/results", exist_ok=True)
+            torch.save(
+                {
+                    "q_hat": float(cp.q_hat) if cp.q_hat is not None else None,
+                    "alpha": float(cp.alpha),
+                    "temperature": float(cp.temperature),
+                    "backbone": args.tier2_backbone,
+                    "temperature_split": "val",
+                    "conformal_split": "calibration",
+                },
+                cp_path,
+            )
             print(f"Conformal q_hat saved to {cp_path} (q_hat={cp.q_hat:.4f})")
 
     # Load threshold (robust against an empty / corrupt restored JSON file)
@@ -169,7 +241,9 @@ def main() -> None:
     }
         
     # Tiered System
-    tiered_system = TieredSystem(tier1, tier2, config_dict, conformal_predictor=cp)
+    tiered_system = TieredSystem(
+        tier1, tier2, config_dict, conformal_predictor=cp, temperature=temperature
+    )
     
     # Dataset
     image_size = settings.data.image_size
@@ -193,7 +267,10 @@ def main() -> None:
     
     y_true = []
     y_probs = []
+    conformal_probs: list[list[float]] = []
+    conformal_labels: list[int] = []
     tier2_count = 0
+    flagged_count = 0
     total_inference_time = 0.0
     
     for images, labels, image_ids in tqdm(test_loader, desc="Evaluating System"):
@@ -211,6 +288,11 @@ def main() -> None:
         
         if result.tier_used == 2:
             tier2_count += 1
+            if cp.q_hat is not None:
+                conformal_probs.append([1.0 - prob, prob])
+                conformal_labels.append(int(label))
+            if result.flagged_for_review:
+                flagged_count += 1
             
         total_inference_time += result.inference_time_ms
         
@@ -218,6 +300,21 @@ def main() -> None:
     
     percent_tier2 = (tier2_count / len(test_dataset)) * 100
     avg_inference_time = total_inference_time / len(test_dataset)
+    conformal_extra: dict[str, object] = {}
+    if cp.q_hat is not None and conformal_probs:
+        cp_report = cp.evaluate_predictions(
+            conformal_probs, conformal_labels, split_name=f"{args.run_name}_test"
+        )
+        conformal_extra = {
+            "conformal_q_hat": cp_report.q_hat,
+            "conformal_empirical_coverage": cp_report.marginal_coverage,
+            "conformal_avg_set_size": cp_report.avg_set_size,
+            "conformal_singleton_rate": cp_report.singleton_rate,
+            "conformal_two_class_rate": cp_report.two_class_abstention_rate,
+            "conformal_empty_fallback_rate": cp_report.empty_fallback_rate,
+            "conformal_coverage_class0": cp_report.coverage_class0,
+            "conformal_coverage_class1": cp_report.coverage_class1,
+        }
     
     print("\n--- Evaluation Results ---")
     print(f"Percent Tier 2: {percent_tier2:.2f}%")
@@ -228,7 +325,8 @@ def main() -> None:
     if mlflow_on:
         mlflow.log_params({
             "dynamic_threshold": args.dynamic_threshold,
-            "base_threshold": static_threshold
+            "base_threshold": static_threshold,
+            "temperature_val_fitted": temperature,
         })
         mlflow.log_metrics({
             "percent_tier2": percent_tier2,
@@ -248,8 +346,11 @@ def main() -> None:
                     'run_name': args.run_name,
                     'tier2_backbone': args.tier2_backbone,
                     'dynamic_threshold': bool(args.dynamic_threshold),
+                    'temperature_val_fitted': temperature,
                     'percent_tier2': percent_tier2,
+                    'flagged_for_review_rate': flagged_count / max(1, len(test_dataset)),
                     'avg_inference_time_ms': avg_inference_time,
+                    **conformal_extra,
                     'metrics': metrics,
                 },
                 rf,

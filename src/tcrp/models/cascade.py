@@ -9,6 +9,7 @@ and flags ambiguous or high-variance cases for Human Deferral.
 from __future__ import annotations
 
 import csv
+import math
 import os
 import time
 from dataclasses import dataclass
@@ -60,13 +61,17 @@ class TieredSystem(nn.Module):  # type: ignore[misc]
         conformal_predictor: Any = None,
         router: BaseRouter | None = None,
         variance_threshold: float = 0.1,
+        temperature: float = 1.0,
     ) -> None:
         super().__init__()
+        if isinstance(temperature, bool) or not math.isfinite(temperature) or temperature <= 0.0:
+            raise ValueError(f"temperature must be finite and strictly positive, got {temperature}.")
         self.tier1 = tier1_model
         self.tier2 = tier2_model
         self.config = config
         self.conformal_predictor = conformal_predictor
         self.variance_threshold = variance_threshold
+        self.temperature = float(temperature)
 
         model_cfg = config.get("model", {})
         self.router: BaseRouter = router or DynamicThresholdRouter(
@@ -119,7 +124,7 @@ class TieredSystem(nn.Module):  # type: ignore[misc]
                 tta_passes = int(model_cfg.get("tta_passes", 10))
 
                 t2_mean_probs, t2_variance = self.tier2.mc_tta_forward(
-                    x, T=mc_passes, n_augments=tta_passes
+                    x, T=mc_passes, n_augments=tta_passes, temperature=self.temperature
                 )
                 t2_conf_t, t2_pred_t = torch.max(t2_mean_probs, dim=1)
                 t2_conf_val = float(t2_conf_t.item())
