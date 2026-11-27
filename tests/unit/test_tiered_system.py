@@ -1,19 +1,16 @@
-"""Unit tests for the TieredSystem wrapper class.
-
-Verifies dynamic threshold updates and routing decisions for Tier 1 and Tier 2 models.
-"""
+"""Unit tests for TieredSystem cascade routing, Escalation, and Human Deferral."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
 import torch
-
-from core.models.tiered_system import TieredPrediction, TieredSystem
+from tcrp.models import TieredPrediction, TieredSystem
+from tcrp.routing import DynamicThresholdRouter
 
 
 def test_tiered_prediction_dataclass() -> None:
-    """Verifies that TieredPrediction sets correct default parameters."""
     pred = TieredPrediction(
         prediction="No Finding",
         confidence=0.92,
@@ -33,9 +30,6 @@ def test_tiered_prediction_dataclass() -> None:
 
 
 def test_tiered_system_initialization() -> None:
-    """Test that TieredSystem initializes configuration variables correctly."""
-    t1 = MagicMock()
-    t2 = MagicMock()
     config = {
         "model": {
             "confidence_threshold": 0.75,
@@ -45,17 +39,12 @@ def test_tiered_system_initialization() -> None:
             "tta_passes": 10,
         }
     }
-    system = TieredSystem(t1, t2, config)
+    system = TieredSystem(MagicMock(), MagicMock(), config)
     assert system.current_threshold == 0.75
-    assert system.window_size == 5
-    assert system.threshold_delta == 0.05
-    assert len(system.recent_confidences) == 0
+    assert isinstance(system.router, DynamicThresholdRouter)
 
 
 def test_tiered_system_update_threshold() -> None:
-    """Test adaptive threshold shifts on high and low confidence streams."""
-    t1 = MagicMock()
-    t2 = MagicMock()
     config = {
         "model": {
             "confidence_threshold": 0.75,
@@ -63,36 +52,22 @@ def test_tiered_system_update_threshold() -> None:
             "threshold_delta": 0.05,
         }
     }
-    system = TieredSystem(t1, t2, config)
+    system_low = TieredSystem(MagicMock(), MagicMock(), config)
+    for conf in (0.50, 0.55, 0.60, 0.58):
+        system_low.update_threshold(conf)
+    assert system_low.current_threshold == pytest.approx(0.70)
 
-    # 1. Test low confidence shift
-    system.update_threshold(0.50)
-    system.update_threshold(0.55)
-    system.update_threshold(0.60)
-    # 4th update shifts window, mean = (0.50+0.55+0.60)/3 = 0.55 (< 0.65)
-    system.update_threshold(0.58)
-    assert system.current_threshold == 0.70
-
-    # Reset
-    system.current_threshold = 0.75
-    system.recent_confidences = []
-
-    # 2. Test high confidence shift
-    system.update_threshold(0.90)
-    system.update_threshold(0.92)
-    system.update_threshold(0.95)
-    # 4th update shifts window, mean = (0.90+0.92+0.95)/3 = 0.923 (> 0.85)
-    system.update_threshold(0.89)
-    assert system.current_threshold == 0.80
+    system_high = TieredSystem(MagicMock(), MagicMock(), config)
+    for conf in (0.90, 0.92, 0.95, 0.89):
+        system_high.update_threshold(conf)
+    assert system_high.current_threshold == pytest.approx(0.80)
 
 
 def test_tiered_system_route_tier1() -> None:
-    """Test routing when Tier 1 model has confidence above threshold."""
     t1 = MagicMock()
     t1.return_value = torch.tensor([[0.1, 0.9]])
     t1.get_confidence.return_value = (torch.tensor(0.85), torch.tensor(1))
 
-    t2 = MagicMock()
     config = {
         "model": {
             "confidence_threshold": 0.75,
@@ -100,12 +75,8 @@ def test_tiered_system_route_tier1() -> None:
             "threshold_delta": 0.05,
         }
     }
-    system = TieredSystem(t1, t2, config)
-    x = torch.zeros(1, 3, 224, 224)
-
-    import pytest
-
-    prediction = system.route(x)
+    system = TieredSystem(t1, MagicMock(), config)
+    prediction = system.route(torch.zeros(1, 3, 224, 224))
     assert prediction.prediction == "Pneumothorax"
     assert prediction.confidence == pytest.approx(0.85)
     assert prediction.tier_used == 1
@@ -113,14 +84,11 @@ def test_tiered_system_route_tier1() -> None:
 
 
 def test_tiered_system_route_tier2() -> None:
-    """Test routing escalation to Tier 2 when Tier 1 confidence is low."""
     t1 = MagicMock()
     t1.get_confidence.return_value = (torch.tensor(0.60), torch.tensor(0))
 
     t2 = MagicMock()
-    t2_mean_probs = torch.tensor([[0.2, 0.8]])
-    t2_variance = torch.tensor([[0.01, 0.02]])
-    t2.mc_tta_forward.return_value = (t2_mean_probs, t2_variance)
+    t2.mc_tta_forward.return_value = (torch.tensor([[0.2, 0.8]]), torch.tensor([[0.01, 0.02]]))
 
     config = {
         "model": {
@@ -132,11 +100,7 @@ def test_tiered_system_route_tier2() -> None:
         }
     }
     system = TieredSystem(t1, t2, config)
-    x = torch.zeros(1, 3, 224, 224)
-
-    import pytest
-
-    prediction = system.route(x)
+    prediction = system.route(torch.zeros(1, 3, 224, 224))
     assert prediction.prediction == "Pneumothorax"
     assert prediction.confidence == pytest.approx(0.8)
     assert prediction.tier_used == 2
@@ -145,14 +109,11 @@ def test_tiered_system_route_tier2() -> None:
 
 
 def test_tiered_system_route_tier2_flagged() -> None:
-    """Test high risk review flagging on Tier 2 predictions with high variance."""
     t1 = MagicMock()
     t1.get_confidence.return_value = (torch.tensor(0.60), torch.tensor(0))
 
     t2 = MagicMock()
-    t2_mean_probs = torch.tensor([[0.2, 0.8]])
-    t2_variance = torch.tensor([[0.01, 0.12]])  # variance > 0.1
-    t2.mc_tta_forward.return_value = (t2_mean_probs, t2_variance)
+    t2.mc_tta_forward.return_value = (torch.tensor([[0.2, 0.8]]), torch.tensor([[0.01, 0.12]]))
 
     config = {
         "model": {
@@ -164,11 +125,7 @@ def test_tiered_system_route_tier2_flagged() -> None:
         }
     }
     system = TieredSystem(t1, t2, config)
-    x = torch.zeros(1, 3, 224, 224)
-
-    import pytest
-
-    prediction = system.route(x)
+    prediction = system.route(torch.zeros(1, 3, 224, 224))
     assert prediction.prediction == "Pneumothorax"
     assert prediction.mc_variance == pytest.approx(0.12)
     assert prediction.flagged_for_review

@@ -8,13 +8,15 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 
 import pandas as pd
 from tqdm import tqdm
 
-from config.settings import get_settings
-from infrastructure.data.fid_eval import FIDEvaluator
-from infrastructure.data.synthetic_gen import SyntheticGenerator
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+
+from tcrp.config import get_settings
+from tcrp.data.synthetic import SyntheticBatchPipeline
 
 
 def main() -> None:
@@ -61,11 +63,10 @@ def main() -> None:
     os.makedirs(accepted_dir, exist_ok=True)
     os.makedirs(rejected_dir, exist_ok=True)
 
-    # Initialize Generator and Evaluator
+    # Initialize SyntheticBatchPipeline
     print("Initializing Stable Diffusion...")
     try:
-        generator = SyntheticGenerator(config)
-        evaluator = FIDEvaluator(config)
+        pipeline = SyntheticBatchPipeline(settings=config)
     except Exception as e:
         print(f"Error initializing models: {e}")
         return
@@ -85,7 +86,7 @@ def main() -> None:
         if not os.path.exists(real_img_path):
             continue
 
-        synthetics = generator.generate(real_img_path, num_variations=num_variations)
+        synthetics = pipeline.generate_variations(real_img_path, num_variations=num_variations)
 
         for j, synth_img in enumerate(synthetics):
             base_name = os.path.splitext(row["Image Index"])[0]
@@ -105,8 +106,13 @@ def main() -> None:
         if os.path.exists(src):
             shutil.copy(src, os.path.join(temp_real_dir, row["Image Index"]))
 
-    accepted, fid_score, moved_files = evaluator.evaluate_and_filter_batch(
+    batch_record = pipeline.evaluate_and_filter_batch(
         temp_real_dir, temp_batch_dir, accepted_dir, rejected_dir
+    )
+    accepted, fid_score, moved_files = (
+        batch_record.accepted,
+        batch_record.fid_score,
+        batch_record.moved_files,
     )
 
     # Log the real FID score per batch so synthetic_quality.ipynb plots real values, not hardcoded ones.
@@ -116,12 +122,12 @@ def main() -> None:
     pd.DataFrame(fid_rows).to_csv(fid_log_path, index=False)
 
     if accepted:
-        print(f"--> Batch ACCEPTED! FID: {fid_score:.2f} <= {evaluator.fid_threshold}")
+        print(f"--> Batch ACCEPTED! FID: {fid_score:.2f} <= {pipeline.fid_threshold}")
         for filepath in moved_files:
             filename = os.path.basename(filepath)
             accepted_records.append({"Image Index": filename, "Finding Labels": "Pneumothorax"})
     else:
-        print(f"--> Batch REJECTED. FID: {fid_score:.2f} > {evaluator.fid_threshold}")
+        print(f"--> Batch REJECTED. FID: {fid_score:.2f} > {pipeline.fid_threshold}")
 
     # Save metadata
     if accepted_records:

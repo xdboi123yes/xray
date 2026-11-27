@@ -10,13 +10,12 @@ import os
 import sys
 from pathlib import Path
 
-# Add project root to sys.path to support standalone execution
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Add src/ to sys.path to support standalone execution
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 import torch
-
-from core.models.factory import ModelFactory
-from infrastructure.export.onnx_exporter import ONNXModelExporter
+from tcrp.models import ModelFactory
+from tcrp.training import ONNXModelExporter
 
 
 def main() -> None:

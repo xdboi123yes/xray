@@ -4,8 +4,7 @@ Verifies static confidence limits and dynamic rolling window threshold updates
 for StaticThresholdRouter and DynamicThresholdRouter.
 """
 
-from core.routing.dynamic_router import DynamicThresholdRouter
-from core.routing.static_router import StaticThresholdRouter
+from tcrp.routing import DynamicThresholdRouter, StaticThresholdRouter
 
 
 def test_static_threshold_router() -> None:

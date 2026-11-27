@@ -9,7 +9,7 @@ import json
 import os
 from unittest.mock import MagicMock, patch
 
-from application.orchestration.ablation_runner import AblationRunner
+from tcrp.training import AblationRunner
 
 
 def test_ablation_runner_configs() -> None:

@@ -1,4 +1,17 @@
-# Chest X-Ray Tiered Classification Tool Configurations
+# TCR-P Chest X-Ray Tiered Classification Research Package Configurations
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tcrp"
+version = "1.0.0"
+description = "TCR-P: Tiered Confidence-Routing System for Pneumothorax Chest Radiograph Screening"
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.ruff]
 line-length = 100
@@ -14,14 +27,10 @@ ignore = ["E501", "N803", "B024", "B027", "N812", "B008", "RUF001", "UP038", "RU
 strict = true
 disallow_untyped_calls = false
 warn_return_any = false
-files = ["core", "application", "infrastructure"]
-exclude = ["src", "tests"]
+mypy_path = "src"
+files = ["src/tcrp"]
+exclude = ["tests"]
 warn_unused_ignores = false
-# Type-check our own packages strictly, but never report errors found *inside*
-# imported third-party libraries (mlflow, onnx, onnxscript, ...). Their py.typed
-# internals reference optional deps we do not install, which made cold mypy runs
-# non-deterministic across environments. Our explicitly-passed modules are still
-# fully checked; only followed (site-packages) modules are silenced.
 follow_imports = "silent"
 
 [[tool.mypy.overrides]]
@@ -39,7 +48,6 @@ module = [
     "pytorch_fid.*",
     "tqdm.*",
     "pytorch_grad_cam.*",
-    "pydicom.*",
     "scipy.*",
     "PIL.*",
     "structlog",
@@ -50,52 +58,45 @@ module = [
     "pydantic",
     "pydantic.*",
     "pydantic_settings",
+    "cv2",
 ]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["mlflow", "mlflow.*"]
+ignore_missing_imports = true
+follow_imports = "skip"
 
 [tool.pytest.ini_options]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.importlinter]
-root_packages = ["core", "application", "infrastructure"]
-include_external_packages = true
-
-
-[[tool.importlinter.contracts]]
-name = "core has no outer dependencies"
-type = "forbidden"
-source_modules = ["core"]
-forbidden_modules = ["application", "infrastructure"]
+root_packages = ["tcrp"]
+include_external_packages = false
 
 [[tool.importlinter.contracts]]
-name = "layers do not depend on legacy src"
+name = "Domain modules do not depend on training orchestration"
 type = "forbidden"
-source_modules = ["core", "application", "infrastructure"]
-forbidden_modules = ["src"]
-
-[[tool.mypy.overrides]]
-module = [
-    "core.explainability.gradcam",
-    "core.explainability.gradcam_pp",
-    "infrastructure.export.onnx_exporter",
-    "infrastructure.export.torchscript_exporter",
-    "infrastructure.training.amp_helper",
-    "core.uncertainty.calibration",
-    "application.services.inference_service",
-    "config.settings",
-    "application.dto.training_config_dto",
-    "application.dto.prediction_dto",
-    "application.dto.metrics_dto",
-    "application.dto.ablation_dto",
+source_modules = [
+    "tcrp.config",
+    "tcrp.routing",
+    "tcrp.models",
+    "tcrp.uncertainty",
+    "tcrp.evaluation",
+    "tcrp.data",
 ]
-ignore_errors = true
+forbidden_modules = ["tcrp.training"]
 
-[[tool.mypy.overrides]]
-# MLflow ships py.typed, but its optional integrations (langchain, etc.) import
-# packages we do not install, so following into it errors inconsistently across
-# environments. Treat MLflow as an opaque external dependency.
-module = ["mlflow", "mlflow.*"]
-ignore_missing_imports = true
-follow_imports = "skip"
+[[tool.importlinter.contracts]]
+name = "Routing and config stay leaf modules"
+type = "forbidden"
+source_modules = ["tcrp.config", "tcrp.routing"]
+forbidden_modules = [
+    "tcrp.data",
+    "tcrp.models",
+    "tcrp.uncertainty",
+    "tcrp.evaluation",
+    "tcrp.training",
+]

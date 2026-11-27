@@ -42,6 +42,9 @@ from tqdm import tqdm
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+SRC_DIR = os.path.join(PROJECT_ROOT, "src")
+if SRC_DIR not in sys.path:
+    sys.path.insert(0, SRC_DIR)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 if SCRIPT_DIR not in sys.path:
@@ -50,10 +53,10 @@ if SCRIPT_DIR not in sys.path:
 # Imported after the sys.path injection so the sibling spec module and the
 # project packages both resolve when run as a bare script.
 from ablation_spec import TIER1_WEIGHTS, AblationSpec, get_spec
-
-from config.settings import get_settings
-from core.augmentation.classical import ClassicalAugmentation
-from core.evaluation.metrics import (
+from tcrp.config import get_settings
+from tcrp.data.augmentation import ClassicalAugmentation
+from tcrp.data.datasets import NIHChestXrayDataset
+from tcrp.evaluation.metrics import (
     brier_score,
     calibration_slope_intercept,
     classwise_ece,
@@ -61,10 +64,9 @@ from core.evaluation.metrics import (
     expected_calibration_error,
     negative_log_likelihood,
 )
-from core.models.factory import ModelFactory
-from core.uncertainty.calibration import ModelWithTemperature
-from core.uncertainty.conformal import ConformalPredictor
-from infrastructure.data.dataset import NIHChestXrayDataset
+from tcrp.models import ModelFactory
+from tcrp.uncertainty.calibration import ModelWithTemperature
+from tcrp.uncertainty.conformal import ConformalPredictor
 
 VAL_CSV = "data/processed/val.csv"
 TEST_CSV = "data/processed/test.csv"

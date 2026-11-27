@@ -30,14 +30,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+          pip install -e . --no-build-isolation --no-deps
 
       - name: Ruff check
         run: |
-          ruff check core/ application/ infrastructure/ tests/ scripts/
+          ruff check src/tcrp/ tests/ scripts/
 
       - name: Mypy static check
         run: |
-          mypy core/ application/ infrastructure/
+          mypy src/tcrp/
 
       - name: Import boundary check
         run: |
@@ -47,10 +48,10 @@ jobs:
         run: |
           python scripts/check_comment_language.py
 
-      - name: Run unit and integration tests with coverage
+      - name: Run unit, integration, and E2E tests with coverage
         run: |
-          pytest tests/ -v --cov=core --cov=application --cov-fail-under=72
+          pytest tests/ -v --cov=tcrp --cov-fail-under=72
 
-      - name: Verify no raw print statements leak to production layers
+      - name: Verify no raw print statements leak to production package
         run: |
-          ! grep -rn "^\s*print(" core/ application/ infrastructure/
+          ! grep -rn "^\s*print(" src/tcrp/

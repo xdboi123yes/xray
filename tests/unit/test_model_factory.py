@@ -6,9 +6,7 @@ Verifies dynamic registration, lists, instantiation, and error modes of ModelFac
 from typing import Any
 
 import pytest
-
-from core.interfaces.base_model import BaseClassifier
-from core.models.factory import ModelFactory
+from tcrp.models import BaseClassifier, ModelFactory
 
 
 def test_model_factory_registration() -> None:

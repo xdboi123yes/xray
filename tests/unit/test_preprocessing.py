@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 from PIL import Image
-
-from infrastructure.data.preprocessing import ImagePreprocessor
+from tcrp.data.datasets import ImagePreprocessor
 
 
 def test_image_preprocessor_clahe() -> None:

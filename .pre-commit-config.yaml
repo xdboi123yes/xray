@@ -26,7 +26,7 @@ repos:
 
       - id: mypy-check
         name: Mypy Static Type Analysis
-        entry: mypy core/ application/ infrastructure/
+        entry: mypy src/tcrp/
         language: python
         additional_dependencies: [
           "mypy==1.10.0",

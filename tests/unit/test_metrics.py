@@ -5,8 +5,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
-
-from core.evaluation.metrics import (
+from tcrp.evaluation.metrics import (
     brier_score,
     calibration_slope_intercept,
     compute_all_metrics,

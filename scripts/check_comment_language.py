@@ -85,7 +85,7 @@ def main(argv: list[str]) -> int:
         files = [Path(p) for p in argv[1:]]
     else:
         # Fallback recursive scan for manual check-lang execution
-        target_dirs = ["core", "application", "infrastructure"]
+        target_dirs = ["src/tcrp"]
         for target in target_dirs:
             p = Path(target)
             if p.exists():

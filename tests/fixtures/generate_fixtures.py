@@ -10,7 +10,7 @@ from pydicom.uid import ExplicitVRLittleEndian
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from core.models.factory import ModelFactory
+from tcrp.models import ModelFactory
 
 
 def main():

@@ -8,16 +8,15 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Add src/ to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from config.settings import get_settings
-from core.augmentation.classical import ClassicalAugmentation
-from core.evaluation.metrics import compute_all_metrics
-from core.models.factory import ModelFactory
-from core.models.tiered_system import TieredSystem
-from core.uncertainty.conformal import ConformalPredictor
-from infrastructure.data.dataset import NIHChestXrayDataset
+from tcrp.config import get_settings
+from tcrp.data.augmentation import ClassicalAugmentation
+from tcrp.data.datasets import NIHChestXrayDataset
+from tcrp.evaluation.metrics import compute_all_metrics
+from tcrp.models import ModelFactory, TieredSystem
+from tcrp.uncertainty.conformal import ConformalPredictor
 
 
 def setup_mlflow_local(

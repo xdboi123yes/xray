@@ -1,15 +1,18 @@
 .DEFAULT_GOAL := help
 
 # --- Setup ---
-install:           ## Install runtime deps
+install:           ## Install runtime deps and editable tcrp package
 	pip install -r requirements.txt
+	pip install -e . --no-build-isolation --no-deps
 
 install-dev:       ## Install dev + test deps
 	pip install -r requirements-dev.txt
+	pip install -e . --no-build-isolation --no-deps
 	pre-commit install
 
 install-training:  ## Install full training deps
 	pip install -r requirements-training.txt
+	pip install -e . --no-build-isolation --no-deps
 
 # --- Training ---
 train-tier1:       ## Train MobileNetV2 Tier1
@@ -54,7 +57,7 @@ export-onnx:       ## ONNX export + INT8 quantization
 
 # --- Quality ---
 test:              ## Run all tests
-	pytest tests/ -v --cov=core --cov=application --cov-report=html
+	pytest tests/ -v --cov=tcrp --cov-report=html
 
 test-unit:         ## Unit tests only
 	pytest tests/unit -v
@@ -63,11 +66,11 @@ test-integration:  ## Integration tests
 	pytest tests/integration -v
 
 lint:              ## Lint code
-	ruff check core/ application/ infrastructure/ tests/ scripts/
-	mypy core/ application/ infrastructure/
+	ruff check src/tcrp/ tests/ scripts/
+	mypy src/tcrp/
 
 format:            ## Auto-format
-	ruff format core/ application/ infrastructure/ tests/ scripts/
+	ruff format src/tcrp/ tests/ scripts/
 
 check-imports:     ## Verify architectural boundaries
 	lint-imports

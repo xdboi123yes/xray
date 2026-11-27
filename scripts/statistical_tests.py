@@ -23,10 +23,11 @@ import sys
 import numpy as np
 import pandas as pd
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Add src/ to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from core.evaluation.stats import (
+from tcrp.config import guard_mock
+from tcrp.evaluation.stats import (
     bootstrap_ci,
     cohens_h,
     delong_test,
@@ -34,7 +35,6 @@ from core.evaluation.stats import (
     mcnemar_test,
     permutation_test,
 )
-from core.integrity import guard_mock
 
 
 def generate_tiered_simulation(n_samples: int = 500) -> dict[str, np.ndarray]:

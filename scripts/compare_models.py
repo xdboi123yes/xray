@@ -15,10 +15,10 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, roc_auc_score
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Add src/ to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from core.integrity import guard_mock
+from tcrp.config import guard_mock
 
 
 def calculate_paired_bootstrap(

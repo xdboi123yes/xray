@@ -8,10 +8,8 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-
-from core.interfaces.base_observer import TrainingObserver
-from core.models.tier1_mobilenet import Tier1MobileNet
-from infrastructure.training.trainer import Trainer
+from tcrp.models import Tier1MobileNet
+from tcrp.training import Trainer, TrainingObserver
 
 
 class MockObserver(TrainingObserver):

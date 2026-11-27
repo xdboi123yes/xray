@@ -10,11 +10,10 @@ import argparse
 import os
 import sys
 
-# Add project root to sys.path to support standalone execution
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Add src/ to sys.path to support standalone execution
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from application.dto.training_config_dto import TrainingConfigDTO
-from application.services.training_service import TrainingService
+from tcrp.training import TrainingConfig, train_model
 
 
 def main() -> None:
@@ -42,8 +41,7 @@ def main() -> None:
     parser.add_argument("--mixup-cutmix", action="store_true")
     args = parser.parse_args()
 
-    # DTO mapping for Tier 2 backbone network
-    dto = TrainingConfigDTO(
+    cfg = TrainingConfig(
         backbone=args.backbone,
         run_name=args.run_name,
         batch_size=32,
@@ -56,10 +54,7 @@ def main() -> None:
         use_classical_augmentation=not args.no_classical_augmentation,
         use_mixup_cutmix=args.mixup_cutmix,
     )
-
-    # Delegate model configuration and training execution to application layer
-    service = TrainingService()
-    service.train_model(dto)
+    train_model(cfg)
 
 
 if __name__ == "__main__":

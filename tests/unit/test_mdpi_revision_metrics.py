@@ -18,15 +18,14 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-
-from core.evaluation.metrics import (
+from tcrp.evaluation.metrics import (
     classwise_ece,
     negative_log_likelihood,
     reliability_bin_stats,
     wilson_ci,
 )
-from core.evaluation.stats import bootstrap_ci, cohens_h, holm_bonferroni
-from core.models.tier2_efficientnet import Tier2EfficientNet
+from tcrp.evaluation.stats import bootstrap_ci, cohens_h, holm_bonferroni
+from tcrp.models import Tier2EfficientNet
 
 
 def _load_revision_experiments():

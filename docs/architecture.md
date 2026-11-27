@@ -1,41 +1,31 @@
 # Architecture
 
-The codebase follows a layered architecture with a strictly enforced dependency
-direction. The boundary is verified in CI by `import-linter` (see
-`pyproject.toml`), so violations fail the build.
+The research codebase is consolidated into a single minimal Python package,
+`src/tcrp/`, with narrow domain interfaces and acyclic internal contracts
+enforced by `import-linter` (see `pyproject.toml`).
 
+```text
+scripts/ & notebooks/  -->  tcrp.training  -->  tcrp.{data, models, uncertainty, evaluation}
+                                                        |
+                                                        v
+                                               tcrp.{config, routing}
 ```
-web/  ->  application/  ->  core/        (allowed)
-infrastructure/  ->  core/               (allowed)
-core/  -/->  application/  -/->  web/     (forbidden)
-```
 
-## Layers
+## Modules
 
-| Layer | Path | Responsibility |
-|-------|------|----------------|
-| Domain | `core/` | Pure business logic: model interfaces, the tiered system, routing strategies, uncertainty (MC dropout, TTA, conformal, calibration), evaluation metrics, explainability. No I/O. |
-| Infrastructure | `infrastructure/` | Data access (NIH / CheXpert repositories and datasets), the training loop and observers, checkpoint/registry persistence, ONNX export. |
-| Application | `application/` | Use-case services (inference, training, evaluation, calibration, synthetic), DTOs, and the ablation orchestration. |
-| Presentation | `web/` | FastAPI backend (REST + WebSocket) and the React/TypeScript frontend. |
+| Module | Path | Responsibility |
+| --- | --- | --- |
+| Configuration & Integrity | `tcrp.config` | Type-safe YAML/env settings (`Settings`, `get_settings`) and `guard_mock` integrity enforcement. |
+| Confidence Routing | `tcrp.routing` | `StaticThresholdRouter` and `DynamicThresholdRouter` (label-free Adaptive Routing Threshold deadband controller). |
+| Data & Synthetics | `tcrp.data` | Strict four-way Patient-Disjoint Partition (`splits.py`), NIH/CheXpert datasets (`datasets.py`), classical and Mixup/CutMix augmentations (`augmentation.py`), and FID-gated Synthetic Augmentation Batch generation (`synthetic.py`) behind injectable generator/FID adapters. |
+| Models & Cascade | `tcrp.models` | Deep `BaseClassifier` centralizing BatchNorm-safe MC Dropout, TTA, and Law-of-Total-Variance Uncertainty Decomposition; `ModelFactory` with `Tier1MobileNet`, `Tier2EfficientNet`, and `Tier2ArkPlus`; `TieredSystem` cascade for Escalation and Human Deferral. |
+| Uncertainty & Calibration | `tcrp.uncertainty` | Validation-split post-hoc temperature scaling (`calibration.py`), disjoint Calibration-split split-conformal prediction (`conformal.py`), and entropy/mutual-information/TTA analysis (`analysis.py`). |
+| Evaluation & Explainability | `tcrp.evaluation` | Binary, calibration, and conformal metrics (`metrics.py`), patient-clustered bootstrap, DeLong, McNemar, Holm-Bonferroni, Cohen's h, and Wilson CI (`stats.py`), plus HiResCAM and Tier 1 vs. Tier 2 attention maps (`explainability.py`). |
+| Training & Export | `tcrp.training` | Observer-aware `Trainer`, `TrainingConfig`, `train_model`, checkpointing, class-weighted loss, LR scheduler (`trainer.py`), lifecycle observers (`observers.py`), `AblationRunner` (`ablation.py`), and `ONNXModelExporter` (`export.py`). |
 
-## Key design patterns
+## Tiered Inference Path (TCR-P)
 
-- **Factory** — `core/models/factory.py` instantiates Tier 1 / Tier 2 backbones
-  from a string key via a self-registration decorator, so model selection is
-  data-driven (config), not hardcoded.
-- **Strategy** — routing (`core/routing/`) swaps static vs dynamic escalation
-  thresholds behind a common interface.
-- **Observer** — the trainer (`infrastructure/training/`) emits lifecycle events
-  to pluggable observers (MLflow, checkpointing, early stopping, carbon tracking).
-- **Repository** — datasets are accessed through repository interfaces so NIH,
-  CheXpert, and mixed (NIH + synthetic) sources are interchangeable.
-
-## The tiered inference path
-
-1. Tier 1 (MobileNetV2) produces a fast prediction and confidence.
-2. If confidence is below the routing threshold, the case escalates to Tier 2.
-3. Tier 2 runs Monte Carlo dropout + test-time augmentation to produce a
-   calibrated probability and an epistemic-variance estimate.
-4. A conformal predictor maps the Tier 2 distribution to a prediction set; cases
-   with high variance or ambiguous sets are flagged for human review.
+1. **Tier 1** (`Tier1MobileNet`) evaluates every incoming radiograph and outputs a fast prediction and confidence.
+2. **Adaptive Routing Threshold** (`DynamicThresholdRouter`) updates its sliding FIFO window and decides whether to resolve in Tier 1 or trigger **Escalation** to Tier 2.
+3. **Tier 2** (a single selected specialist backbone: `Tier2EfficientNet` or `Tier2ArkPlus`) executes BatchNorm-safe MC Dropout + TTA with Law-of-Total-Variance **Uncertainty Decomposition**.
+4. **Conformal Prediction** (`ConformalPredictor`, calibrated on temperature-scaled **Calibration Split** probabilities) builds the prediction set; high variance or a multi-class set triggers **Human Deferral** for radiologist review.

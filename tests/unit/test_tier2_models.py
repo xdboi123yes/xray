@@ -5,10 +5,7 @@ and combined MC-TTA behaviors for Tier2EfficientNet and Tier2ArkPlus.
 """
 
 import torch
-
-from core.interfaces.base_model import BaseClassifier
-from core.models.tier2_ark import Tier2ArkPlus
-from core.models.tier2_efficientnet import Tier2EfficientNet
+from tcrp.models import BaseClassifier, Tier2ArkPlus, Tier2EfficientNet
 
 
 def test_tier2_efficientnet_init() -> None:

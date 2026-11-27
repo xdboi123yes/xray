@@ -6,8 +6,7 @@ import numpy as np
 import pytest
 import torch
 import torch.nn as nn
-
-from core.explainability.hirescam import (
+from tcrp.evaluation.explainability import (
     _swin_reshape_transform,
     resolve_target_layers,
     suppress_background,

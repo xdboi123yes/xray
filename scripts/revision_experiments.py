@@ -21,9 +21,9 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from core.evaluation.metrics import (
+from tcrp.evaluation.metrics import (
     brier_score,
     calibration_slope_intercept,
     classwise_ece,
