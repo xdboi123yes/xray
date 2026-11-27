@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import sys
 from collections.abc import Sequence
 
@@ -129,6 +130,18 @@ def build_parser(settings: Settings | None = None) -> argparse.ArgumentParser:
         default=4,
         help="Maximum number of real/synthetic pairs shown in the qualitative comparison grid.",
     )
+    parser.add_argument(
+        "--drive-sync-dir",
+        type=str,
+        default=None,
+        help="Optional directory (e.g. Google Drive path) to mirror synthetic checkpoints into.",
+    )
+    parser.add_argument(
+        "--drive-sync-every",
+        type=int,
+        default=5,
+        help="Mirror synthetic outputs to --drive-sync-dir every N completed batches (default: 5).",
+    )
     return parser
 
 
@@ -180,7 +193,48 @@ def main(
         qualitative_grid_samples=args.qualitative_grid_samples,
     )
 
-    summary = active_pipeline.run_multi_batch(gen_config)
+    def _sync_to_drive(src_dir: str, dst_dir: str) -> None:
+        os.makedirs(dst_dir, exist_ok=True)
+        for fname in (
+            "fid_log.csv",
+            "synthetic_metadata.csv",
+            "resume_state.json",
+            "generation_complete.json",
+            "qualitative_grid.png",
+        ):
+            sp = os.path.join(src_dir, fname)
+            if os.path.isfile(sp):
+                shutil.copy2(sp, os.path.join(dst_dir, fname))
+        accepted_src = os.path.join(src_dir, "accepted")
+        accepted_dst = os.path.join(dst_dir, "accepted")
+        if os.path.isdir(accepted_src):
+            os.makedirs(accepted_dst, exist_ok=True)
+            for fn in os.listdir(accepted_src):
+                sp = os.path.join(accepted_src, fn)
+                dp = os.path.join(accepted_dst, fn)
+                if os.path.isfile(sp) and not os.path.exists(dp):
+                    shutil.copy2(sp, dp)
+
+    on_batch_complete = None
+    if args.drive_sync_dir:
+        sync_dir = str(args.drive_sync_dir)
+        sync_every = max(1, int(args.drive_sync_every))
+
+        def _checkpoint_callback(batch_idx: int, total_batches: int, _rec: object) -> None:
+            if batch_idx % sync_every == 0 or batch_idx == total_batches:
+                _sync_to_drive(args.output_dir, sync_dir)
+                print(f"  [drive-sync] checkpointed batch {batch_idx}/{total_batches} -> {sync_dir}")
+
+        on_batch_complete = _checkpoint_callback
+
+    summary = active_pipeline.run_multi_batch(gen_config, on_batch_complete=on_batch_complete)
+    if args.drive_sync_dir:
+        _sync_to_drive(args.output_dir, str(args.drive_sync_dir))
+        if summary.qualitative_grid_path and os.path.isfile(summary.qualitative_grid_path):
+            shutil.copy2(
+                summary.qualitative_grid_path,
+                os.path.join(str(args.drive_sync_dir), os.path.basename(summary.qualitative_grid_path)),
+            )
     print(
         f"Synthetic generation complete: seeds={summary.processed_seeds}/{summary.total_seeds} "
         f"(skipped={summary.skipped_seeds}), batches={summary.batches_executed}/{summary.total_batches} "

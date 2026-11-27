@@ -15,6 +15,7 @@ import inspect
 import json
 import os
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
@@ -287,7 +288,7 @@ class DiffusersGeneratorAdapter:
         self,
         settings: Settings | None = None,
         device: torch.device | None = None,
-        model_id: str = "runwayml/stable-diffusion-v1-5",
+        model_id: str = "stable-diffusion-v1-5/stable-diffusion-v1-5",
     ) -> None:
         self.settings = settings or get_settings()
         self.device = device or _default_device()
@@ -305,8 +306,15 @@ class DiffusersGeneratorAdapter:
         pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
             self.model_id, torch_dtype=dtype, safety_checker=None
         ).to(self.device)
-        if self.device.type in ("cuda", "mps"):
+        pipe.set_progress_bar_config(disable=True)
+        # Keep attention slicing only on constrained GPUs (<12 GB VRAM) or MPS;
+        # higher-VRAM GPUs (e.g. L4 24 GB) run faster with native PyTorch SDPA.
+        if self.device.type == "mps":
             pipe.enable_attention_slicing()
+        elif self.device.type == "cuda" and torch.cuda.is_available():
+            total_vram_gb = torch.cuda.get_device_properties(self.device).total_memory / 1e9
+            if total_vram_gb < 12.0:
+                pipe.enable_attention_slicing()
         self._pipe = pipe
         self._loaded = True
         return self._pipe
@@ -335,34 +343,48 @@ class DiffusersGeneratorAdapter:
         base_seed = self.settings.training.seed if seed is None else int(seed)
 
         pipe = self._load_pipeline()
-        generator = torch.Generator(device=self.device).manual_seed(base_seed)
+        generators = [
+            torch.Generator(device=self.device).manual_seed(base_seed + i)
+            for i in range(num_variations)
+        ]
 
-        generated: list[Image.Image] = []
-        for i in range(num_variations):
-            generator.manual_seed(base_seed + i)
-            out = pipe(
-                prompt=prompt,
-                negative_prompt=self.NEGATIVE_PROMPT,
-                image=init_img,
+        with torch.inference_mode():
+            outputs = pipe(
+                prompt=[prompt] * num_variations,
+                negative_prompt=[self.NEGATIVE_PROMPT] * num_variations,
+                image=[init_img] * num_variations,
                 strength=strength,
                 guidance_scale=self.settings.augmentation.sd_guidance_scale,
                 num_inference_steps=self.settings.augmentation.sd_num_inference_steps,
-                generator=generator,
-            ).images[0]
-            generated.append(out.resize((image_size, image_size)))
-        return generated
+                generator=generators,
+            ).images
+
+        return [out.resize((image_size, image_size)) for out in outputs]
 
 
 class PyTorchFIDAdapter:
-    """Production Inception-v3 FID evaluator backed by ``pytorch-fid``."""
+    """Production Inception-v3 FID evaluator backed by ``pytorch-fid`` with real-stats caching."""
 
     def __init__(self, device: torch.device | None = None) -> None:
         self.device = device or _default_device()
+        self._inception_model: Any = None
+        self._real_stats_cache: dict[tuple[str, int, int], tuple[np.ndarray, np.ndarray]] = {}
+
+    def _get_inception_model(self, dims: int = 2048) -> Any:
+        if self._inception_model is None:
+            from pytorch_fid.inception import InceptionV3
+
+            block_idx = InceptionV3.BLOCK_INDEX_BY_DIM[dims]
+            self._inception_model = InceptionV3([block_idx]).to(self.device)
+        return self._inception_model
 
     def compute_fid(self, real_dir: str, synthetic_dir: str, batch_size: int = 32) -> float:
         """Compute Inception-v3 FID between real and synthetic image directories."""
         try:
-            from pytorch_fid.fid_score import calculate_fid_given_paths
+            from pytorch_fid.fid_score import (
+                calculate_frechet_distance,
+                compute_statistics_of_path,
+            )
         except ImportError:
             guard_mock("[PyTorchFIDAdapter] pytorch-fid is not installed")
             log.warning("MOCK MODE: pytorch-fid unavailable; returning +inf.")
@@ -378,13 +400,32 @@ class PyTorchFIDAdapter:
         if len(real_files) < 2 or len(synth_files) < 2:
             return float("inf")
 
-        fid_val = calculate_fid_given_paths(
-            paths=[real_dir, synthetic_dir],
-            batch_size=min(batch_size, len(synth_files)),
-            device=str(self.device),
-            dims=2048,
-            num_workers=0,
+        dims = 2048
+        num_workers = 4 if self.device.type == "cuda" else 0
+        model = self._get_inception_model(dims=dims)
+
+        cache_key = (os.path.realpath(real_dir), len(real_files), dims)
+        if cache_key not in self._real_stats_cache:
+            m1, s1 = compute_statistics_of_path(
+                real_dir,
+                model,
+                min(batch_size, len(real_files)),
+                dims,
+                self.device,
+                num_workers,
+            )
+            self._real_stats_cache[cache_key] = (m1, s1)
+        m1, s1 = self._real_stats_cache[cache_key]
+
+        m2, s2 = compute_statistics_of_path(
+            synthetic_dir,
+            model,
+            min(batch_size, len(synth_files)),
+            dims,
+            self.device,
+            num_workers,
         )
+        fid_val = calculate_frechet_distance(m1, s1, m2, s2)
         return float(fid_val)
 
 
@@ -501,7 +542,9 @@ class SyntheticBatchPipeline:
         return hashlib.sha256(encoded).hexdigest()
 
     def run_multi_batch(
-        self, config: SyntheticGenerationConfig
+        self,
+        config: SyntheticGenerationConfig,
+        on_batch_complete: Callable[[int, int, BatchFIDRecord], None] | None = None,
     ) -> MultiBatchGenerationSummary:
         """Run multi-batch FID-gated synthetic generation with crash-safe resume.
 
@@ -772,6 +815,16 @@ class SyntheticBatchPipeline:
                         indent=2,
                     ),
                 )
+                log.info(
+                    "Completed synthetic batch",
+                    batch=batch_idx,
+                    total_batches=len(batches),
+                    fid=round(float(batch_record.fid_score), 3),
+                    accepted=bool(batch_record.accepted),
+                    total_accepted_images=len(accepted_by_image),
+                )
+                if on_batch_complete is not None:
+                    on_batch_complete(batch_idx, len(batches), batch_record)
         finally:
             shutil.rmtree(temp_real_dir, ignore_errors=True)
             if os.path.exists(temp_batch_dir) and not os.listdir(temp_batch_dir):

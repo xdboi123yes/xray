@@ -185,6 +185,74 @@ def test_train_model_loads_accepted_synthetic_metadata(tmp_path: Path) -> None:
     assert seen_train_len == [6]  # 4 real + 2 accepted synthetic
 
 
+def test_train_model_persists_training_history_and_wall_clock(tmp_path: Path) -> None:
+    import json
+
+    img_dir = tmp_path / "raw_images"
+    models_dir = tmp_path / "models"
+    img_dir.mkdir(parents=True)
+    models_dir.mkdir(parents=True)
+
+    rows = []
+    for i in range(4):
+        fname = f"0000001{i}_000.png"
+        Image.fromarray(np.full((32, 32, 3), 80 + i * 20, dtype=np.uint8)).save(img_dir / fname)
+        rows.append(
+            {
+                "Image Index": fname,
+                "Finding Labels": "Pneumothorax" if i % 2 == 0 else "No Finding",
+                "Label": i % 2,
+            }
+        )
+    train_csv = tmp_path / "train.csv"
+    val_csv = tmp_path / "val.csv"
+    pd.DataFrame(rows).to_csv(train_csv, index=False)
+    pd.DataFrame(rows[:2]).to_csv(val_csv, index=False)
+
+    settings = Settings(
+        data={"image_size": 32},
+        paths={"models": str(models_dir)},
+    )
+    cfg = TrainingConfig(
+        backbone="mobilenet_v2",
+        run_name="HistorySmoke",
+        batch_size=2,
+        epochs=2,
+        use_synthetic=False,
+        use_classical_augmentation=False,
+    )
+
+    result = train_model(
+        cfg,
+        train_csv=str(train_csv),
+        val_csv=str(val_csv),
+        dry_run=False,
+        settings=settings,
+        device=torch.device("cpu"),
+        pretrained=False,
+        image_dir=str(img_dir),
+        enable_external_observers=False,
+    )
+
+    history_path = models_dir / "HistorySmoke" / "training_history.json"
+    assert history_path.is_file()
+    assert result["history_path"] == str(history_path)
+    assert float(result["wall_clock_seconds"]) >= 0.0
+
+    payload = json.loads(history_path.read_text(encoding="utf-8"))
+    assert payload["run_name"] == "HistorySmoke"
+    assert payload["backbone"] == "mobilenet_v2"
+    assert payload["use_synthetic"] is False
+    assert payload["train_samples"] == 4
+    assert payload["val_samples"] == 2
+    assert payload["epochs_completed"] == 2
+    assert len(payload["epochs"]) == 2
+    assert payload["wall_clock_seconds"] >= 0.0
+    for idx, entry in enumerate(payload["epochs"], start=1):
+        assert entry["epoch"] == idx
+        assert "train_loss" in entry and "val_auc" in entry and "epoch_seconds" in entry
+
+
 def test_mlflow_observer_only_ends_runs_it_started() -> None:
     dummy_trainer = MagicMock(config={"training": {"epochs": 1}})
 

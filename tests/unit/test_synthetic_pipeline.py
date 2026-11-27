@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 from PIL import Image
 from tcrp.data.synthetic import (
     BatchFIDRecord,
@@ -579,3 +580,93 @@ def test_production_notebook_runs_synthetics_before_tier2_and_keeps_a8_real_only
     for syn_ab in ("A11", "A12", "A15"):
         assert "--no-synthetic" not in runner.ablation_configs[syn_ab]["args"]
     assert "'A8'" in train_src and "'A9'" in train_src
+
+
+def test_run_multi_batch_invokes_on_batch_complete_callback(tmp_path: Path) -> None:
+    img_dir = tmp_path / "real"
+    out_dir = tmp_path / "synth"
+    img_dir.mkdir(parents=True)
+
+    rows = []
+    for i in range(4):
+        name = f"0000010{i}_000.png"
+        Image.fromarray(np.full((32, 32, 3), 50 + i * 20, dtype=np.uint8)).save(img_dir / name)
+        rows.append(
+            {
+                "Image Index": name,
+                "Finding Labels": "Pneumothorax",
+                "Label": 1,
+                "Patient ID": f"0000010{i}",
+            }
+        )
+    train_csv = tmp_path / "train.csv"
+    pd.DataFrame(rows).to_csv(train_csv, index=False)
+
+    events: list[tuple[int, int, bool]] = []
+    pipeline = SyntheticBatchPipeline(
+        generator=_StubGenerator(),
+        fid_evaluator=_StubFID(25.0),
+        fid_threshold=50.0,
+    )
+    cfg = SyntheticGenerationConfig(
+        train_csv=str(train_csv),
+        real_images_dir=str(img_dir),
+        output_dir=str(out_dir),
+        batch_size=2,
+        num_variations=2,
+        resume=False,
+    )
+    summary = pipeline.run_multi_batch(
+        cfg,
+        on_batch_complete=lambda batch_idx, total, rec: events.append((batch_idx, total, rec.accepted)),
+    )
+    assert summary.total_batches == 2
+    assert events == [(1, 2, True), (2, 2, True)]
+
+
+def test_pytorch_fid_adapter_caches_real_directory_statistics(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import types
+
+    real_dir = tmp_path / "real"
+    synth_a = tmp_path / "synth_a"
+    synth_b = tmp_path / "synth_b"
+    for d in (real_dir, synth_a, synth_b):
+        d.mkdir(parents=True)
+        for i in range(2):
+            Image.fromarray(np.full((32, 32, 3), 40 * (i + 1), dtype=np.uint8)).save(d / f"img_{i}.png")
+
+    compute_calls: list[str] = []
+
+    def fake_compute_stats(path: str, model: object, batch_size: int, dims: int, device: object, num_workers: int = 1) -> tuple[np.ndarray, np.ndarray]:
+        compute_calls.append(path)
+        return np.zeros(4, dtype=np.float64), np.eye(4, dtype=np.float64)
+
+    def fake_frechet(mu1: np.ndarray, sigma1: np.ndarray, mu2: np.ndarray, sigma2: np.ndarray) -> float:
+        return 12.5
+
+    fake_inception_mod = types.ModuleType("pytorch_fid.inception")
+    fake_inception_mod.InceptionV3 = lambda blocks: types.SimpleNamespace(to=lambda dev: types.SimpleNamespace())  # type: ignore[attr-defined]
+    fake_inception_mod.InceptionV3.BLOCK_INDEX_BY_DIM = {2048: 3}  # type: ignore[attr-defined]
+
+    fake_fid_score_mod = types.ModuleType("pytorch_fid.fid_score")
+    fake_fid_score_mod.compute_statistics_of_path = fake_compute_stats  # type: ignore[attr-defined]
+    fake_fid_score_mod.calculate_frechet_distance = fake_frechet  # type: ignore[attr-defined]
+
+    fake_pkg = types.ModuleType("pytorch_fid")
+    fake_pkg.fid_score = fake_fid_score_mod  # type: ignore[attr-defined]
+    fake_pkg.inception = fake_inception_mod  # type: ignore[attr-defined]
+
+    import sys
+
+    monkeypatch.setitem(sys.modules, "pytorch_fid", fake_pkg)
+    monkeypatch.setitem(sys.modules, "pytorch_fid.fid_score", fake_fid_score_mod)
+    monkeypatch.setitem(sys.modules, "pytorch_fid.inception", fake_inception_mod)
+
+    adapter = PyTorchFIDAdapter(device=torch.device("cpu"))
+    score_1 = adapter.compute_fid(str(real_dir), str(synth_a))
+    score_2 = adapter.compute_fid(str(real_dir), str(synth_b))
+
+    assert score_1 == 12.5
+    assert score_2 == 12.5
+    # Real directory computed ONCE across both batches; synth_a and synth_b computed once each
+    assert compute_calls == [str(real_dir), str(synth_a), str(synth_b)]

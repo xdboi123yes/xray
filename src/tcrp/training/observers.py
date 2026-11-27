@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
+import os
+import time
 from abc import ABC
 from typing import Any
 
 import mlflow
 import structlog
+import torch
 
 log = structlog.get_logger(__name__)
 
@@ -199,3 +203,98 @@ class CarbonTrackerObserver(TrainingObserver):
                     log.info("Carbon emissions recorded", co2_kg=round(float(emissions), 6))
             except Exception as exc:
                 log.error("Failed to stop EmissionsTracker", error=str(exc))
+
+
+class HistoryObserver(TrainingObserver):
+    """Persists per-epoch training history, wall-clock duration, and peak VRAM to JSON."""
+
+    def __init__(
+        self,
+        history_path: str,
+        metadata: dict[str, Any] | None = None,
+        monitor: str = "val_auc",
+        mode: str = "max",
+    ) -> None:
+        self.history_path = history_path
+        self._metadata = dict(metadata or {})
+        self._monitor = monitor
+        self._mode = mode
+        self._train_start: float = 0.0
+        self._epoch_start: float = 0.0
+        self._epochs: list[dict[str, Any]] = []
+        self._best_metric = -float("inf") if mode == "max" else float("inf")
+        self._best_epoch = 0
+        self.wall_clock_seconds: float = 0.0
+        self.peak_vram_mb: float | None = None
+
+    def _current_peak_vram_mb(self, trainer: Any) -> float | None:
+        device = getattr(trainer, "device", None)
+        if device is not None and getattr(device, "type", None) == "cuda" and torch.cuda.is_available():
+            return round(float(torch.cuda.max_memory_allocated(device)) / (1024.0 * 1024.0), 2)
+        return None
+
+    def _flush(self, trainer: Any) -> None:
+        self.wall_clock_seconds = round(max(0.0, time.perf_counter() - self._train_start), 3)
+        self.peak_vram_mb = self._current_peak_vram_mb(trainer)
+        payload: dict[str, Any] = {
+            **self._metadata,
+            "epochs_completed": len(self._epochs),
+            "best_epoch": self._best_epoch,
+            "best_val_auc": (
+                None if self._best_epoch == 0 else round(float(self._best_metric), 6)
+            ),
+            "wall_clock_seconds": self.wall_clock_seconds,
+            "peak_vram_mb": self.peak_vram_mb,
+            "epochs": self._epochs,
+        }
+        os.makedirs(os.path.dirname(os.path.abspath(self.history_path)), exist_ok=True)
+        tmp_path = f"{self.history_path}.tmp.{os.getpid()}"
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+        os.replace(tmp_path, self.history_path)
+
+    def on_train_start(self, trainer: Any) -> None:
+        self._train_start = time.perf_counter()
+        device = getattr(trainer, "device", None)
+        if device is not None and getattr(device, "type", None) == "cuda" and torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats(device)
+
+    def on_epoch_start(self, epoch: int, trainer: Any) -> None:
+        _ = (epoch, trainer)
+        self._epoch_start = time.perf_counter()
+
+    def on_epoch_end(self, epoch: int, metrics: dict[str, float], trainer: Any) -> None:
+        epoch_seconds = round(max(0.0, time.perf_counter() - self._epoch_start), 3)
+        lrs = [float(pg["lr"]) for pg in trainer.optimizer.param_groups]
+        record: dict[str, Any] = {
+            "epoch": int(epoch),
+            "epoch_seconds": epoch_seconds,
+            **{k: float(v) for k, v in metrics.items()},
+            "lr_backbone": lrs[0] if lrs else None,
+            "lr_head": lrs[1] if len(lrs) > 1 else (lrs[0] if lrs else None),
+        }
+        self._epochs.append(record)
+
+        val_val = metrics.get(self._monitor)
+        if val_val is not None:
+            improved = (
+                (val_val > self._best_metric)
+                if self._mode == "max"
+                else (val_val < self._best_metric)
+            )
+            if improved:
+                self._best_metric = float(val_val)
+                self._best_epoch = int(epoch)
+
+        self._flush(trainer)
+
+    def on_train_end(self, trainer: Any) -> None:
+        self._flush(trainer)
+        log.info(
+            "Saved training history",
+            history_path=self.history_path,
+            epochs_completed=len(self._epochs),
+            best_epoch=self._best_epoch,
+            wall_clock_seconds=self.wall_clock_seconds,
+            peak_vram_mb=self.peak_vram_mb,
+        )

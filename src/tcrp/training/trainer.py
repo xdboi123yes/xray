@@ -25,6 +25,7 @@ from tcrp.training.observers import (
     CarbonTrackerObserver,
     CheckpointObserver,
     EarlyStoppingObserver,
+    HistoryObserver,
     LRLoggerObserver,
     MLflowObserver,
     TrainingObserver,
@@ -433,9 +434,33 @@ def train_model(
     checkpoint_dir = os.path.join(active_settings.paths.models, config.run_name)
     os.makedirs(checkpoint_dir, exist_ok=True)
     checkpoint_path = os.path.join(checkpoint_dir, "best_model.pth")
+    history_path = os.path.join(checkpoint_dir, "training_history.json")
+    history_obs = HistoryObserver(
+        history_path=history_path,
+        metadata={
+            "run_name": config.run_name,
+            "backbone": config.backbone,
+            "protocol": "patient-disjoint-v1",
+            "device": str(active_device),
+            "train_samples": len(train_dataset),
+            "val_samples": len(val_dataset),
+            "use_synthetic": config.use_synthetic,
+            "use_classical_augmentation": config.use_classical_augmentation,
+            "use_mixup_cutmix": config.use_mixup_cutmix,
+            "batch_size": config.batch_size,
+            "lr_backbone": config.lr_backbone,
+            "lr_head": config.lr_head,
+            "epochs_configured": epochs,
+            "early_stopping_patience": patience,
+            "seed": config.seed,
+        },
+        monitor="val_auc",
+        mode="max",
+    )
     trainer.add_observer(
         CheckpointObserver(checkpoint_path=checkpoint_path, monitor="val_auc", mode="max")
     )
+    trainer.add_observer(history_obs)
 
     log.info(
         "Starting training run",
@@ -459,5 +484,8 @@ def train_model(
         "best_val_auc": trainer.best_metric,
         "final_epoch": trainer.current_epoch,
         "model_weight_path": checkpoint_path,
+        "history_path": history_path,
+        "wall_clock_seconds": history_obs.wall_clock_seconds,
+        "peak_vram_mb": history_obs.peak_vram_mb,
         "final_metrics": final_metrics,
     }
