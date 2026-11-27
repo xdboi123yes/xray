@@ -47,8 +47,8 @@ benchmark:         ## Latency + memory + carbon
 	python -m scripts.benchmark_latency
 
 # --- Synthetic ---
-generate-synthetic: ## Generate SD synthetic batch
-	python -m scripts.generate_synthetics --n 500 --version v2
+generate-synthetic: ## Generate multi-batch FID-gated SD synthetic dataset
+	python -m scripts.generate_synthetics --seed-scope all --batch-size 50 --num-variations 3 --fid-threshold 50.0 --resume
 
 # --- Export ---
 export-onnx:       ## ONNX export + INT8 quantization

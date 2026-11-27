@@ -1,143 +1,197 @@
-"""CLI script to generate synthetic Pneumothorax images.
+"""CLI script to generate multi-batch FID-gated Synthetic Augmentation Batches.
 
-Generates high-fidelity chest radiographs using Stable Diffusion conditioning, 
-evaluating batch quality using Frechet Inception Distance (FID) threshold gates.
+Iterates across Patient-Disjoint Partition training pneumothorax seeds (both
+isolated and comorbid positive cases by default), generates Stable Diffusion
+img2img variations, evaluates each batch with Inception-v3 FID against real
+training pneumothorax radiographs, logs batch metrics, routes images into
+accepted/rejected directories, persists accepted metadata and a qualitative
+comparison grid, and supports crash-safe checkpoint/resume.
 """
 
 from __future__ import annotations
 
+import argparse
 import os
-import shutil
 import sys
-
-import pandas as pd
-from tqdm import tqdm
+from collections.abc import Sequence
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from tcrp.config import get_settings
-from tcrp.data.synthetic import SyntheticBatchPipeline
+from tcrp.config import Settings, get_settings
+from tcrp.data.synthetic import (
+    MultiBatchGenerationSummary,
+    SyntheticBatchPipeline,
+    SyntheticGenerationConfig,
+)
 
 
-def main() -> None:
-    config = get_settings()
-
-    if not config.data.synthetic_augmentation:
-        print("Synthetic augmentation is disabled in configuration settings.")
-        return
-
-    train_csv = "data/processed/train.csv"
-    if not os.path.exists(train_csv):
-        print(f"Error: {train_csv} not found. Run preprocess.py first.")
-        return
-
-    df = pd.read_csv(train_csv)
-    # Filter for Pneumothorax class to use as conditioning images
-    df_pneumo = df[df["Finding Labels"] == "Pneumothorax"]
-
-    if len(df_pneumo) == 0:
-        print("No Pneumothorax images found in training set.")
-        return
-
-    print(f"Found {len(df_pneumo)} real Pneumothorax images for conditioning.")
-
-    # We will process a small test batch to avoid taking hours on a local machine
-    batch_size = 5  # Number of real images to process in this run
-    num_variations = 3  # Synthetics per real image
-
-    # Read image_dir from image_dir.txt if available
-    image_dir_txt = "data/processed/image_dir.txt"
+def _resolve_default_image_dir(settings: Settings) -> str:
+    image_dir_txt = os.path.join(settings.paths.data_processed, "image_dir.txt")
     if os.path.exists(image_dir_txt):
-        with open(image_dir_txt) as f:
-            real_images_dir = f.read().strip()
-    else:
-        real_images_dir = config.paths.image_dir
+        with open(image_dir_txt, encoding="utf-8") as fh:
+            resolved = fh.read().strip()
+            if resolved:
+                return resolved
+    return settings.paths.image_dir
 
-    synthetic_base_dir = "data/synthetic"
 
-    temp_batch_dir = os.path.join(synthetic_base_dir, "temp_batch")
-    accepted_dir = os.path.join(synthetic_base_dir, "accepted")
-    rejected_dir = os.path.join(synthetic_base_dir, "rejected")
-
-    os.makedirs(temp_batch_dir, exist_ok=True)
-    os.makedirs(accepted_dir, exist_ok=True)
-    os.makedirs(rejected_dir, exist_ok=True)
-
-    # Initialize SyntheticBatchPipeline
-    print("Initializing Stable Diffusion...")
-    try:
-        pipeline = SyntheticBatchPipeline(settings=config)
-    except Exception as e:
-        print(f"Error initializing models: {e}")
-        return
-
-    synthetic_csv_path = os.path.join(synthetic_base_dir, "synthetic_metadata.csv")
-    accepted_records = []
-    if os.path.exists(synthetic_csv_path):
-        accepted_records = pd.read_csv(synthetic_csv_path).to_dict("records")
-
-    total_to_process = min(batch_size, len(df_pneumo))
-    print(f"Generating synthetic variations for {total_to_process} images...")
-
-    for i in tqdm(range(total_to_process), desc="Generating"):
-        row = df_pneumo.iloc[i]
-        real_img_path = os.path.join(real_images_dir, row["Image Index"])
-
-        if not os.path.exists(real_img_path):
-            continue
-
-        synthetics = pipeline.generate_variations(real_img_path, num_variations=num_variations)
-
-        for j, synth_img in enumerate(synthetics):
-            base_name = os.path.splitext(row["Image Index"])[0]
-            synth_filename = f"synth_{base_name}_{j}.png"
-            synth_path = os.path.join(temp_batch_dir, synth_filename)
-            synth_img.save(synth_path)
-
-    # Evaluate Batch
-    print("\nEvaluating generated batch with FID...")
-    # Create a temporary dir of real pneumothorax images for fair FID comparison
-    temp_real_dir = os.path.join(synthetic_base_dir, "temp_real")
-    os.makedirs(temp_real_dir, exist_ok=True)
-
-    # Use up to 50 real images for the FID baseline comparison
-    for _, row in df_pneumo.head(50).iterrows():
-        src = os.path.join(real_images_dir, row["Image Index"])
-        if os.path.exists(src):
-            shutil.copy(src, os.path.join(temp_real_dir, row["Image Index"]))
-
-    batch_record = pipeline.evaluate_and_filter_batch(
-        temp_real_dir, temp_batch_dir, accepted_dir, rejected_dir
+def build_parser(settings: Settings | None = None) -> argparse.ArgumentParser:
+    """Build argument parser for configurable multi-batch synthetic generation."""
+    cfg = settings or get_settings()
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate multi-batch FID-gated Synthetic Augmentation Batches "
+            "from Patient-Disjoint Partition training pneumothorax seeds."
+        )
     )
-    accepted, fid_score, moved_files = (
-        batch_record.accepted,
-        batch_record.fid_score,
-        batch_record.moved_files,
+    parser.add_argument(
+        "--train-csv",
+        type=str,
+        default=os.path.join(cfg.paths.data_processed, "train.csv"),
+        help="Path to Patient-Disjoint Partition training split CSV.",
+    )
+    parser.add_argument(
+        "--image-dir",
+        type=str,
+        default=None,
+        help="Directory containing real NIH radiographs (defaults to image_dir.txt / config).",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=cfg.paths.data_synthetic,
+        help="Output directory for accepted/, rejected/, fid_log.csv, metadata, and resume state.",
+    )
+    parser.add_argument(
+        "--seed-scope",
+        type=str,
+        choices=["all", "isolated"],
+        default="all",
+        help="Seed scope: 'all' (isolated + comorbid Pneumothorax) or 'isolated' only.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=50,
+        help="Number of real training pneumothorax seeds per FID-evaluated batch.",
+    )
+    parser.add_argument(
+        "--num-variations",
+        type=int,
+        default=3,
+        help="Number of synthetic variations generated per real seed radiograph.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=cfg.training.seed,
+        help="Base random seed for deterministic variation generation.",
+    )
+    parser.add_argument(
+        "--fid-threshold",
+        type=float,
+        default=cfg.augmentation.fid_threshold,
+        help="Maximum Inception-v3 FID score to accept a generated batch (default: 50.0).",
+    )
+    parser.add_argument(
+        "--strength",
+        type=float,
+        default=0.3,
+        help="Stable Diffusion img2img denoising strength.",
+    )
+    parser.add_argument(
+        "--max-seeds",
+        type=int,
+        default=None,
+        help="Optional cap on total real seeds processed (default: None = all training seeds).",
+    )
+    parser.add_argument(
+        "--fid-reference-count",
+        type=int,
+        default=None,
+        help="Optional cap on real training pneumothorax reference images used for FID.",
+    )
+    parser.add_argument(
+        "--resume",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Resume from last completed batch in resume_state.json (use --no-resume for fresh run).",
+    )
+    parser.add_argument(
+        "--qualitative-grid-path",
+        type=str,
+        default=None,
+        help="Optional output path for the real-vs-synthetic qualitative comparison grid PNG.",
+    )
+    parser.add_argument(
+        "--qualitative-grid-samples",
+        type=int,
+        default=4,
+        help="Maximum number of real/synthetic pairs shown in the qualitative comparison grid.",
+    )
+    return parser
+
+
+def parse_args(
+    argv: Sequence[str] | None = None,
+    settings: Settings | None = None,
+) -> argparse.Namespace:
+    """Parse CLI arguments for synthetic generation."""
+    return build_parser(settings=settings).parse_args(argv)
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    pipeline: SyntheticBatchPipeline | None = None,
+    settings: Settings | None = None,
+) -> MultiBatchGenerationSummary | None:
+    """Execute multi-batch FID-gated synthetic generation from CLI arguments."""
+    cfg = settings or get_settings()
+    args = parse_args(argv, settings=cfg)
+
+    if not cfg.data.synthetic_augmentation:
+        print("Synthetic augmentation is disabled in configuration settings.")
+        return None
+
+    if not os.path.exists(args.train_csv):
+        raise FileNotFoundError(f"{args.train_csv} not found. Run preprocess.py first.")
+
+    real_images_dir = args.image_dir or _resolve_default_image_dir(cfg)
+    active_pipeline = pipeline or SyntheticBatchPipeline(
+        fid_threshold=args.fid_threshold,
+        settings=cfg,
     )
 
-    # Log the real FID score per batch so synthetic_quality.ipynb plots real values, not hardcoded ones.
-    fid_log_path = os.path.join(synthetic_base_dir, "fid_log.csv")
-    fid_rows = pd.read_csv(fid_log_path).to_dict("records") if os.path.exists(fid_log_path) else []
-    fid_rows.append({"batch": len(fid_rows) + 1, "fid": float(fid_score), "accepted": bool(accepted)})
-    pd.DataFrame(fid_rows).to_csv(fid_log_path, index=False)
+    gen_config = SyntheticGenerationConfig(
+        train_csv=args.train_csv,
+        real_images_dir=real_images_dir,
+        output_dir=args.output_dir,
+        seed_scope=args.seed_scope,
+        batch_size=args.batch_size,
+        num_variations=args.num_variations,
+        seed=args.seed,
+        fid_threshold=args.fid_threshold,
+        strength=args.strength,
+        max_seeds=args.max_seeds,
+        fid_reference_count=args.fid_reference_count,
+        resume=args.resume,
+        qualitative_grid_path=args.qualitative_grid_path,
+        qualitative_grid_samples=args.qualitative_grid_samples,
+    )
 
-    if accepted:
-        print(f"--> Batch ACCEPTED! FID: {fid_score:.2f} <= {pipeline.fid_threshold}")
-        for filepath in moved_files:
-            filename = os.path.basename(filepath)
-            accepted_records.append({"Image Index": filename, "Finding Labels": "Pneumothorax"})
-    else:
-        print(f"--> Batch REJECTED. FID: {fid_score:.2f} > {pipeline.fid_threshold}")
-
-    # Save metadata
-    if accepted_records:
-        pd.DataFrame(accepted_records).to_csv(synthetic_csv_path, index=False)
-        print(f"Total accepted synthetic images tracked: {len(accepted_records)}")
-
-    # Cleanup temp dirs
-    shutil.rmtree(temp_real_dir)
-    if os.path.exists(temp_batch_dir) and not os.listdir(temp_batch_dir):
-        os.rmdir(temp_batch_dir)
+    summary = active_pipeline.run_multi_batch(gen_config)
+    print(
+        f"Synthetic generation complete: seeds={summary.processed_seeds}/{summary.total_seeds} "
+        f"(skipped={summary.skipped_seeds}), batches={summary.batches_executed}/{summary.total_batches} "
+        f"(accepted={summary.batches_accepted}, rejected={summary.batches_rejected}), "
+        f"images accepted={summary.accepted_images}, rejected={summary.rejected_images}"
+    )
+    print(f"  FID log:  {summary.fid_log_path}")
+    print(f"  Metadata: {summary.metadata_csv_path}")
+    if summary.qualitative_grid_path:
+        print(f"  Grid:     {summary.qualitative_grid_path}")
+    return summary
 
 
 if __name__ == "__main__":

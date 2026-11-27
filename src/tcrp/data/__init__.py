@@ -14,8 +14,12 @@ from tcrp.data.synthetic import (
     DiffusersGeneratorAdapter,
     FIDEvaluatorAdapter,
     GeneratorAdapter,
+    MultiBatchGenerationSummary,
     PyTorchFIDAdapter,
     SyntheticBatchPipeline,
+    SyntheticGenerationConfig,
+    build_qualitative_comparison_grid,
+    select_training_pneumothorax_seeds,
 )
 
 __all__ = [
@@ -27,10 +31,14 @@ __all__ = [
     "GeneratorAdapter",
     "ImagePreprocessor",
     "MixupCutmixAugmentation",
+    "MultiBatchGenerationSummary",
     "NIHChestXrayDataset",
     "PyTorchFIDAdapter",
     "SplitSummary",
     "SyntheticBatchPipeline",
+    "SyntheticGenerationConfig",
     "build_patient_disjoint_splits",
+    "build_qualitative_comparison_grid",
+    "select_training_pneumothorax_seeds",
     "verify_patient_disjointness",
 ]
