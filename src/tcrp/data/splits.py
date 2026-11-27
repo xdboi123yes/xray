@@ -97,6 +97,7 @@ def build_patient_disjoint_splits(
     seed: int = 42,
     max_ratio: int = 5,
     calibration_fraction: float = 0.30,
+    verify_images: bool = True,
 ) -> SplitSummary:
     """Build four-way Patient-Disjoint Partition CSVs and a verified manifest.
 
@@ -143,7 +144,12 @@ def build_patient_disjoint_splits(
         df_normal = df_normal.sample(n=max_normal, random_state=seed)
     df_filtered = pd.concat([df_pneumo, df_normal], ignore_index=True)
 
-    if os.path.exists(image_dir):
+    if verify_images:
+        if not os.path.isdir(image_dir):
+            raise FileNotFoundError(
+                f"image_dir does not exist: '{image_dir}'. "
+                "Pass verify_images=False to build splits without disk verification."
+            )
         existing_files = set(os.listdir(image_dir))
         df_filtered = df_filtered[df_filtered["Image Index"].isin(existing_files)].copy()
 

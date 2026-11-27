@@ -27,8 +27,12 @@ def compute_ece(probs: Any, labels: Any, n_bins: int = 15) -> float:
 
     bin_boundaries = np.linspace(0, 1, n_bins + 1)
     ece = 0.0
-    for bin_lower, bin_upper in pairwise(bin_boundaries):
-        in_bin = (probs_arr > bin_lower) & (probs_arr <= bin_upper)
+    for idx, (bin_lower, bin_upper) in enumerate(pairwise(bin_boundaries)):
+        in_bin = (
+            (probs_arr >= bin_lower) & (probs_arr <= bin_upper)
+            if idx == 0
+            else (probs_arr > bin_lower) & (probs_arr <= bin_upper)
+        )
         prop_in_bin = float(in_bin.mean())
         if prop_in_bin > 0:
             accuracy_in_bin = float(labels_arr[in_bin].mean())
@@ -52,7 +56,8 @@ class ModelWithTemperature(nn.Module):  # type: ignore[misc]
 
     def temperature_scale(self, logits: torch.Tensor) -> torch.Tensor:
         """Divide raw logits by the learned positive temperature scalar."""
-        temperature = self.temperature.unsqueeze(1).expand(logits.size(0), logits.size(1))
+        safe_temp = self.temperature.clamp(min=1e-3)
+        temperature = safe_temp.unsqueeze(1).expand(logits.size(0), logits.size(1))
         return logits / temperature
 
     def set_temperature(self, valid_loader: Any, device: torch.device) -> ModelWithTemperature:
@@ -129,8 +134,12 @@ def plot_reliability_diagram(
     bin_boundaries = np.linspace(0, 1, n_bins + 1)
     accuracies: list[float] = []
     confidences: list[float] = []
-    for bin_lower, bin_upper in pairwise(bin_boundaries):
-        in_bin = (probs_arr > bin_lower) & (probs_arr <= bin_upper)
+    for idx, (bin_lower, bin_upper) in enumerate(pairwise(bin_boundaries)):
+        in_bin = (
+            (probs_arr >= bin_lower) & (probs_arr <= bin_upper)
+            if idx == 0
+            else (probs_arr > bin_lower) & (probs_arr <= bin_upper)
+        )
         if in_bin.any():
             accuracies.append(float(labels_arr[in_bin].mean()))
             confidences.append(float(probs_arr[in_bin].mean()))

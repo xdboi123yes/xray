@@ -127,7 +127,7 @@ def resolve_tier2_weights(spec: AblationSpec) -> str:
 
 def build_dataset(image_size: int) -> NIHChestXrayDataset:
     """Build the NIH test dataset with eval-time (non-training) transforms."""
-    transform = ClassicalAugmentation(image_size=image_size, is_training=False)._pipeline
+    transform = ClassicalAugmentation(image_size=image_size, is_training=False).pipeline
     return NIHChestXrayDataset(csv_file=TEST_CSV, transform=transform)
 
 
@@ -249,7 +249,7 @@ def fit_temperature_on_val(
     """Fit post-hoc temperature scalar strictly on the validation split (val.csv)."""
     if not os.path.exists(VAL_CSV):
         return 1.0
-    transform = ClassicalAugmentation(image_size=image_size, is_training=False)._pipeline
+    transform = ClassicalAugmentation(image_size=image_size, is_training=False).pipeline
     val_loader = DataLoader(
         NIHChestXrayDataset(csv_file=VAL_CSV, transform=transform),
         batch_size=max(cfg.batch_size, 64),
@@ -335,7 +335,7 @@ def calibrate_conformal(
     if not os.path.exists(CALIBRATION_CSV):
         print(f"[{spec.ablation_id}] {CALIBRATION_CSV} missing - skipping conformal coverage.")
         return None
-    transform = ClassicalAugmentation(image_size=image_size, is_training=False)._pipeline
+    transform = ClassicalAugmentation(image_size=image_size, is_training=False).pipeline
     cal_loader = DataLoader(
         NIHChestXrayDataset(csv_file=CALIBRATION_CSV, transform=transform),
         batch_size=max(cfg.batch_size, 64),

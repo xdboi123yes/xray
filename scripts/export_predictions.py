@@ -74,7 +74,7 @@ def _run_split(
     esc_threshold: float,
 ) -> pd.DataFrame:
     """Run both tiers over a split and return a per-image dataframe."""
-    transform = ClassicalAugmentation(image_size=image_size, is_training=False)._pipeline
+    transform = ClassicalAugmentation(image_size=image_size, is_training=False).pipeline
     loader = DataLoader(
         NIHChestXrayDataset(csv_file=csv_file, transform=transform),
         batch_size=1,

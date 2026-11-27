@@ -21,6 +21,7 @@ from tcrp.training import (
     get_scheduler,
 )
 from tcrp.uncertainty.calibration import (
+    ModelWithTemperature,
     calibrate_temperature,
     compute_ece,
     plot_reliability_diagram,
@@ -166,3 +167,52 @@ def test_onnx_exporter_invokes_torch_onnx_export(
     assert onnx_out.exists()
     assert len(calls) == 1
     assert calls[0]["f"] == str(onnx_out)
+
+
+def test_compute_ece_includes_exact_zero_probability() -> None:
+    # A sample with probability 0.0 and true label 1 has error |0.0 - 1.0| = 1.0
+    assert compute_ece([0.0], [1], n_bins=15) == pytest.approx(1.0)
+    assert compute_ece([0.0, 1.0], [0, 1], n_bins=15) == pytest.approx(0.0)
+
+
+def test_model_with_temperature_clamps_non_positive_temperature() -> None:
+    base = nn.Linear(2, 2)
+    wrapped = ModelWithTemperature(base)
+    logits = torch.tensor([[1.0, -2.0]])
+
+    with torch.no_grad():
+        wrapped.temperature.fill_(-0.5)
+    scaled = wrapped.temperature_scale(logits)
+    assert torch.isfinite(scaled).all()
+    assert scaled[0, 0].item() > 0.0
+    assert scaled[0, 1].item() < 0.0
+
+
+def test_build_patient_disjoint_splits_missing_image_dir_requires_opt_out(tmp_path: Path) -> None:
+    rows = []
+    for i in range(24):
+        pid = f"{i + 1:08d}"
+        finding = "Pneumothorax" if i % 2 == 0 else "No Finding"
+        rows.append({"Image Index": f"{pid}_000.png", "Finding Labels": finding})
+    csv_path = tmp_path / "Data_Entry_2017.csv"
+    pd.DataFrame(rows).to_csv(csv_path, index=False)
+
+    missing_dir = str(tmp_path / "does_not_exist")
+    with pytest.raises(FileNotFoundError, match="image_dir"):
+        build_patient_disjoint_splits(
+            csv_path=str(csv_path),
+            image_dir=missing_dir,
+            output_dir=str(tmp_path / "out_fail"),
+        )
+
+    summary = build_patient_disjoint_splits(
+        csv_path=str(csv_path),
+        image_dir=missing_dir,
+        output_dir=str(tmp_path / "out_ok"),
+        train_split=0.50,
+        val_split=0.30,
+        test_split=0.20,
+        calibration_fraction=0.50,
+        verify_images=False,
+    )
+    assert sum(c.samples for c in summary.splits.values()) == 24

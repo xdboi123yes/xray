@@ -145,18 +145,29 @@ class Tier2ArkPlus(BaseClassifier):
                 or "outputs/models/ark_plus_swin_base.pth"
             )
             if target_path and Path(target_path).exists():
-                try:
-                    state = torch.load(target_path, map_location="cpu", weights_only=False)
-                    if isinstance(state, dict) and "state_dict" in state:
-                        state = state["state_dict"]
-                    backbone.load_state_dict(state, strict=False)
-                    log.info("Loaded Ark+ checkpoint weights", path=target_path)
-                except Exception as exc:
-                    log.error(
-                        "Failed loading Ark+ weights; falling back to ImageNet Swin",
-                        path=target_path,
-                        error=str(exc),
+                state = torch.load(target_path, map_location="cpu", weights_only=False)
+                if isinstance(state, dict):
+                    for key in ("teacher", "state_dict", "model", "model_state_dict"):
+                        if key in state and isinstance(state[key], dict):
+                            state = state[key]
+                            break
+                if not isinstance(state, dict):
+                    raise RuntimeError(f"Ark+ checkpoint at '{target_path}' is not a state dict.")
+                incompatible = backbone.load_state_dict(state, strict=False)
+                expected_keys = len(backbone.state_dict())
+                matched_keys = expected_keys - len(incompatible.missing_keys)
+                if matched_keys == 0:
+                    raise RuntimeError(
+                        f"Ark+ checkpoint '{target_path}' matched 0/{expected_keys} backbone keys "
+                        f"(unexpected={len(incompatible.unexpected_keys)})."
                     )
+                log.info(
+                    "Loaded Ark+ checkpoint weights",
+                    path=target_path,
+                    matched=matched_keys,
+                    missing=len(incompatible.missing_keys),
+                    unexpected=len(incompatible.unexpected_keys),
+                )
             else:
                 log.info("Using ImageNet-pretrained Swin backbone", variant=variant)
         else:

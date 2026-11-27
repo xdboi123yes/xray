@@ -215,6 +215,7 @@ class Trainer:
     def _train_epoch(self, loader: DataLoader[Any]) -> dict[str, float]:
         self.model.train()
         total_loss = 0.0
+        n_samples = 0
         preds_list: list[float] = []
         targets_list: list[float] = []
         self.optimizer.zero_grad()
@@ -253,22 +254,29 @@ class Trainer:
                 self.optimizer.zero_grad()
 
             running_loss = loss.item() * self.accumulate_grad_batches
-            total_loss += running_loss * len(images)
+            batch_n = len(images)
+            total_loss += running_loss * batch_n
+            n_samples += batch_n
             probs = torch.softmax(outputs, dim=1)[:, 1]
             preds_list.extend(probs.detach().cpu().numpy().tolist())
             targets_list.extend(labels.detach().cpu().numpy().tolist())
 
-        epoch_loss = total_loss / len(loader.dataset)  # type: ignore[arg-type]
+        epoch_loss = total_loss / n_samples if n_samples > 0 else 0.0
         try:
             auc = float(roc_auc_score(targets_list, preds_list))
         except ValueError:
             auc = 0.5
-        acc = float(accuracy_score(targets_list, [1 if p > 0.5 else 0 for p in preds_list]))
+        acc = (
+            float(accuracy_score(targets_list, [1 if p > 0.5 else 0 for p in preds_list]))
+            if targets_list
+            else 0.0
+        )
         return {"train_loss": epoch_loss, "train_auc": auc, "train_acc": acc}
 
     def _val_epoch(self, loader: DataLoader[Any]) -> dict[str, float]:
         self.model.eval()
         total_loss = 0.0
+        n_samples = 0
         preds_list: list[float] = []
         targets_list: list[float] = []
 
@@ -285,17 +293,23 @@ class Trainer:
                 with torch.amp.autocast("cuda", enabled=self.use_amp):  # type: ignore[attr-defined]
                     outputs = self.model(images)
                     loss = self.criterion(outputs, labels)
-                total_loss += loss.item() * len(images)
+                batch_n = len(images)
+                total_loss += loss.item() * batch_n
+                n_samples += batch_n
                 probs = torch.softmax(outputs, dim=1)[:, 1]
                 preds_list.extend(probs.cpu().numpy().tolist())
                 targets_list.extend(labels.cpu().numpy().tolist())
 
-        epoch_loss = total_loss / len(loader.dataset)  # type: ignore[arg-type]
+        epoch_loss = total_loss / n_samples if n_samples > 0 else 0.0
         try:
             auc = float(roc_auc_score(targets_list, preds_list))
         except ValueError:
             auc = 0.5
-        acc = float(accuracy_score(targets_list, [1 if p > 0.5 else 0 for p in preds_list]))
+        acc = (
+            float(accuracy_score(targets_list, [1 if p > 0.5 else 0 for p in preds_list]))
+            if targets_list
+            else 0.0
+        )
         return {"val_loss": epoch_loss, "val_auc": auc, "val_acc": acc}
 
 
@@ -339,8 +353,8 @@ def train_model(
         image_dir=image_dir,
         transform=train_transform,
         use_synthetic=config.use_synthetic,
-        synthetic_dir=active_settings.paths.data_synthetic,
-        synthetic_csv=os.path.join(active_settings.paths.data_synthetic, "synthetic.csv"),
+        synthetic_dir=os.path.join(active_settings.paths.data_synthetic, "accepted"),
+        synthetic_csv=os.path.join(active_settings.paths.data_synthetic, "synthetic_metadata.csv"),
     )
     val_dataset = NIHChestXrayDataset(
         csv_file=val_csv,

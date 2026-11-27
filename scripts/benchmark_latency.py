@@ -100,7 +100,7 @@ def estimate_flops_and_params(model: nn.Module, input_size: tuple[int, ...] = (1
 
 def benchmark_preprocessing(num_iters: int = 50) -> dict[str, float]:
     """Measure CLAHE + resize(224x224) + ImageNet normalization latency on CPU."""
-    pipeline = ClassicalAugmentation(image_size=224, is_training=False)._pipeline
+    pipeline = ClassicalAugmentation(image_size=224, is_training=False).pipeline
     dummy_img = np.random.randint(0, 256, size=(1024, 1024, 3), dtype=np.uint8)
     for _ in range(5):
         _ = pipeline(image=dummy_img)["image"]

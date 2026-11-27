@@ -132,11 +132,14 @@ class MLflowObserver(TrainingObserver):
         self._run_name = run_name
         self._experiment_name = experiment_name
         self.run_id: str | None = None
+        self._owns_run = False
 
     def on_train_start(self, trainer: Any) -> None:
         try:
             mlflow.set_experiment(self._experiment_name)
-            run = mlflow.active_run() or mlflow.start_run(run_name=self._run_name)
+            existing_run = mlflow.active_run()
+            self._owns_run = existing_run is None
+            run = mlflow.start_run(run_name=self._run_name) if self._owns_run else existing_run
             self.run_id = run.info.run_id if run is not None else None
 
             flat_params: dict[str, Any] = {}
@@ -162,10 +165,12 @@ class MLflowObserver(TrainingObserver):
 
     def on_train_end(self, trainer: Any) -> None:
         try:
-            if mlflow.active_run() is not None:
+            if self._owns_run and mlflow.active_run() is not None:
                 mlflow.end_run()
         except Exception as exc:
             log.error("MLflow run teardown failed", error=str(exc))
+        finally:
+            self._owns_run = False
 
 
 class CarbonTrackerObserver(TrainingObserver):

@@ -4,6 +4,9 @@ Verifies initialization, unfreezing hooks, shapes, MC Dropout, TTA,
 and combined MC-TTA behaviors for Tier2EfficientNet and Tier2ArkPlus.
 """
 
+from pathlib import Path
+
+import pytest
 import torch
 from tcrp.models import BaseClassifier, Tier2ArkPlus, Tier2EfficientNet
 
@@ -72,3 +75,29 @@ def test_tier2_ark_forward(dummy_xray_tensor: torch.Tensor) -> None:
     mean_probs, variance = model.mc_tta_forward(dummy_xray_tensor, T=2, n_augments=2)
     assert mean_probs.shape == (1, 2)
     assert variance.shape == (1, 2)
+
+
+def test_tier2_ark_raises_when_checkpoint_has_zero_matching_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import timm
+
+    # Avoid network download while exercising pretrained=True checkpoint loading seam
+    real_create = timm.create_model
+    monkeypatch.setattr(
+        timm,
+        "create_model",
+        lambda name, pretrained=True, **kw: real_create(name, pretrained=False, **kw),
+    )
+
+    bad_ckpt = tmp_path / "bad_ark.pth"
+    torch.save({"state_dict": {"unrelated.layer.weight": torch.zeros(2, 2)}}, bad_ckpt)
+
+    with pytest.raises(RuntimeError, match="matched 0"):
+        Tier2ArkPlus(
+            num_classes=2,
+            variant="tiny",
+            pretrained=True,
+            freeze_epochs=0,
+            ark_checkpoint_path=str(bad_ckpt),
+        )

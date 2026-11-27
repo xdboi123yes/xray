@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from datetime import datetime
 from typing import Any
 
 import structlog
-import yaml
 
 log = structlog.get_logger(__name__)
+
+
+def _override_to_env(key_path: str, value: Any) -> tuple[str, str]:
+    """Translate dotted config key ``section.field`` into ``XRAY_SECTION__FIELD`` env var."""
+    env_key = "XRAY_" + "__".join(part.upper() for part in key_path.split("."))
+    env_val = str(value).lower() if isinstance(value, bool) else str(value)
+    return env_key, env_val
 
 
 class AblationRunner:
@@ -120,27 +127,14 @@ class AblationRunner:
             "status": "FAILED",
         }
 
-        original_yaml_content: str | None = None
         overrides = dict(config.get("overrides", {}))
         if dry_run:
             overrides["training.epochs"] = 1
 
-        if overrides:
-            with open(self.config_path, encoding="utf-8") as f:
-                original_yaml_content = f.read()
-            try:
-                yaml_data = yaml.safe_load(original_yaml_content)
-                for key_path, val in overrides.items():
-                    keys = key_path.split(".")
-                    node = yaml_data
-                    for k in keys[:-1]:
-                        node = node[k]
-                    node[keys[-1]] = val
-                with open(self.config_path, "w", encoding="utf-8") as f:
-                    yaml.dump(yaml_data, f, default_flow_style=False)
-            except Exception as exc:
-                result["error"] = f"Override Error: {exc}"
-                return result
+        child_env = os.environ.copy()
+        for key_path, val in overrides.items():
+            env_key, env_val = _override_to_env(key_path, val)
+            child_env[env_key] = env_val
 
         try:
             cmd = [sys.executable, "-u", config["script"], *config.get("args", [])]
@@ -151,6 +145,7 @@ class AblationRunner:
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
+                env=child_env,
             )
             if process.stdout is not None:
                 for line in process.stdout:
@@ -164,10 +159,6 @@ class AblationRunner:
         except Exception as exc:
             log.error("Ablation execution failed", ablation_id=ablation_id, error=str(exc))
             result["error"] = str(exc)
-        finally:
-            if original_yaml_content is not None:
-                with open(self.config_path, "w", encoding="utf-8") as f:
-                    f.write(original_yaml_content)
 
         result["completed_at"] = datetime.now().isoformat()
         return result

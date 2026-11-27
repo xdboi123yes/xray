@@ -135,7 +135,7 @@ def main() -> None:
         if os.path.exists(calibration_csv):
             cal_dataset = NIHChestXrayDataset(
                 csv_file=calibration_csv,
-                transform=ClassicalAugmentation(image_size=settings.data.image_size, is_training=False)._pipeline
+                transform=ClassicalAugmentation(image_size=settings.data.image_size, is_training=False).pipeline
             )
             cal_loader = DataLoader(cal_dataset, batch_size=32, shuffle=False)
             cp.calibrate(tier2, cal_loader, device)
@@ -183,7 +183,7 @@ def main() -> None:
         
     test_dataset = NIHChestXrayDataset(
         csv_file=test_csv,
-        transform=ClassicalAugmentation(image_size=image_size, is_training=False)._pipeline
+        transform=ClassicalAugmentation(image_size=image_size, is_training=False).pipeline
     )
     
     # DataLoader (batch size 1 for sequential routing simulation)

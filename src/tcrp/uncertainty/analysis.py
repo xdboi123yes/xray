@@ -169,6 +169,8 @@ def print_uncertainty_summary(results: dict[str, Any]) -> None:
 class TestTimeAugmenter:
     """Generates clinically safe TTA views and aggregates softmax predictions."""
 
+    __test__ = False
+
     def __init__(self, n_augments: int = 10) -> None:
         self.n_augments = n_augments
         self.transforms = T.Compose(
