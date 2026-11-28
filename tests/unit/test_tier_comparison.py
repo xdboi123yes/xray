@@ -10,7 +10,7 @@ import pytest
 
 matplotlib.use("Agg")
 
-from core.explainability.tier_comparison import combined_overlay, side_by_side
+from tcrp.evaluation.explainability import combined_overlay, side_by_side
 
 
 @pytest.fixture()

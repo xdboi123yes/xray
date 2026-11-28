@@ -37,7 +37,11 @@ def _load_module() -> ModuleType:
 def test_spec_has_full_a1_to_a15_table() -> None:
     mod = _load_module()
     ids = [s.ablation_id for s in mod.ABLATION_SPECS]
-    assert ids == [f"A{i}" for i in range(1, 16)], ids
+    expected = [
+        "A1", "A2", "A3", "A4", "A5", "A5b",
+        "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A14b", "A15",
+    ]
+    assert ids == expected, ids
 
 
 def test_spec_ids_and_run_names_are_unique() -> None:
@@ -56,6 +60,8 @@ def test_modes_are_valid_and_a13_a14_are_external() -> None:
     assert mod.ABLATION_BY_ID["A13"].mode == "external"
     assert mod.ABLATION_BY_ID["A14"].mode == "external"
     assert mod.ABLATION_BY_ID["A14"].dataset == "chexpert"
+    assert mod.ABLATION_BY_ID["A14b"].mode == "external"
+    assert mod.ABLATION_BY_ID["A14b"].dataset == "chexpert"
 
 
 def test_uncertainty_pass_counts_collapse_when_disabled() -> None:

@@ -5,8 +5,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
-
-from core.evaluation.metrics import (
+from tcrp.evaluation.metrics import (
     brier_score,
     calibration_slope_intercept,
     compute_all_metrics,
@@ -105,3 +104,25 @@ def test_find_optimal_threshold_low_sensitivity_logs_warning() -> None:
     y_probs = np.array([0.9, 0.9, 0.9, 0.05])
     t = find_optimal_threshold(y_true, y_probs)
     assert isinstance(t, float)
+
+
+def test_youden_threshold_picks_the_cut_that_maximises_tpr_minus_fpr():
+    from tcrp.evaluation.metrics import youden_threshold
+
+    y = np.array([0, 0, 0, 1, 1, 1])
+    p = np.array([0.1, 0.2, 0.6, 0.7, 0.8, 0.9])
+    # Only the cut at 0.7 separates the classes perfectly (J = 1).
+    assert youden_threshold(y, p) == 0.7
+
+
+def test_operating_point_reports_counts_and_wilson_intervals():
+    from tcrp.evaluation.metrics import operating_point, wilson_ci
+
+    y = np.array([1, 1, 1, 1, 0, 0, 0, 0, 0, 0])
+    p = np.array([0.9, 0.8, 0.7, 0.2, 0.1, 0.1, 0.3, 0.6, 0.2, 0.1])
+    op = operating_point(y, p, threshold=0.5)
+    assert (op["tp"], op["fn"], op["tn"], op["fp"]) == (3, 1, 5, 1)
+    assert op["sensitivity"] == 0.75
+    assert op["fnr"] == 0.25
+    assert op["sensitivity_wilson_95ci"] == list(wilson_ci(3, 4))
+    assert op["specificity_wilson_95ci"] == list(wilson_ci(5, 6))

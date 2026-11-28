@@ -44,13 +44,8 @@ COMMENT_PATTERNS = {
 }
 
 EXCLUDED_PATHS = [
-    "src/",
     "notebooks/",
     "thesis/",
-    "web/frontend/src/i18n/tr.json",
-    "web/frontend/src/locale/",
-    "web/frontend/dist/",
-    "web/frontend/node_modules/",
 ]
 
 
@@ -90,7 +85,7 @@ def main(argv: list[str]) -> int:
         files = [Path(p) for p in argv[1:]]
     else:
         # Fallback recursive scan for manual check-lang execution
-        target_dirs = ["core", "application", "infrastructure", "web"]
+        target_dirs = ["src/tcrp"]
         for target in target_dirs:
             p = Path(target)
             if p.exists():

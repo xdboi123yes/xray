@@ -10,11 +10,10 @@ import argparse
 import os
 import sys
 
-# Add project root to sys.path to support standalone execution
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Add src/ to sys.path to support standalone execution
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from application.dto.training_config_dto import TrainingConfigDTO
-from application.services.training_service import TrainingService
+from tcrp.training import TrainingConfig, train_model
 
 
 def main() -> None:
@@ -27,8 +26,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    # DTO mapping for MobileNetV2 Tier 1 backbone
-    dto = TrainingConfigDTO(
+    cfg = TrainingConfig(
         backbone="mobilenet_v2",
         run_name=args.run_name,
         batch_size=32,
@@ -39,10 +37,7 @@ def main() -> None:
         seed=42,
         use_synthetic=False,
     )
-
-    # Delegate model configuration and training execution to application layer
-    service = TrainingService()
-    service.train_model(dto)
+    train_model(cfg)
 
 
 if __name__ == "__main__":

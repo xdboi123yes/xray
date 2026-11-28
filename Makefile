@@ -1,15 +1,18 @@
 .DEFAULT_GOAL := help
 
 # --- Setup ---
-install:           ## Install runtime deps
+install:           ## Install runtime deps and editable tcrp package
 	pip install -r requirements.txt
+	pip install -e . --no-build-isolation --no-deps
 
 install-dev:       ## Install dev + test deps
 	pip install -r requirements-dev.txt
+	pip install -e . --no-build-isolation --no-deps
 	pre-commit install
 
 install-training:  ## Install full training deps
 	pip install -r requirements-training.txt
+	pip install -e . --no-build-isolation --no-deps
 
 # --- Training ---
 train-tier1:       ## Train MobileNetV2 Tier1
@@ -44,36 +47,17 @@ benchmark:         ## Latency + memory + carbon
 	python -m scripts.benchmark_latency
 
 # --- Synthetic ---
-generate-synthetic: ## Generate SD synthetic batch
-	python -m scripts.generate_synthetics --n 500 --version v2
+generate-synthetic: ## Generate multi-batch FID-gated SD synthetic dataset
+	python -m scripts.generate_synthetics --seed-scope all --batch-size 200 --num-variations 3 --strength 0.15 --fid-threshold 50.0 --resume
 
 # --- Export ---
 export-onnx:       ## ONNX export + INT8 quantization
 	python -m scripts.export_onnx --model tier1
 	python -m scripts.export_onnx --model tier2 --quantize int8
 
-# --- Web ---
-serve-api:         ## Start FastAPI (dev)
-	uvicorn web.backend.app:app --reload --host 0.0.0.0 --port 8000
-
-serve-frontend:    ## Start React dev server
-	cd web/frontend && npm run dev
-
-serve:             ## Start full stack via docker-compose
-	docker-compose up --build
-
-serve-prod:        ## Start production stack
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-docker-run:        ## Run full stack in Docker (daemon mode)
-	docker-compose up -d
-
-docker-stop:       ## Stop Docker stack and containers
-	docker-compose down
-
 # --- Quality ---
 test:              ## Run all tests
-	pytest tests/ -v --cov=core --cov=application --cov-report=html
+	pytest tests/ -v --cov=tcrp --cov-report=html
 
 test-unit:         ## Unit tests only
 	pytest tests/unit -v
@@ -82,11 +66,11 @@ test-integration:  ## Integration tests
 	pytest tests/integration -v
 
 lint:              ## Lint code
-	ruff check core/ application/ infrastructure/ web/ tests/
-	mypy core/ application/ infrastructure/
+	ruff check src/tcrp/ tests/ scripts/
+	mypy src/tcrp/ scripts/generate_synthetics.py scripts/preprocess.py
 
 format:            ## Auto-format
-	ruff format core/ application/ infrastructure/ web/ tests/
+	ruff format src/tcrp/ tests/ scripts/
 
 check-imports:     ## Verify architectural boundaries
 	lint-imports
@@ -94,19 +78,9 @@ check-imports:     ## Verify architectural boundaries
 check-lang:        ## Verify code comments are English-only
 	python -m scripts.check_comment_language
 
-# --- Docker ---
-docker-build:      ## Build all images
-	docker-compose build
-
-docker-push:       ## Push to registry
-	docker-compose push
-
-# --- Thesis ---
-figures:           ## Generate all thesis figures
-	python -m scripts.generate_report_figures --output thesis/figures
-
-thesis-build:      ## Compile LaTeX
-	cd thesis && latexmk -pdf -interaction=nonstopmode main.tex
+# --- Paper / Figures ---
+figures:           ## Generate all figures
+	python -m scripts.build_thesis_figures
 
 clean:             ## Remove caches
 	find . -type d -name __pycache__ -exec rm -rf {} +
@@ -118,6 +92,5 @@ help:              ## Show this help
 
 .PHONY: install install-dev install-training train-tier1 train-tier2 train-tier2-ark \
         evaluate-nih evaluate-chexpert ablation evaluate-ablations ablation-table stats benchmark generate-synthetic \
-        export-onnx serve-api serve-frontend serve serve-prod docker-run docker-stop test test-unit \
-        test-integration lint format check-imports check-lang docker-build docker-push \
-        figures thesis-build clean help
+        export-onnx test test-unit test-integration lint format check-imports check-lang \
+        figures clean help

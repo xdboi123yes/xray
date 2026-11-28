@@ -1,10 +1,4 @@
-"""Data preprocessing with mutually exclusive patient-level splits.
-
-Splits NIH ChestX-ray14 data into train/validation/calibration/test sets.
-Filters for Pneumothorax and No Finding classes.
-Caps No Finding at 5:1 ratio relative to Pneumothorax.
-Saves image_dir.txt for downstream use.
-"""
+"""CLI entrypoint for building four-way Patient-Disjoint Partition splits for NIH ChestX-ray14."""
 
 from __future__ import annotations
 
@@ -12,13 +6,10 @@ import argparse
 import os
 import sys
 
-# Add project root to sys.path to support standalone execution
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-import pandas as pd
-from sklearn.model_selection import train_test_split
-
-from config.settings import get_settings
+from tcrp.config import get_settings
+from tcrp.data.splits import build_patient_disjoint_splits
 
 
 def split_data(
@@ -30,141 +21,38 @@ def split_data(
     test_split: float,
     seed: int,
     max_ratio: int = 5,
+    min_images: int | None = None,
+    min_positives: int | None = None,
 ) -> None:
-    """Split NIH data by patient into train/validation/calibration/test sets.
-
-    Args:
-        csv_path: Path to Data_Entry_2017.csv.
-        image_dir: Single directory containing all images.
-        output_dir: Where to save train.csv, val.csv, test.csv.
-        train_split: Train ratio.
-        val_split: Val ratio.
-        test_split: Test ratio.
-        seed: Random seed.
-        max_ratio: Max ratio of No Finding to Pneumothorax.
-    """
-    print(f"Loading data from {csv_path}...")
-    df = pd.read_csv(csv_path)
-
-    # Filter: Pneumothorax (str.contains for multi-label) + No Finding (exact)
-    mask_pneumo = df["Finding Labels"].str.contains("Pneumothorax", na=False)
-    mask_normal = df["Finding Labels"] == "No Finding"
-    df_filtered = df[mask_pneumo | mask_normal].copy()
-
-    # Create binary label
-    df_filtered["Label"] = df_filtered["Finding Labels"].apply(
-        lambda x: 1 if "Pneumothorax" in str(x) else 0
+    """Build four-way Patient-Disjoint Partition splits and print summary counts."""
+    summary = build_patient_disjoint_splits(
+        csv_path=csv_path,
+        image_dir=image_dir,
+        output_dir=output_dir,
+        train_split=train_split,
+        val_split=val_split,
+        test_split=test_split,
+        seed=seed,
+        max_ratio=max_ratio,
     )
-
-    print(
-        f"Before balancing: {len(df_filtered)} total | "
-        f"Pneumothorax: {(df_filtered['Label']==1).sum()} | "
-        f"No Finding: {(df_filtered['Label']==0).sum()}"
-    )
-
-    # Cap No Finding at max_ratio:1 relative to Pneumothorax
-    n_pneumo = (df_filtered["Label"] == 1).sum()
-    max_normal = n_pneumo * max_ratio
-
-    df_pneumo = df_filtered[df_filtered["Label"] == 1]
-    df_normal = df_filtered[df_filtered["Label"] == 0]
-
-    if len(df_normal) > max_normal:
-        df_normal = df_normal.sample(n=max_normal, random_state=seed)
-        print(f"Capping No Finding to {max_normal} (5:1 ratio)")
-
-    df_filtered = pd.concat([df_pneumo, df_normal], ignore_index=True)
-
-    # Check image existence
-    if os.path.exists(image_dir):
-        print(f"Checking image existence in {image_dir}...")
-        existing_files = set(os.listdir(image_dir))
-        df_filtered["exists"] = df_filtered["Image Index"].isin(existing_files)
-        n_missing = (~df_filtered["exists"]).sum()
-        if n_missing > 0:
-            print(f"Warning: {n_missing} images not found in {image_dir}, skipping them.")
-        df_filtered = df_filtered[df_filtered["exists"]].drop(columns=["exists"])
-        print(f"Found {len(df_filtered)} images with verified existence.")
-    else:
-        print(f"Warning: {image_dir} not found. Proceeding without verifying image existence.")
-
-    if len(df_filtered) == 0:
-        print("Error: No images found to process.")
-        return
-
-    print(
-        f"\nAfter balancing: {len(df_filtered)} total | "
-        f"Pneumothorax: {(df_filtered['Label']==1).sum()} | "
-        f"No Finding: {(df_filtered['Label']==0).sum()}"
-    )
-
-    # NIH image names begin with the eight-digit patient identifier. Splitting
-    # rows directly leaks patients with multiple radiographs across partitions.
-    df_filtered["Patient ID"] = df_filtered["Image Index"].str.split("_").str[0]
-    patient_labels = (
-        df_filtered.groupby("Patient ID", as_index=False)["Label"]
-        .max()
-        .rename(columns={"Label": "Patient Label"})
-    )
-
-    # Stratify patients, then map every image from one patient to one partition.
-    val_test_ratio = val_split + test_split
-    train_patients, val_test_patients = train_test_split(
-        patient_labels,
-        test_size=val_test_ratio,
-        random_state=seed,
-        stratify=patient_labels["Patient Label"],
-    )
-
-    # Separate test patients from the development patients.
-    test_ratio_of_val_test = test_split / val_test_ratio
-    development_patients, test_patients = train_test_split(
-        val_test_patients,
-        test_size=test_ratio_of_val_test,
-        random_state=seed,
-        stratify=val_test_patients["Patient Label"],
-    )
-
-    # Reserve 30% of development patients for calibration. This matches the
-    # previous intended calibration size without overlapping validation.
-    val_patients, calibration_patients = train_test_split(
-        development_patients,
-        test_size=0.30,
-        random_state=seed,
-        stratify=development_patients["Patient Label"],
-    )
-
-    def images_for(patients: pd.DataFrame) -> pd.DataFrame:
-        return df_filtered[df_filtered["Patient ID"].isin(patients["Patient ID"])]
-
-    train_df = images_for(train_patients)
-    val_df = images_for(val_patients)
-    calibration_df = images_for(calibration_patients)
-    test_df = images_for(test_patients)
-
-    # Save CSVs with required columns
-    os.makedirs(output_dir, exist_ok=True)
-    cols_to_save = ["Image Index", "Finding Labels", "Label"]
-
-    for name, split_df in [
-        ("train", train_df),
-        ("val", val_df),
-        ("calibration", calibration_df),
-        ("test", test_df),
-    ]:
-        out_path = os.path.join(output_dir, f"{name}.csv")
-        split_df[cols_to_save].to_csv(out_path, index=False)
-        n_p = (split_df["Label"] == 1).sum()
-        n_n = (split_df["Label"] == 0).sum()
-        print(
-            f"  {name:5s}: {len(split_df):6d} samples | Pneumo: {n_p} | Normal: {n_n} → {out_path}"
+    total_samples = sum(c.samples for c in summary.splits.values())
+    total_positives = sum(c.pneumothorax for c in summary.splits.values())
+    if min_images is not None and total_samples < min_images:
+        raise ValueError(
+            f"Incomplete dataset in '{image_dir}': matched {total_samples} images, "
+            f"expected at least {min_images}."
         )
-
-    # Save image_dir to txt for downstream use
-    image_dir_txt = os.path.join(output_dir, "image_dir.txt")
-    with open(image_dir_txt, "w") as f:
-        f.write(image_dir)
-    print(f"\nImage directory saved to {image_dir_txt}: {image_dir}")
+    if min_positives is not None and total_positives < min_positives:
+        raise ValueError(
+            f"Incomplete dataset in '{image_dir}': matched {total_positives} pneumothorax "
+            f"images, expected at least {min_positives}."
+        )
+    for name, counts in summary.splits.items():
+        print(
+            f"  {name:11s}: {counts.samples:6d} samples ({counts.patients:5d} patients) | "
+            f"Pneumo: {counts.pneumothorax} | Normal: {counts.no_finding}"
+        )
+    print(f"Verified zero patient overlap: {summary.pairwise_patient_overlaps}")
 
 
 def main() -> None:
@@ -175,13 +63,23 @@ def main() -> None:
         default=None,
         help="Directory containing all images (default: data/raw/images)",
     )
+    parser.add_argument(
+        "--min-images",
+        type=int,
+        default=None,
+        help="Fail fast if total matched images across splits fall below this floor.",
+    )
+    parser.add_argument(
+        "--min-positives",
+        type=int,
+        default=None,
+        help="Fail fast if total matched Pneumothorax images fall below this floor.",
+    )
     args = parser.parse_args()
 
     config = get_settings()
-
     raw_csv = "data/raw/Data_Entry_2017.csv"
     processed_dir = "data/processed/"
-
     image_dir = args.image_dir or config.paths.image_dir
 
     if not os.path.exists(raw_csv):
@@ -198,6 +96,8 @@ def main() -> None:
             val_split=config.data.val_split,
             test_split=config.data.test_split,
             seed=config.training.seed,
+            min_images=args.min_images,
+            min_positives=args.min_positives,
         )
 
 

@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
-from core.evaluation.stats import bootstrap_ci, delong_test, mcnemar_test, permutation_test
+from tcrp.evaluation.stats import bootstrap_ci, delong_test, mcnemar_test, permutation_test
 
 
 @pytest.fixture

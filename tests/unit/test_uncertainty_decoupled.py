@@ -5,9 +5,11 @@ from __future__ import annotations
 import numpy as np
 import torch
 import torch.nn as nn
-
-from core.uncertainty.mc_dropout import compute_mutual_information, compute_predictive_entropy
-from core.uncertainty.tta import TestTimeAugmenter
+from tcrp.uncertainty.analysis import (
+    TestTimeAugmenter,
+    compute_mutual_information,
+    compute_predictive_entropy,
+)
 
 
 class DummyModel(nn.Module):

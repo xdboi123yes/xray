@@ -10,14 +10,15 @@ from typing import Any
 import pytest
 import torch
 import torch.nn as nn
+from tcrp.models import Tier1MobileNet
+from tcrp.training import (
+    CheckpointManager,
+    CheckpointObserver,
+    EarlyStoppingObserver,
+    LRLoggerObserver,
+    Trainer,
+)
 from torch.utils.data import DataLoader, Dataset
-
-from core.models.tier1_mobilenet import Tier1MobileNet
-from infrastructure.persistence.checkpoint import CheckpointManager
-from infrastructure.training.observers.checkpoint_observer import CheckpointObserver
-from infrastructure.training.observers.early_stopping import EarlyStoppingObserver
-from infrastructure.training.observers.lr_logger import LRLoggerObserver
-from infrastructure.training.trainer import Trainer
 
 
 class DummyDataset(Dataset[Any]):

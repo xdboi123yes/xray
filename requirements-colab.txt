@@ -1,0 +1,48 @@
+# Lean Python 3.13-compatible dependency specification for Google Colab Pro (L4 GPU).
+#
+# Intentionally omits `torch`, `torchvision`, and `numpy` so Colab's preinstalled
+# CUDA-matched PyTorch build and C-extension-matched NumPy ABI are preserved.
+# Legacy API/UI/dev packages (FastAPI, Uvicorn, Gradio, Plotly, pytest, ruff, mypy)
+# are excluded by design (ADR-0001).
+
+# --- Configuration & structured logging ---
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+pyyaml>=6.0.1
+structlog>=24.1.0
+
+# --- Models, augmentations & explainability ---
+timm>=1.0.0
+albumentations>=1.4.18
+opencv-python-headless>=4.10.0
+pillow>=10.0.0
+grad-cam>=1.5.0
+
+# --- Data processing, statistics & figures ---
+pandas>=2.2.0
+scipy>=1.14.0
+scikit-learn>=1.5.0
+matplotlib>=3.9.0
+seaborn>=0.13.2
+tqdm>=4.66.0
+
+# --- Synthetic augmentation (Stable Diffusion img2img + Inception-v3 FID) ---
+diffusers>=0.30.0
+transformers>=4.44.0
+accelerate>=0.33.0
+safetensors>=0.4.3
+pytorch-fid>=0.3.0
+
+# --- Experiment tracking & benchmarking ---
+mlflow-skinny>=2.16.0
+codecarbon>=2.7.0
+
+# --- ONNX export ---
+onnx>=1.17.0
+onnxruntime>=1.20.0
+onnxscript>=0.1.0
+
+# --- Dataset acquisition & headless analysis notebook execution ---
+kaggle>=1.6.17
+gdown>=5.2.0
+nbconvert>=7.16.0

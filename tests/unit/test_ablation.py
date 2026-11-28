@@ -9,7 +9,7 @@ import json
 import os
 from unittest.mock import MagicMock, patch
 
-from application.orchestration.ablation_runner import AblationRunner
+from tcrp.training import AblationRunner
 
 
 def test_ablation_runner_configs() -> None:
@@ -67,13 +67,17 @@ training:
         assert result["returncode"] == 0
         assert mock_popen.called
 
-        # Confirm command executed contained targeted parameters
-        args, _ = mock_popen.call_args
+        # Confirm command executed contained targeted parameters and env overrides
+        args, kwargs = mock_popen.call_args
         cmd = args[0]
         assert any("scripts/train_tier2.py" in c for c in cmd)
         assert "ark_plus" in cmd
+        child_env = kwargs.get("env", {})
+        assert child_env.get("XRAY_TRAINING__EPOCHS") == "1"
+        assert child_env.get("XRAY_MODEL__MC_DROPOUT_PASSES") == "1"
+        assert child_env.get("XRAY_MODEL__TTA_PASSES") == "1"
 
-        # Confirm config file was correctly restored after experiment
+        # Confirm config file was never mutated on disk
         with open(dummy_config_path) as f:
             restored_content = f.read()
         assert "epochs: 50" in restored_content

@@ -55,50 +55,61 @@ def save_figure(fig: plt.Figure, name: str) -> None:
 
 
 def build_ablation_overview() -> None:
-    """Horizontal AUC and ECE bars for every ablation (A1-A15) with enlarged embedded labels."""
+    """Horizontal AUC and ECE bars for every ablation with print-legible labels at 100% zoom."""
     rows = json.loads((RESULTS_DIR / "ablation.json").read_text())
     ids = [r["ablation_id"] for r in rows]
     names = [r["name"] for r in rows]
     aucs = [r["metrics"]["auc_roc"] for r in rows]
     eces = [r["metrics"].get("ece") for r in rows]
-    labels = [f"{i}  {n}" for i, n in zip(ids, names, strict=False)]
+    labels = [f"{i}: {n}" for i, n in zip(ids, names, strict=False)]
     best = max(range(len(aucs)), key=lambda k: aucs[k])
 
     y = range(len(rows))
-    fig, (ax_auc, ax_ece) = plt.subplots(1, 2, figsize=(15, 8.5), sharey=True)
+    fig, (ax_auc, ax_ece) = plt.subplots(1, 2, figsize=(15.5, 9.5), sharey=True)
 
+    auc_min = min(0.75, min(aucs) - 0.03)
     auc_colors = [HIGHLIGHT if k == best else ACCENT for k in range(len(rows))]
-    ax_auc.barh(list(y), aucs, color=auc_colors)
-    ax_auc.set_xlim(0.84, 0.94)
-    ax_auc.set_xlabel("AUC-ROC", fontsize=12, fontweight="bold")
-    ax_auc.set_title("Discrimination (AUC-ROC)", fontsize=13, fontweight="bold", pad=12)
+    ax_auc.barh(list(y), aucs, color=auc_colors, height=0.72)
+    ax_auc.set_xlim(auc_min, 0.96)
+    ax_auc.set_xlabel("AUC-ROC", fontsize=14, fontweight="bold")
+    ax_auc.set_title("Discrimination (AUC-ROC)", fontsize=15, fontweight="bold", pad=12)
     ax_auc.set_yticks(list(y))
-    ax_auc.set_yticklabels(labels, fontsize=10, fontweight="medium")
-    ax_auc.tick_params(axis='x', labelsize=10)
+    ax_auc.set_yticklabels(labels, fontsize=13, fontweight="semibold")
+    ax_auc.tick_params(axis="x", labelsize=12.5)
+    ax_auc.grid(axis="x", linestyle="--", alpha=0.35)
     ax_auc.invert_yaxis()
     for k, v in enumerate(aucs):
-        ax_auc.text(v + 0.0012, k, f"{v:.3f}", va="center", fontsize=9.5, fontweight="bold")
+        ax_auc.text(v + 0.002, k, f"{v:.3f}", va="center", fontsize=12, fontweight="bold")
 
     ece_vals = [(e if e is not None else 0.0) for e in eces]
-    ax_ece.barh(list(y), ece_vals, color=MUTED)
-    ax_ece.set_xlim(0, 0.115)
-    ax_ece.set_xlabel("Expected Calibration Error", fontsize=12, fontweight="bold")
-    ax_ece.set_title("Calibration (ECE, lower is better)", fontsize=13, fontweight="bold", pad=12)
-    ax_ece.tick_params(axis='x', labelsize=10)
+    ece_max = max([e for e in eces if e is not None] + [0.10]) + 0.025
+    ax_ece.barh(list(y), ece_vals, color=MUTED, height=0.72)
+    ax_ece.set_xlim(0, ece_max)
+    ax_ece.set_xlabel("Expected Calibration Error (15 bins)", fontsize=14, fontweight="bold")
+    ax_ece.set_title("Calibration (ECE, lower is better)", fontsize=15, fontweight="bold", pad=12)
+    ax_ece.tick_params(axis="x", labelsize=12.5)
+    ax_ece.grid(axis="x", linestyle="--", alpha=0.35)
     for k, e in enumerate(eces):
         text = "n/a" if e is None else f"{e:.3f}"
-        ax_ece.text(max(e, 0.001) + 0.002 if e is not None else 0.002, k, text, va="center", fontsize=9.5, fontweight="bold")
+        ax_ece.text(
+            max(e, 0.001) + 0.002 if e is not None else 0.002,
+            k,
+            text,
+            va="center",
+            fontsize=12,
+            fontweight="bold",
+        )
 
-    fig.suptitle("Ablation study overview (A1-A15)", fontsize=15, fontweight="bold", y=0.98)
+    fig.suptitle("Ablation Study Overview (Discrimination & Calibration)", fontsize=16, fontweight="bold", y=0.985)
     fig.text(
         0.5,
         0.01,
-        "All configurations evaluated on the NIH test set except A14, which is a zero-shot evaluation on CheXpert.",
+        "Evaluated on the NIH ChestX-Ray14 test set except A14 (zero-shot CheXpert). Highlighted bar marks highest AUC.",
         ha="center",
-        fontsize=10,
+        fontsize=11.5,
         color="#334155",
     )
-    fig.tight_layout(rect=(0, 0.03, 1, 0.95))
+    fig.tight_layout(rect=(0, 0.035, 1, 0.955))
     save_figure(fig, "ablation_overview.png")
     plt.close(fig)
 

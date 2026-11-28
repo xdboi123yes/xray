@@ -28,12 +28,12 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-from config.settings import get_settings
-from core.augmentation.classical import ClassicalAugmentation
-from core.models.factory import ModelFactory
-from infrastructure.data.dataset import NIHChestXrayDataset
+from tcrp.config import get_settings
+from tcrp.data.augmentation import ClassicalAugmentation
+from tcrp.data.datasets import NIHChestXrayDataset
+from tcrp.models import ModelFactory
 
 
 def _load_weights(model: torch.nn.Module, path: str, device: torch.device) -> bool:
@@ -74,7 +74,7 @@ def _run_split(
     esc_threshold: float,
 ) -> pd.DataFrame:
     """Run both tiers over a split and return a per-image dataframe."""
-    transform = ClassicalAugmentation(image_size=image_size, is_training=False)._pipeline
+    transform = ClassicalAugmentation(image_size=image_size, is_training=False).pipeline
     loader = DataLoader(
         NIHChestXrayDataset(csv_file=csv_file, transform=transform),
         batch_size=1,
@@ -138,6 +138,11 @@ def main() -> None:
         "(defaults to config model.confidence_threshold).",
     )
     parser.add_argument("--output", default="outputs/results/tiered_predictions.csv")
+    parser.add_argument(
+        "--val-output",
+        default="outputs/results/val_predictions.csv",
+        help="Path to save per-image validation predictions (used for validation-only routing grid search).",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -178,7 +183,7 @@ def main() -> None:
     print("Running both tiers over the test split...")
     df = _run_split(test_csv, tier1, tier2, device, image_size, args.mc_passes, esc_threshold)
 
-    # Temperature scaling: fit T on the validation split, apply to the test tiered probs.
+    # Temperature scaling: fit T strictly on the validation split, apply to test probs.
     if os.path.exists(val_csv):
         print("Fitting temperature on the validation split...")
         val_df = _run_split(
@@ -189,6 +194,10 @@ def main() -> None:
             np.clip(1 - val_df["tiered_prob"], eps, 1 - eps)
         )
         temperature = _fit_temperature(v_logit.to_numpy(), val_df["y_true"].to_numpy())
+        if args.val_output:
+            os.makedirs(os.path.dirname(args.val_output) or ".", exist_ok=True)
+            val_df.to_csv(args.val_output, index=False)
+            print(f"Wrote {len(val_df)} validation predictions to {args.val_output}")
     else:
         temperature = 1.0
     print(f"Temperature = {temperature:.3f}")

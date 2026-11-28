@@ -1,8 +1,10 @@
 import os
 
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 from sklearn.metrics import auc, roc_curve
 
 
@@ -74,8 +76,21 @@ def plot_confidence_distribution(df, output_path):
     
     # Convert tier_used to categorical for better legend
     df['tier_used'] = df['tier_used'].astype(str)
-    
-    sns.histplot(data=df, x='confidence', hue='tier_used', bins=30, multiple="stack", palette="Set2")
+
+    try:
+        import seaborn as sns
+
+        sns.histplot(
+            data=df, x='confidence', hue='tier_used', bins=30, multiple="stack", palette="Set2"
+        )
+    except ImportError:
+        groups = [
+            df.loc[df['tier_used'] == tier, 'confidence'].to_numpy()
+            for tier in sorted(df['tier_used'].unique())
+        ]
+        labels = [f"Tier {tier}" for tier in sorted(df['tier_used'].unique())]
+        plt.hist(groups, bins=30, stacked=True, label=labels)
+        plt.legend()
     
     plt.title('Confidence Distribution by Tier', fontsize=14)
     plt.xlabel('Confidence Score')
@@ -87,12 +102,17 @@ def plot_confidence_distribution(df, output_path):
     print(f"Generated {output_path}")
 
 def plot_roc_curve(df, output_path):
-    if 'ground_truth' not in df.columns or 'confidence' not in df.columns:
+    label_col = 'ground_truth' if 'ground_truth' in df.columns else ('y_true' if 'y_true' in df.columns else None)
+    prob_col = next(
+        (c for c in ('confidence', 'prob_cal', 'tiered_prob') if c in df.columns),
+        None,
+    )
+    if label_col is None or prob_col is None:
         print("Missing required columns for ROC curve.")
         return
-        
-    y_true = df['ground_truth']
-    y_probs = df['confidence']
+
+    y_true = df[label_col]
+    y_probs = df[prob_col]
     
     fpr, tpr, thresholds = roc_curve(y_true, y_probs)
     roc_auc = auc(fpr, tpr)
