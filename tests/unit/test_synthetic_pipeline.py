@@ -690,3 +690,46 @@ def test_makefile_and_notebook_match_synthetic_defaults() -> None:
     assert "batch_size=200" in config_src
     assert "strength=0.15" in config_src
     assert "'--strength'" in synth_src
+
+
+def test_synthetic_audit_reports_recorded_generation_params_and_keeps_stage1_grid(tmp_path):
+    import json
+
+    import pandas as pd
+
+    from scripts.revision_experiments import run_synthetic_audit
+
+    syn = tmp_path / "synthetic"
+    (syn / "accepted").mkdir(parents=True)
+    pd.DataFrame({"batch": [1, 2, 3], "fid": [40.0, 48.0, 60.0], "accepted": [True, True, False]}).to_csv(
+        syn / "fid_log.csv", index=False
+    )
+    gen_summary = tmp_path / "synthetic_generation_summary.json"
+    gen_summary.write_text(json.dumps({"strength": 0.15, "batch_size": 200, "num_variations": 3,
+                                       "fid_threshold": 50.0, "seed_scope": "all"}))
+    stage1_grid = tmp_path / "synthetic_quality_grid.png"
+    stage1_grid.write_bytes(b"stage1-grid")
+
+    out = run_synthetic_audit(
+        synthetic_dir=str(syn),
+        output_json=str(tmp_path / "audit.json"),
+        output_fig=str(tmp_path / "synthetic_audit_grid.png"),
+        generation_summary=str(gen_summary),
+    )
+    assert out["strength"] == 0.15
+    assert out["batch_size"] == 200
+    assert out["fid_accepted_mean"] == 44.0
+    assert out["fid_accepted_max"] == 48.0
+    assert stage1_grid.read_bytes() == b"stage1-grid"
+
+
+def test_synthetic_audit_never_invents_generation_params(tmp_path):
+    from scripts.revision_experiments import run_synthetic_audit
+
+    out = run_synthetic_audit(
+        synthetic_dir=str(tmp_path / "missing"),
+        output_json=str(tmp_path / "audit.json"),
+        output_fig=str(tmp_path / "grid.png"),
+        generation_summary=str(tmp_path / "absent.json"),
+    )
+    assert "strength" not in out

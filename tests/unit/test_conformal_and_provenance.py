@@ -563,3 +563,39 @@ def test_production_notebook_enforces_temperature_before_conformal_and_provenanc
     assert "calibration_temperature" in gate_src
     assert "calibration_conformal" in gate_src
     assert "synthetic_generation" in gate_src
+
+
+def _split_fixture(tmp_path: Path) -> Path:
+    import hashlib
+    import json
+
+    processed = tmp_path / "data" / "processed"
+    processed.mkdir(parents=True)
+    splits = {}
+    for name in ("train", "val", "calibration", "test"):
+        raw = f"Image Index,Label\n{name}_001.png,0\n".encode()
+        (processed / f"{name}.csv").write_bytes(raw)
+        splits[name] = {"rows": 1, "sha256": hashlib.sha256(raw).hexdigest()}
+    manifest = tmp_path / "split_manifest.json"
+    manifest.write_text(json.dumps({"splits": splits}))
+    return manifest
+
+
+def test_verify_split_csv_hashes_accepts_the_recorded_splits(tmp_path: Path) -> None:
+    from tcrp.evaluation.provenance import verify_split_csv_hashes
+
+    manifest = _split_fixture(tmp_path)
+    assert verify_split_csv_hashes(manifest, tmp_path / "data" / "processed") == []
+
+
+def test_verify_split_csv_hashes_flags_regenerated_or_missing_splits(tmp_path: Path) -> None:
+    from tcrp.evaluation.provenance import verify_split_csv_hashes
+
+    manifest = _split_fixture(tmp_path)
+    processed = tmp_path / "data" / "processed"
+    (processed / "test.csv").write_text("Image Index,Label\nother.png,1\n")
+    (processed / "calibration.csv").unlink()
+    errors = verify_split_csv_hashes(manifest, processed)
+    assert any("test" in e and "mismatch" in e.lower() for e in errors)
+    assert any("calibration" in e and "missing" in e.lower() for e in errors)
+    assert len(errors) == 2

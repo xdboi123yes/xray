@@ -27,7 +27,9 @@ from tcrp.evaluation.metrics import (
     compute_all_metrics,
     expected_calibration_error,
     negative_log_likelihood,
+    operating_point,
     wilson_ci,
+    youden_threshold,
 )
 from tcrp.evaluation.stats import bootstrap_ci
 from tcrp.models import ModelFactory, TieredSystem
@@ -82,6 +84,13 @@ def main() -> None:
         default=2000,
         help="Bootstrap iterations for 95% confidence intervals",
     )
+    parser.add_argument(
+        "--recalibrate-from",
+        type=str,
+        default=None,
+        help="Result JSON of another CheXpert cohort (A14); report this cohort at that cohort's "
+        "Youden-J threshold as an out-of-sample threshold recalibration.",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
@@ -115,29 +124,34 @@ def main() -> None:
             tier2_path = fallback_path
 
     if not os.path.exists(tier1_path) or not os.path.exists(tier2_path):
-        print(
-            f"Warning: Trained weights not found at '{tier1_path}' or '{tier2_path}'."
-            f" Running zero-shot test using fallback initialized weights."
+        raise FileNotFoundError(
+            f"Zero-shot evaluation requires trained weights at '{tier1_path}' and '{tier2_path}'; "
+            "refusing to report metrics from randomly initialised models."
         )
-
-    if os.path.exists(tier1_path):
-        load_model_weights(tier1, tier1_path, device)
-    if os.path.exists(tier2_path):
-        load_model_weights(tier2, tier2_path, device)
+    load_model_weights(tier1, tier1_path, device)
+    load_model_weights(tier2, tier2_path, device)
 
     tier1.eval()
     tier2.eval()
 
-    cp_path = "outputs/results/q_hat.pt"
+    # Reuse the NIH calibration of the same Tier 2 backbone (written by evaluate_tiered.py):
+    # zero-shot means no CheXpert image ever influences temperature or q_hat.
+    cp_path = (
+        "outputs/results/q_hat.pt"
+        if args.tier2_backbone == "efficientnet_b4"
+        else f"outputs/results/q_hat_{args.tier2_backbone}.pt"
+    )
     cp = ConformalPredictor(alpha=1.0 - settings.evaluation.conformal_coverage)
-    if os.path.exists(cp_path):
-        try:
-            cp.load(cp_path)
-            print(f"Conformal calibration loaded (q_hat={cp.q_hat:.4f})")
-        except Exception as e:
-            print(f"Warning: could not load conformal calibration {cp_path} ({e}); skipping conformal coverage.")
-    else:
-        print("No conformal calibration found. Skipping conformal coverage.")
+    if not os.path.exists(cp_path):
+        raise FileNotFoundError(
+            f"Conformal calibration for {args.tier2_backbone} not found at {cp_path}; "
+            "run evaluate_tiered.py for this backbone first."
+        )
+    probe = torch.load(cp_path, map_location="cpu", weights_only=False)
+    if isinstance(probe, dict) and probe.get("backbone") not in (None, args.tier2_backbone):
+        raise ValueError(f"{cp_path} was calibrated for {probe.get('backbone')!r}, not {args.tier2_backbone!r}")
+    cp.load(cp_path)
+    print(f"Conformal calibration loaded (q_hat={cp.q_hat:.4f}, T_cal={cp.temperature:.4f}) from {cp_path}")
 
     threshold_path = "outputs/models/tier1_mobilenet_threshold.json"
     static_threshold = settings.model.confidence_threshold
@@ -168,7 +182,7 @@ def main() -> None:
         )
         if mlflow_on:
             mlflow.end_run()
-        return
+        raise SystemExit(2)
 
     image_size = settings.data.image_size
     test_dataset = CheXpertDataset(
@@ -176,10 +190,10 @@ def main() -> None:
         transform=ClassicalAugmentation(image_size=image_size, is_training=False).pipeline,
     )
     if len(test_dataset) == 0:
-        print("[evaluate_chexpert] Warning: CheXpert test dataset split is empty.")
+        print("[evaluate_chexpert] Error: CheXpert test dataset split is empty.")
         if mlflow_on:
             mlflow.end_run()
-        return
+        raise SystemExit(2)
 
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     print(f"Evaluating tiered system zero-shot on {len(test_dataset)} CheXpert images ({chexpert_csv})...")
@@ -239,11 +253,38 @@ def main() -> None:
         )
         ci_summary["auc_patient_bootstrap_95ci"] = list(auc_boot["model1_ci"])
 
+    n_unique_patients = len(set(patient_ids))
+    if n_total > 1 and n_unique_patients < 2:
+        raise ValueError(
+            "All CheXpert images resolved to one patient id; the patient-clustered bootstrap would be "
+            "meaningless. Rebuild the cohort CSV with scripts/prepare_chexpert.py."
+        )
+
     # Prevalence-shift analysis: evaluate operating points at higher decision thresholds
     threshold_analysis = {
         f"thr_{thr:.2f}": compute_all_metrics(y_true_arr, y_probs_arr, threshold=thr)
         for thr in (0.50, 0.70, 0.80, 0.90)
     }
+    # Threshold recalibration: the NIH-validation routing threshold, this cohort's own (in-sample,
+    # optimistic) Youden-J threshold, and optionally another cohort's Youden-J threshold (out-of-sample).
+    operating_points: dict[str, dict] = {
+        "default_0.50": operating_point(y_true_arr, y_probs_arr, 0.5),
+        "nih_val_youden": operating_point(y_true_arr, y_probs_arr, float(static_threshold)),
+    }
+    own_youden: float | None = None
+    if n_pos >= 1 and n_neg >= 1:
+        own_youden = youden_threshold(y_true_arr, y_probs_arr)
+        operating_points["in_sample_youden"] = operating_point(y_true_arr, y_probs_arr, own_youden)
+    if args.recalibrate_from:
+        with open(args.recalibrate_from) as rf:
+            ref = json.load(rf)
+        ref_thr = ref.get("youden_threshold")
+        if ref_thr is None:
+            raise ValueError(f"{args.recalibrate_from} has no 'youden_threshold' to recalibrate from")
+        operating_points["recalibrated_from_reference"] = {
+            **operating_point(y_true_arr, y_probs_arr, float(ref_thr)),
+            "reference": args.recalibrate_from,
+        }
 
     percent_tier2 = (tier2_count / max(1, n_total)) * 100.0
     avg_inference_time = total_inference_time / max(1, n_total)
@@ -279,7 +320,7 @@ def main() -> None:
                     "tier2_backbone": args.tier2_backbone,
                     "evaluation_dataset": chexpert_csv,
                     "n_images": n_total,
-                    "n_patients": len(set(patient_ids)),
+                    "n_patients": n_unique_patients,
                     "n_positive": n_pos,
                     "prevalence": n_pos / max(1, n_total),
                     "percent_tier2": percent_tier2,
@@ -287,13 +328,17 @@ def main() -> None:
                     "metrics": metrics,
                     "confidence_intervals": ci_summary,
                     "threshold_analysis": threshold_analysis,
+                    "youden_threshold": own_youden,
+                    "operating_points": operating_points,
                 },
                 rf,
                 indent=2,
             )
         print(f"Saved evaluation results marker to {results_marker}")
     except Exception as dump_err:
-        print(f"Warning: could not write results marker: {dump_err}")
+        if mlflow_on:
+            mlflow.end_run()
+        raise RuntimeError(f"could not write results marker: {dump_err}") from dump_err
 
     if mlflow_on:
         mlflow.end_run()

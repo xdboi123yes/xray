@@ -59,34 +59,17 @@ def estimate_flops_and_params(model: nn.Module, input_size: tuple[int, ...] = (1
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    macs = 0.0
-    handles: list[Any] = []
-
-    def _conv_hook(mod: nn.Conv2d, _inp: Any, out: torch.Tensor) -> None:
-        nonlocal macs
-        b, c_out, h_out, w_out = out.shape
-        k_h, k_w = mod.kernel_size if isinstance(mod.kernel_size, tuple) else (mod.kernel_size, mod.kernel_size)
-        macs += float(b * c_out * h_out * w_out * (mod.in_channels // mod.groups) * k_h * k_w)
-
-    def _linear_hook(mod: nn.Linear, inp: Any, _out: torch.Tensor) -> None:
-        nonlocal macs
-        x = inp[0]
-        batch_elems = int(np.prod(x.shape[:-1]))
-        macs += float(batch_elems * mod.in_features * mod.out_features)
-
-    for m in model.modules():
-        if isinstance(m, nn.Conv2d):
-            handles.append(m.register_forward_hook(_conv_hook))
-        elif isinstance(m, nn.Linear):
-            handles.append(m.register_forward_hook(_linear_hook))
+    # FlopCounterMode counts every aten matmul/conv (incl. Swin window attention and SDPA),
+    # which module hooks on Conv2d/Linear alone would miss.
+    from torch.utils.flop_counter import FlopCounterMode
 
     model_cpu = model.eval()
     device = next(model_cpu.parameters()).device
     dummy = torch.randn(*input_size, device=device)
-    with torch.no_grad():
+    counter = FlopCounterMode(display=False)
+    with torch.no_grad(), counter:
         _ = model_cpu(dummy)
-    for h in handles:
-        h.remove()
+    macs = counter.get_total_flops() / 2.0
 
     # Standard convention: 1 MAC = 2 FLOPs
     return {

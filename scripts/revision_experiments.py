@@ -409,9 +409,14 @@ def run_calibration_report(
 def run_synthetic_audit(
     synthetic_dir: str = "data/synthetic",
     output_json: str = "outputs/results/synthetic_audit.json",
-    output_fig: str = "outputs/figures/synthetic_quality_grid.png",
+    output_fig: str = "outputs/figures/synthetic_audit_grid.png",
+    generation_summary: str = "outputs/provenance/synthetic_generation_summary.json",
 ) -> dict[str, Any]:
-    """Summarize synthetic generation FID logs & build qualitative comparison grid (Comment 4)."""
+    """Summarize synthetic generation FID logs & build a sample grid of accepted images (Comment 4).
+
+    Generation parameters are copied from the Stage 1 ``generation_summary`` record, never
+    assumed; the Stage 1 real-vs-synthetic grid (``synthetic_quality_grid.png``) is left untouched.
+    """
     import matplotlib
 
     matplotlib.use("Agg")
@@ -423,13 +428,23 @@ def run_synthetic_audit(
     accepted_dir = os.path.join(synthetic_dir, "accepted")
     rejected_dir = os.path.join(synthetic_dir, "rejected")
 
+    from tcrp.config import get_settings
+
+    aug = get_settings().augmentation
     summary: dict[str, Any] = {
-        "model_id": "runwayml/stable-diffusion-v1-5",
+        "model_id": "stable-diffusion-v1-5/stable-diffusion-v1-5",
         "pipeline": "StableDiffusionImg2ImgPipeline",
-        "strength": 0.3,
-        "guidance_scale": 7.5,
-        "num_inference_steps": 50,
-        "fid_threshold": 50.0,
+        "guidance_scale": float(aug.sd_guidance_scale),
+        "num_inference_steps": int(aug.sd_num_inference_steps),
+    }
+    if os.path.exists(generation_summary):
+        with open(generation_summary) as fh:
+            recorded = json.load(fh)
+        for key in ("strength", "batch_size", "num_variations", "fid_threshold", "seed_scope",
+                    "output_resolution", "unique_synthetic_patients", "non_train_patient_overlap"):
+            if key in recorded:
+                summary[key] = recorded[key]
+    summary |= {
         "accepted_count": len(os.listdir(accepted_dir)) if os.path.isdir(accepted_dir) else 0,
         "rejected_count": len(os.listdir(rejected_dir)) if os.path.isdir(rejected_dir) else 0,
     }
@@ -440,6 +455,11 @@ def run_synthetic_audit(
         summary["fid_mean"] = float(fdf["fid"].mean())
         summary["fid_min"] = float(fdf["fid"].min())
         summary["fid_max"] = float(fdf["fid"].max())
+        acc = fdf[fdf["accepted"].astype(bool)]
+        if len(acc):
+            summary["fid_accepted_mean"] = float(acc["fid"].mean())
+            summary["fid_accepted_min"] = float(acc["fid"].min())
+            summary["fid_accepted_max"] = float(acc["fid"].max())
     if os.path.exists(meta_csv):
         mdf = pd.read_csv(meta_csv)
         summary["tracked_accepted_records"] = int(len(mdf))
@@ -487,9 +507,18 @@ def main() -> None:
     parser.add_argument("--test-predictions", default="outputs/results/tiered_predictions.csv")
     parser.add_argument("--val-predictions", default="outputs/results/val_predictions.csv")
     parser.add_argument("--n-permutations", type=int, default=10)
+    parser.add_argument(
+        "--require-inputs",
+        action="store_true",
+        help="Fail instead of silently skipping analyses whose prediction CSVs are missing.",
+    )
     args = parser.parse_args()
 
     run_all = args.all
+    if args.require_inputs:
+        missing = [p for p in (args.test_predictions, args.val_predictions) if not os.path.exists(p)]
+        if missing:
+            raise SystemExit(f"[revision_experiments] missing required predictions: {missing}")
     if run_all or args.dataset_audit:
         run_dataset_audit()
     if (run_all or args.routing_grid) and os.path.exists(args.val_predictions):

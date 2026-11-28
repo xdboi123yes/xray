@@ -127,6 +127,22 @@ def _validate_split_manifest_payload(payload: Any) -> list[str]:
     return errors
 
 
+def verify_split_csv_hashes(split_manifest_path: str | Path, processed_dir: str | Path) -> list[str]:
+    """Return errors for split CSVs that are missing or differ from the manifest's SHA-256 digests."""
+    payload = json.loads(Path(split_manifest_path).read_text(encoding="utf-8"))
+    errors: list[str] = []
+    for name in REQUIRED_SPLIT_NAMES:
+        expected = payload.get("splits", {}).get(name, {}).get("sha256")
+        csv = Path(processed_dir) / f"{name}.csv"
+        if not expected:
+            errors.append(f"Split manifest has no sha256 for split {name!r}.")
+        elif not csv.is_file():
+            errors.append(f"Split CSV missing for {name!r}: {csv}")
+        elif compute_file_sha256(csv) != expected:
+            errors.append(f"Split CSV SHA-256 mismatch for {name!r}: {csv} differs from the split manifest.")
+    return errors
+
+
 def _validate_calibration_protocol(metadata: dict[str, Any]) -> list[str]:
     """Validate strict Validation-Split temperature before Calibration-Split conformal order."""
     errors: list[str] = []

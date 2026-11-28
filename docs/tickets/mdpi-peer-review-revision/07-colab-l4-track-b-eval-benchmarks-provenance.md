@@ -4,7 +4,7 @@
 
 **Blocked by:** 06: Execute Track B patient-disjoint synthetic generation and model training on Colab L4
 
-**Status:** open
+**Status:** claimed
 
 - [ ] Disjoint temperature calibration on Validation Split and temperature-scaled conformal calibration on Calibration Split succeed and log singleton, two-class, empty-fallback, and per-class coverage rates.
 - [ ] All ablation configurations (including A5b TTA-only and decomposed epistemic vs. TTA variance) and both CheXpert cohorts (A14 and A14b with 95% Wilson CIs) complete with persisted metrics and predictions.

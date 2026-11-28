@@ -196,6 +196,41 @@ def wilson_ci(successes: int, total: int, z: float = 1.959963984540054) -> tuple
     return float(max(0.0, center - half)), float(min(1.0, center + half))
 
 
+def youden_threshold(y_true: Any, y_probs: Any) -> float:
+    """Return the decision threshold maximising Youden's J (TPR - FPR); highest cut on ties."""
+    from sklearn.metrics import roc_curve
+
+    fpr, tpr, thresholds = roc_curve(np.asarray(y_true, dtype=int), np.asarray(y_probs, dtype=float))
+    finite = np.isfinite(thresholds)
+    j = np.where(finite, tpr - fpr, -np.inf)
+    return float(thresholds[int(np.argmax(j))])
+
+
+def operating_point(y_true: Any, y_probs: Any, threshold: float) -> dict[str, Any]:
+    """Confusion counts, sensitivity/specificity/FNR/accuracy, and 95% Wilson CIs at ``threshold``."""
+    y = np.asarray(y_true, dtype=int)
+    pred = (np.asarray(y_probs, dtype=float) >= threshold).astype(int)
+    tp = int(((pred == 1) & (y == 1)).sum())
+    tn = int(((pred == 0) & (y == 0)).sum())
+    fp = int(((pred == 1) & (y == 0)).sum())
+    fn = int(((pred == 0) & (y == 1)).sum())
+    n_pos, n_neg = tp + fn, tn + fp
+    return {
+        "threshold": float(threshold),
+        "tp": tp,
+        "fn": fn,
+        "tn": tn,
+        "fp": fp,
+        "sensitivity": tp / n_pos if n_pos else float("nan"),
+        "specificity": tn / n_neg if n_neg else float("nan"),
+        "fnr": fn / n_pos if n_pos else float("nan"),
+        "accuracy": (tp + tn) / max(1, len(y)),
+        "sensitivity_wilson_95ci": list(wilson_ci(tp, n_pos)),
+        "specificity_wilson_95ci": list(wilson_ci(tn, n_neg)),
+        "accuracy_wilson_95ci": list(wilson_ci(tp + tn, len(y))),
+    }
+
+
 def calibration_slope_intercept(
     y_true: Any,
     y_probs: Any,
