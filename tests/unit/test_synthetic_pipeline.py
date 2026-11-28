@@ -670,3 +670,23 @@ def test_pytorch_fid_adapter_caches_real_directory_statistics(tmp_path: Path, mo
     assert score_2 == 12.5
     # Real directory computed ONCE across both batches; synth_a and synth_b computed once each
     assert compute_calls == [str(real_dir), str(synth_a), str(synth_b)]
+
+
+def test_makefile_and_notebook_match_synthetic_defaults() -> None:
+    import json
+
+    repo_root = Path(__file__).resolve().parents[2]
+    makefile_text = (repo_root / "Makefile").read_text(encoding="utf-8")
+    assert "--batch-size 200" in makefile_text
+    assert "--strength 0.15" in makefile_text
+
+    nb = json.loads((repo_root / "notebooks" / "xray_colab_produce_all.ipynb").read_text(encoding="utf-8"))
+    cell_sources = [
+        "".join(c["source"]) if isinstance(c["source"], list) else str(c["source"])
+        for c in nb["cells"]
+    ]
+    config_src = next(src for src in cell_sources if "SYNTH_HP =" in src)
+    synth_src = next(src for src in cell_sources if "scripts/generate_synthetics.py" in src)
+    assert "batch_size=200" in config_src
+    assert "strength=0.15" in config_src
+    assert "'--strength'" in synth_src

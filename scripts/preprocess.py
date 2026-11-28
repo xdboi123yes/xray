@@ -21,6 +21,8 @@ def split_data(
     test_split: float,
     seed: int,
     max_ratio: int = 5,
+    min_images: int | None = None,
+    min_positives: int | None = None,
 ) -> None:
     """Build four-way Patient-Disjoint Partition splits and print summary counts."""
     summary = build_patient_disjoint_splits(
@@ -33,6 +35,18 @@ def split_data(
         seed=seed,
         max_ratio=max_ratio,
     )
+    total_samples = sum(c.samples for c in summary.splits.values())
+    total_positives = sum(c.pneumothorax for c in summary.splits.values())
+    if min_images is not None and total_samples < min_images:
+        raise ValueError(
+            f"Incomplete dataset in '{image_dir}': matched {total_samples} images, "
+            f"expected at least {min_images}."
+        )
+    if min_positives is not None and total_positives < min_positives:
+        raise ValueError(
+            f"Incomplete dataset in '{image_dir}': matched {total_positives} pneumothorax "
+            f"images, expected at least {min_positives}."
+        )
     for name, counts in summary.splits.items():
         print(
             f"  {name:11s}: {counts.samples:6d} samples ({counts.patients:5d} patients) | "
@@ -48,6 +62,18 @@ def main() -> None:
         type=str,
         default=None,
         help="Directory containing all images (default: data/raw/images)",
+    )
+    parser.add_argument(
+        "--min-images",
+        type=int,
+        default=None,
+        help="Fail fast if total matched images across splits fall below this floor.",
+    )
+    parser.add_argument(
+        "--min-positives",
+        type=int,
+        default=None,
+        help="Fail fast if total matched Pneumothorax images fall below this floor.",
     )
     args = parser.parse_args()
 
@@ -70,6 +96,8 @@ def main() -> None:
             val_split=config.data.val_split,
             test_split=config.data.test_split,
             seed=config.training.seed,
+            min_images=args.min_images,
+            min_positives=args.min_positives,
         )
 
 

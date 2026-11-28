@@ -275,3 +275,19 @@ def test_mlflow_observer_only_ends_runs_it_started() -> None:
         obs.on_train_end(dummy_trainer)
         mock_mlflow.start_run.assert_called_once()
         mock_mlflow.end_run.assert_called_once()
+
+
+def test_mlflow_observer_disables_cleanly_after_init_failure() -> None:
+    dummy_trainer = MagicMock(
+        config={"training": {"epochs": 2}},
+        optimizer=MagicMock(param_groups=[{"lr": 1e-4}]),
+    )
+    with patch("tcrp.training.observers.mlflow") as mock_mlflow:
+        mock_mlflow.set_experiment.side_effect = ModuleNotFoundError("No module named 'alembic'")
+        obs = MLflowObserver(run_name="skinny")
+        obs.on_train_start(dummy_trainer)
+        obs.on_epoch_end(1, {"val_auc": 0.85}, dummy_trainer)
+        obs.on_epoch_end(2, {"val_auc": 0.86}, dummy_trainer)
+        obs.on_train_end(dummy_trainer)
+        mock_mlflow.log_metrics.assert_not_called()
+        mock_mlflow.end_run.assert_not_called()

@@ -164,3 +164,12 @@ def test_colab_notebook_setup_uses_lean_spec_and_preserves_abi() -> None:
     for mod in ("numpy", "pandas", "torch", "torchvision", "tcrp"):
         assert mod in src, f"Setup cell must verify {mod} importability in a fresh process"
 
+
+def test_base_and_root_configs_agree_on_fifteen_ece_bins() -> None:
+    import yaml
+
+    base_cfg = yaml.safe_load((REPO_ROOT / "config" / "base.yaml").read_text(encoding="utf-8"))
+    root_cfg = yaml.safe_load((REPO_ROOT / "config.yaml").read_text(encoding="utf-8"))
+    assert base_cfg["evaluation"]["ece_bins"] == 15
+    assert root_cfg["evaluation"]["ece_bins"] == 15
+

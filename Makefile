@@ -48,7 +48,7 @@ benchmark:         ## Latency + memory + carbon
 
 # --- Synthetic ---
 generate-synthetic: ## Generate multi-batch FID-gated SD synthetic dataset
-	python -m scripts.generate_synthetics --seed-scope all --batch-size 50 --num-variations 3 --fid-threshold 50.0 --resume
+	python -m scripts.generate_synthetics --seed-scope all --batch-size 200 --num-variations 3 --strength 0.15 --fid-threshold 50.0 --resume
 
 # --- Export ---
 export-onnx:       ## ONNX export + INT8 quantization
@@ -67,7 +67,7 @@ test-integration:  ## Integration tests
 
 lint:              ## Lint code
 	ruff check src/tcrp/ tests/ scripts/
-	mypy src/tcrp/
+	mypy src/tcrp/ scripts/generate_synthetics.py scripts/preprocess.py
 
 format:            ## Auto-format
 	ruff format src/tcrp/ tests/ scripts/

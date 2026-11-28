@@ -26,7 +26,7 @@ repos:
 
       - id: mypy-check
         name: Mypy Static Type Analysis
-        entry: mypy src/tcrp/
+        entry: mypy src/tcrp/ scripts/generate_synthetics.py scripts/preprocess.py
         language: system
         pass_filenames: false
         always_run: true

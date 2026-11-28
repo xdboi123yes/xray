@@ -137,6 +137,7 @@ class MLflowObserver(TrainingObserver):
         self._experiment_name = experiment_name
         self.run_id: str | None = None
         self._owns_run = False
+        self._disabled = False
 
     def on_train_start(self, trainer: Any) -> None:
         try:
@@ -155,9 +156,15 @@ class MLflowObserver(TrainingObserver):
                     flat_params[block_name] = block
             mlflow.log_params(flat_params)
         except Exception as exc:
-            log.error("MLflow initialization failed", error=str(exc))
+            self._disabled = True
+            log.warning(
+                "MLflow tracking disabled for this run after initialization failure",
+                error=str(exc),
+            )
 
     def on_epoch_end(self, epoch: int, metrics: dict[str, float], trainer: Any) -> None:
+        if self._disabled:
+            return
         try:
             logged_metrics = metrics.copy()
             for i, param_group in enumerate(trainer.optimizer.param_groups):
@@ -165,14 +172,21 @@ class MLflowObserver(TrainingObserver):
                 logged_metrics[lr_key] = param_group["lr"]
             mlflow.log_metrics(logged_metrics, step=epoch - 1)
         except Exception as exc:
-            log.error("MLflow epoch metric logging failed", error=str(exc))
+            self._disabled = True
+            log.warning(
+                "MLflow tracking disabled after epoch metric logging failure",
+                error=str(exc),
+            )
 
     def on_train_end(self, trainer: Any) -> None:
+        if self._disabled:
+            self._owns_run = False
+            return
         try:
             if self._owns_run and mlflow.active_run() is not None:
                 mlflow.end_run()
         except Exception as exc:
-            log.error("MLflow run teardown failed", error=str(exc))
+            log.warning("MLflow run teardown failed", error=str(exc))
         finally:
             self._owns_run = False
 

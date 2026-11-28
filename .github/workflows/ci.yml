@@ -2,7 +2,7 @@ name: CI Quality Gate
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, "rev/*" ]
   pull_request:
     branches: [ main, master ]
 
@@ -38,7 +38,7 @@ jobs:
 
       - name: Mypy static check
         run: |
-          mypy src/tcrp/
+          mypy src/tcrp/ scripts/generate_synthetics.py scripts/preprocess.py
 
       - name: Import boundary check
         run: |

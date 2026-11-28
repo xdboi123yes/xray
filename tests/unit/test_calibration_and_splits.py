@@ -216,3 +216,50 @@ def test_build_patient_disjoint_splits_missing_image_dir_requires_opt_out(tmp_pa
         verify_images=False,
     )
     assert sum(c.samples for c in summary.splits.values()) == 24
+
+
+def test_preprocess_split_data_fails_fast_below_completeness_floors(tmp_path: Path) -> None:
+    import numpy as np
+    from PIL import Image
+
+    from scripts.preprocess import split_data
+
+    img_dir = tmp_path / "imgs"
+    img_dir.mkdir()
+    rows = []
+    for i in range(24):
+        pid = f"{i + 1:08d}"
+        fname = f"{pid}_000.png"
+        Image.fromarray(np.zeros((16, 16, 3), dtype=np.uint8)).save(img_dir / fname)
+        rows.append(
+            {
+                "Image Index": fname,
+                "Finding Labels": "Pneumothorax" if i < 6 else "No Finding",
+            }
+        )
+    csv_path = tmp_path / "Data_Entry_2017.csv"
+    pd.DataFrame(rows).to_csv(csv_path, index=False)
+
+    with pytest.raises(ValueError, match="expected at least 100"):
+        split_data(
+            csv_path=str(csv_path),
+            image_dir=str(img_dir),
+            output_dir=str(tmp_path / "out_min_imgs"),
+            train_split=0.50,
+            val_split=0.30,
+            test_split=0.20,
+            seed=42,
+            min_images=100,
+        )
+
+    with pytest.raises(ValueError, match="pneumothorax"):
+        split_data(
+            csv_path=str(csv_path),
+            image_dir=str(img_dir),
+            output_dir=str(tmp_path / "out_min_pos"),
+            train_split=0.50,
+            val_split=0.30,
+            test_split=0.20,
+            seed=42,
+            min_positives=20,
+        )
